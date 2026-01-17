@@ -1,0 +1,156 @@
+.template-html-preview {
+  width: 100%;
+  padding: 20px;
+  background: #f5f5f5;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.template-html-preview.loading,
+.template-html-preview.error {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+  font-size: 16px;
+}
+
+.template-html-preview.error {
+  color: #d32f2f;
+}
+
+.preview-page {
+  width: 794px;
+  min-height: 1123px;
+  position: relative;
+  background: #ffffff;
+  margin: 0 auto 20px;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  page-break-after: always;
+}
+
+.preview-page:last-child {
+  page-break-after: auto;
+}
+
+.preview-section {
+  position: relative;
+  width: 100%;
+}
+
+.preview-section.page-header,
+.preview-section.page-footer {
+  position: absolute;
+}
+
+.preview-section.bill-header,
+.preview-section.bill-footer {
+  position: absolute;
+}
+
+.preview-section.bill-content {
+  position: relative;
+  width: 100%;
+}
+
+.preview-section.page-header {
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.preview-section.page-footer {
+  border-top: 1px dashed #e0e0e0;
+}
+
+.preview-section.bill-header {
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.preview-section.bill-footer {
+  border-top: 1px dashed #e0e0e0;
+}
+
+.template-field {
+  position: absolute;
+  white-space: nowrap;
+  font-family: Arial, sans-serif;
+  line-height: 1.2;
+}
+
+.bill-content .template-field {
+  position: absolute;
+}
+
+.template-table-wrapper {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+}
+
+.bill-content .template-table-wrapper {
+  position: absolute;
+}
+
+.template-table {
+  border-collapse: collapse;
+  width: auto;
+  font-family: Arial, sans-serif;
+  margin: 0;
+}
+
+.template-table th,
+.template-table td {
+  padding: 10px;
+  border: 1px solid #dddddd;
+  text-align: left;
+}
+
+.template-table th {
+  font-weight: bold;
+  background-color: #f0f0f0;
+}
+
+.template-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.template-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* Print styles */
+@media print {
+  .template-html-preview {
+    background: #ffffff;
+    padding: 0;
+  }
+
+  .preview-page {
+    margin: 0;
+    padding: 20px;
+    box-shadow: none !important;
+    outline: none !important;
+    border: none !important;
+    page-break-after: always;
+  }
+
+  .preview-page:last-child {
+    page-break-after: auto;
+  }
+
+  .preview-section {
+    outline: none !important;
+    border: none !important;
+  }
+
+  .preview-section.page-header,
+  .preview-section.page-footer,
+  .preview-section.bill-header,
+  .preview-section.bill-footer {
+    border: none !important;
+    border-bottom: none !important;
+    border-top: none !important;
+  }
+}
+

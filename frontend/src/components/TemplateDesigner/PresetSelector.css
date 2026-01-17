@@ -1,0 +1,53 @@
+.preset-selector {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.selector-group {
+  flex: 1;
+  min-width: 220px;
+}
+
+.selector-group label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.selector-group select {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #ffffff;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.selector-group select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.selector-group select:hover {
+  border-color: #adb5bd;
+}
+
+@media (max-width: 768px) {
+  .preset-selector {
+    flex-direction: column;
+  }
+  
+  .selector-group {
+    width: 100%;
+  }
+}
+
