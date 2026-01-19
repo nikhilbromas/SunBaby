@@ -3,35 +3,38 @@
   flex-direction: column;
   height: 95vh;
   overflow: hidden;
-  background: #f8f9fa;
-}
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
+  background: var(--bg);
+}
+::-webkit-scrollbar { width:0; height:0; }
 .designer-content {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 0;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .properties-panel-container {
-  border-bottom: 1px solid #d0d7de;
-  background: #f8f9fa;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.75);
   max-height: 250px;
   overflow-x: auto;
   overflow-y: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  zoom: 0.8;
 }
 
 .canvas-container {
   flex: 1;
   overflow: auto;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background: radial-gradient(900px 400px at 20% 0%, rgba(11, 99, 255, 0.10) 0%, transparent 60%),
+    linear-gradient(135deg, #f7f9ff 0%, #eef2ff 100%);
   padding: 2rem;
   display: flex;
   justify-content: center;
@@ -46,35 +49,36 @@
 }
 
 .canvas {
-  background: #ffffff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
   position: relative;
   margin: 0 auto;
   padding: 40px;
   min-height: 1123px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   transition: all 0.3s ease;
   background-image: 
     linear-gradient(to right, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
   background-size: 20px 20px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
 }
 
 .canvas.drag-over {
-  border: 2px dashed #007bff;
-  background: #f0f7ff;
-  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.15), 0 1px 3px rgba(0, 123, 255, 0.2);
+  border: 2px dashed var(--brand-600);
+  background: var(--brand-50);
+  box-shadow: var(--shadow-md);
 }
 
 .canvas-header {
   margin-bottom: 24px;
   padding-bottom: 12px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 1px solid var(--border);
 }
 
 .canvas-header h3 {
   font-size: 1.1rem;
-  color: #2c3e50;
+  color: var(--text);
   font-weight: 600;
   margin: 0;
 }
@@ -133,8 +137,8 @@
   position: absolute;
   left: 0;
   right: 0;
-  border: 2px dashed #e0e0e0;
-  background: rgba(255, 255, 255, 0.5);
+  border: 2px dashed rgba(148, 163, 184, 0.55);
+  background: rgba(255, 255, 255, 0.55);
   min-height: 40px;
   padding: 5px;
   overflow: visible;
@@ -143,17 +147,17 @@
 }
 
 .section-zone:hover {
-  border-color: rgba(0, 123, 255, 0.5);
+  border-color: rgba(11, 99, 255, 0.55);
   background: rgba(255, 255, 255, 0.7);
 }
 
 .section-zone .section-label {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--muted);
   font-weight: 600;
   padding: 4px 8px;
-  background: rgba(0, 123, 255, 0.1);
-  border-radius: 4px;
+  background: rgba(11, 99, 255, 0.10);
+  border-radius: 8px;
   margin-bottom: 4px;
   display: inline-block;
   pointer-events: none;
@@ -162,13 +166,13 @@
 }
 
 .page-header-zone {
-  border-color: #007bff;
-  background: rgba(0, 123, 255, 0.05);
+  border-color: rgba(11, 99, 255, 0.85);
+  background: rgba(11, 99, 255, 0.05);
 }
 
 .bill-header-zone {
-  border-color: #28a745;
-  background: rgba(40, 167, 69, 0.05);
+  border-color: rgba(37, 99, 235, 0.55);
+  background: rgba(11, 99, 255, 0.035);
   pointer-events: auto;
 }
 
@@ -180,18 +184,18 @@
 }
 
 .bill-content-zone {
-  border-color: #6f42c1;
-  background: rgba(111, 66, 193, 0.05);
+  border-color: rgba(11, 99, 255, 0.55);
+  background: rgba(11, 99, 255, 0.03);
 }
 
 .bill-footer-zone {
-  border-color: #ffc107;
-  background: rgba(255, 193, 7, 0.05);
+  border-color: rgba(11, 99, 255, 0.55);
+  background: rgba(11, 99, 255, 0.03);
 }
 
 .page-footer-zone {
-  border-color: #dc3545;
-  background: rgba(220, 53, 69, 0.05);
+  border-color: rgba(11, 99, 255, 0.55);
+  background: rgba(11, 99, 255, 0.03);
 }
 
 .section-resize-handle {
@@ -199,7 +203,7 @@
 }
 
 .section-resize-handle:hover {
-  background-color: rgba(0, 123, 255, 0.3) !important;
+  background-color: rgba(11, 99, 255, 0.25) !important;
 }
 
 @media (max-width: 1024px) {

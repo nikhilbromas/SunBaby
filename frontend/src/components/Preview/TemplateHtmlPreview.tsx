@@ -95,6 +95,8 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
     );
   };
 
+ 
+
   // Render a table with pagination support (startIndex/endIndex for row splitting)
   const renderTable = (
     tableConfig: ItemsTableConfig | ContentDetailsTableConfig,
@@ -117,12 +119,27 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
     // Show header on first page or repeat header setting
     const showHeader = pageNumber === 1 || true; // TODO: Support repeatHeader config
 
-    // Calculate top position - use adjustedY from pagination if provided, otherwise use table's y
-    const topPosition = adjustedY !== undefined ? adjustedY : (tableConfig.y || 0);
-    
+    // Validation: Determine if this is a new table starting (not a pagination continuation)
+    // Use tableConfig.y when:
+    // 1. This is a continuation chunk (startIndex > 0) -> use adjustedY (should be 0 for continuation pages)
+    // 2. This is the first chunk (startIndex === 0 or undefined):
+    //    - If adjustedY is provided and > 0 -> use adjustedY (gap-based positioning from previous elements)
+    //    - If adjustedY === 0 or undefined -> use tableConfig.y (new table starting at top of page)
+    let topPosition: number;
+    if (startIndex !== undefined && startIndex > 0) {
+      // Continuation chunk - use adjustedY (should be 0 for continuation pages)
+      topPosition = adjustedY !== undefined ? adjustedY : 0;
+    } else {
+      // First chunk - use tableConfig.y if starting at top, otherwise use adjustedY
+      if (adjustedY !== undefined && adjustedY > 0) {
+        topPosition = adjustedY; // Gap-based positioning
+      } else {
+        topPosition = tableConfig.y || 0; // New table starting at top
+      }
+    }
+    console.log(topPosition,tableConfig);
     const style: React.CSSProperties = {
-      position: 'absolute',
-      left: `${tableConfig.x || 0}px`,
+      position: 'relative',
       top: `${topPosition}px`,
       width: tableConfig.tableWidth ? `${tableConfig.tableWidth}px` : 'auto',
       borderColor: tableConfig.borderColor || '#dddddd',
@@ -185,7 +202,7 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
               })
             ) : (
               <tr>
-                {visibleColumns.map((col, colIdx) => (
+                {visibleColumns.map((_col, colIdx) => (
                   <td
                     key={colIdx}
                     style={{
@@ -199,13 +216,111 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
                 ))}
               </tr>
             )}
+            {/* Render final rows if they exist - only when table is completely rendered */}
+            {tableConfig.finalRows && tableConfig.finalRows.length > 0 && (() => {
+              // Check if table is completely rendered (all rows shown)
+              // Final rows should only show when:
+              // 1. endIndex is undefined (no pagination, all data shown), OR
+              // 2. endIndex equals data.length (last chunk of paginated table)
+              const isTableComplete = endIndex === undefined || endIndex >= data.length;
+              
+              if (!isTableComplete) return null;
+              
+              return tableConfig.finalRows.map((finalRow, rowIndex) => {
+                if (finalRow.visible === false) return null;
+              
+              // Render cells based on the actual cells array, handling column spanning
+              let columnIndex = 0;
+              
+              return (
+                <tr 
+                  key={`final-${rowIndex}`}
+                  style={{
+                    backgroundColor: finalRow.backgroundColor || undefined,
+                    borderTop: finalRow.borderTop ? `${(tableConfig.borderWidth || 1) * 2}px solid ${tableConfig.borderColor || '#dddddd'}` : undefined,
+                  }}
+                >
+                  {finalRow.cells.map((cell, cellIndex) => {
+                    // Get the corresponding visible column for this cell
+                    const colForAlignment = visibleColumns[columnIndex] || visibleColumns[visibleColumns.length - 1];
+                    
+                    // Ensure minimum font size for visibility
+                    const tableFontSize = tableConfig.fontSize || 12;
+                    const cellFontSize = cell.fontSize || tableFontSize;
+                    const minFontSize = Math.max(10, cellFontSize);
+                    
+                    const cellStyles: React.CSSProperties = {
+                      padding: `${tableConfig.cellPadding || 10}px`,
+                      border: `${tableConfig.borderWidth || 1}px solid ${tableConfig.borderColor || '#dddddd'}`,
+                      textAlign: cell.align || colForAlignment?.align || 'left',
+                      fontWeight: cell.fontWeight || 'normal',
+                      fontSize: `${minFontSize}px`,
+                      color: cell.color || '#000000',
+                      backgroundColor: finalRow.backgroundColor || undefined,
+                    };
+                    
+                    // Get cell value based on value type
+                    let cellValue = '';
+                    if (cell.valueType === 'static') {
+                      cellValue = cell.value || cell.label || '';
+                    } else if (cell.valueType === 'calculation') {
+                      // For preview, show calculation placeholder
+                      const calcType = cell.calculationType || 'sum';
+                      const source = cell.calculationSource || 'items';
+                      const field = cell.calculationField || 'amount';
+                      cellValue = `[${calcType}(${source}.${field})]`;
+                    } else if (cell.valueType === 'formula') {
+                      // For preview, show formula placeholder
+                      cellValue = `[${cell.formula || 'formula'}]`;
+                    } else {
+                      // Default to label if no value type
+                      cellValue = cell.label || '';
+                    }
+                    
+                    // If cell value is empty, show a placeholder
+                    if (!cellValue || cellValue.trim() === '') {
+                      cellValue = '\u00A0'; // Non-breaking space
+                    }
+                    
+                    const colSpan = cell.colSpan || 1;
+                    columnIndex += colSpan;
+                    
+                    return (
+                      <td
+                        key={cellIndex}
+                        colSpan={colSpan}
+                        style={cellStyles}
+                      >
+                        {cellValue}
+                      </td>
+                    );
+                  })}
+                  {/* Fill remaining columns if cells don't cover all visible columns */}
+                  {columnIndex < visibleColumns.length && (
+                    Array.from({ length: visibleColumns.length - columnIndex }).map((_, fillIndex) => (
+                      <td
+                        key={`fill-${fillIndex}`}
+                        style={{
+                          padding: `${tableConfig.cellPadding || 10}px`,
+                          border: `${tableConfig.borderWidth || 1}px solid ${tableConfig.borderColor || '#dddddd'}`,
+                          textAlign: visibleColumns[columnIndex + fillIndex]?.align || 'left',
+                        }}
+                      >
+                        &nbsp;
+                      </td>
+                    ))
+                  )}
+                </tr>
+              );
+            });
+            })()}
           </tbody>
         </table>
       </div>
     );
   };
 
-  // Calculate pagination - matching backend logic
+  // Calculate pagination using relative positioning with Y-axis gaps
   const paginatedContent = useMemo(() => {
     if (!template || !previewData) return { pages: [], totalPages: 0 };
 
@@ -214,14 +329,15 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
     const pageHeight = templateJson.page.orientation === 'portrait' ? 1123 : 794;
     const containerPadding = 80; // 40px top + 40px bottom
 
+    // Fixed heights (only these are fixed)
     const pageHeaderHeight = sectionHeights.pageHeader || 60;
     const billHeaderHeight = sectionHeights.billHeader || 200;
     const pageFooterHeight = sectionHeights.pageFooter || 60;
 
-    // Available height calculations (matching backend)
-    // First page: page_header + bill_header + bill_content + page_footer
+    // Available height calculations with fixed sections
+    // First page: page_header + bill_header + bill_content + page_footer + padding
     const availableHeightFirstPage = pageHeight - pageHeaderHeight - billHeaderHeight - pageFooterHeight - containerPadding;
-    // Subsequent pages: page_header + bill_content + page_footer
+    // Subsequent pages: page_header + bill_content + page_footer + padding
     const availableHeightOtherPages = pageHeight - pageHeaderHeight - pageFooterHeight - containerPadding;
 
     // Get all bill content elements
@@ -229,10 +345,11 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
     const billContentTables = templateJson.billContentTables || [];
     const contentDetailsTables = templateJson.contentDetailsTables || [];
 
-    // Build element list with positions
+    // Build element list with positions (Y is absolute position)
     interface ElementInfo {
       type: 'field' | 'billContentTable' | 'contentDetailTable';
-      y: number; // Y position (gap from previous element)
+      y: number; // Absolute Y position
+      gap: number; // Gap from previous element (calculated after sorting)
       height: number;
       data: any;
     }
@@ -246,6 +363,7 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
         elements.push({
           type: 'field',
           y: field.y || 0,
+          gap: 0, // Will be calculated after sorting
           height: fieldHeight,
           data: field,
         });
@@ -261,11 +379,16 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
         const tableItems = previewData.items || [];
         const numItems = tableItems.length;
         const headerHeight = rowHeight;
-        const estimatedHeight = headerHeight + (rowHeight * numItems) + 10;
+        // Calculate height including final rows
+        const finalRowsHeight = table.finalRows 
+          ? table.finalRows.filter(r => r.visible !== false).length * rowHeight 
+          : 0;
+        const estimatedHeight = headerHeight + (rowHeight * numItems) + finalRowsHeight + 10;
 
       elements.push({
         type: 'billContentTable',
         y: table.y || 0,
+        gap: 0, // Will be calculated after sorting
         height: estimatedHeight,
         data: {
           table,
@@ -280,11 +403,10 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
     contentDetailsTables.forEach(table => {
       const contentDetailsTable = table as ContentDetailsTableConfig;
       const contentName = contentDetailsTable.contentName;
-      const tableData = previewData.contentDetails?.[contentName]?.data 
-        ? (Array.isArray(previewData.contentDetails[contentName].data) 
-            ? previewData.contentDetails[contentName].data as Record<string, any>[]
-            : [])
-        : [];
+      // Extract table data directly from contentDetails - same pattern as billContentTable
+      const tableData: Record<string, any>[] = (Array.isArray(previewData.contentDetails?.[contentName])
+        ? previewData.contentDetails[contentName]
+        : []) as Record<string, any>[];
 
       const fontSize = table.fontSize || 12;
       const cellPadding = table.cellPadding || 10;
@@ -292,11 +414,16 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
       const rowHeight = fontSize + (cellPadding * 2) + (borderWidth * 2) + 2;
       const headerHeight = rowHeight;
       const numRows = tableData.length;
-      const estimatedHeight = headerHeight + (rowHeight * numRows) + 10;
+      // Calculate height including final rows
+      const finalRowsHeight = table.finalRows 
+        ? table.finalRows.filter(r => r.visible !== false).length * rowHeight 
+        : 0;
+      const estimatedHeight = headerHeight + (rowHeight * numRows) + finalRowsHeight + 10;
 
       elements.push({
         type: 'contentDetailTable',
         y: table.y || 0,
+        gap: 0, // Will be calculated after sorting
         height: estimatedHeight,
         data: {
           table: contentDetailsTable,
@@ -309,13 +436,33 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
       });
     });
 
-    // Sort elements by Y position
+    // Sort elements by Y position (lowest Y first)
     elements.sort((a, b) => a.y - b.y);
 
-    // Check if bill-content fits on one page
-    const maxElementBottom = Math.max(...elements.map(e => e.y + e.height), 0);
-    if (maxElementBottom <= availableHeightFirstPage) {
-      // Fits on one page - return single page
+    // Calculate gaps between consecutive elements (relative positioning)
+    for (let i = 0; i < elements.length; i++) {
+      if (i === 0) {
+        // First element: gap is its Y position
+        elements[i].gap = elements[i].y;
+      } else {
+        // Gap is the difference between current Y and previous (Y + height)
+        const prevElement = elements[i - 1];
+        const prevBottom = prevElement.y + prevElement.height;
+        elements[i].gap = Math.max(0, elements[i].y - prevBottom);
+      }
+    }
+
+    // Calculate total height using relative positioning (gaps)
+    let cumulativeY = 0;
+    for (let i = 0; i < elements.length; i++) {
+      cumulativeY += elements[i].gap; // Add gap from previous
+      cumulativeY += elements[i].height; // Add element height
+    }
+
+    // Check if bill-content fits on one page using cumulative height
+    if (cumulativeY <= availableHeightFirstPage) {
+      // Fits on one page - use relative positioning with gaps
+      let currentY = 0;
       const tables: Array<{
         table: ItemsTableConfig | ContentDetailsTableConfig;
         type: 'billContentTable' | 'contentDetailTable';
@@ -325,30 +472,45 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
         contentName?: string;
       }> = [];
 
-      billContentTables.forEach(t => {
-        tables.push({
-          table: t,
-          type: 'billContentTable',
-          adjustedY: t.y || 0,
-          startIndex: 0,
-          endIndex: undefined,
-        });
+      // Map elements to output using gaps
+      elements.forEach(elem => {
+        if (elem.type === 'field') {
+          // Fields are handled separately
+        } else if (elem.type === 'billContentTable') {
+          tables.push({
+            table: elem.data.table,
+            type: 'billContentTable',
+            adjustedY: currentY + elem.gap,
+            startIndex: 0,
+            endIndex: undefined,
+          });
+          currentY += elem.gap + elem.height;
+        } else if (elem.type === 'contentDetailTable') {
+          const cdTable = elem.data.table as ContentDetailsTableConfig;
+          tables.push({
+            table: cdTable,
+            type: 'contentDetailTable',
+            adjustedY: currentY + elem.gap,
+            contentName: cdTable.contentName,
+          });
+          currentY += elem.gap + elem.height;
+        }
       });
 
-      contentDetailsTables.forEach(t => {
-        const cdTable = t as ContentDetailsTableConfig;
-        tables.push({
-          table: cdTable,
-          type: 'contentDetailTable',
-          adjustedY: t.y || 0,
-          contentName: cdTable.contentName,
+      // Map fields
+      let fieldY = 0;
+      const fieldsWithGaps = elements
+        .filter(e => e.type === 'field')
+        .map(e => {
+          const adjustedY = fieldY + e.gap;
+          fieldY += e.gap + e.height;
+          return { field: e.data as TextFieldConfig, adjustedY };
         });
-      });
 
       return {
         pages: [{
           pageNumber: 1,
-          fields: billContentFields.map(f => ({ field: f, adjustedY: f.y || 0 })),
+          fields: fieldsWithGaps,
           tables,
           offsetY: 0,
         }],
@@ -356,7 +518,7 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
       };
     }
 
-    // Need pagination - distribute elements across pages
+    // Need pagination - distribute elements across pages using relative positioning
     interface PageInfo {
       pageNumber: number;
       fields: Array<{ field: TextFieldConfig; adjustedY: number }>;
@@ -372,44 +534,43 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
     }
 
     const pages: PageInfo[] = [];
-        let currentPage = 1;
-        const previousElementEnds: number[] = []; // Track end positions of previous elements
+    let currentPage = 1;
+    let currentYOnPage = 0; // Track cumulative Y position on current page using gaps
+    let lastTableType: 'billContentTable' | 'contentDetailTable' | null = null; // Track last table type for gap calculation
 
     for (let elemIdx = 0; elemIdx < elements.length; elemIdx++) {
       const element = elements[elemIdx];
-      const elemY = element.y; // Gap from previous element
-
-      // Calculate element's start position based on previous elements
-      const maxPrevEnd = previousElementEnds.length > 0 ? Math.max(...previousElementEnds) : 0;
-      const elementStartY = maxPrevEnd > 0 ? maxPrevEnd : elemY;
+      const elementGap = element.gap; // Gap from previous element
+      const elementHeight = element.height; // Element height
+      
+      // Calculate element's start position on current page (using gap)
+      // When starting a new page and element has a Y position, use that as base if switching table types
+      let elementStartY = currentYOnPage + elementGap;
 
       // Determine available height for current page
       const availableHeight = currentPage === 1 ? availableHeightFirstPage : availableHeightOtherPages;
 
       if (element.type === 'field') {
-        // Field - check if it fits
-        const fieldHeight = element.height;
+        // Field - check if it fits with gap
+        const fieldHeight = elementHeight;
         const fieldEndY = elementStartY + fieldHeight;
 
         if (fieldEndY > availableHeight) {
           // Field doesn't fit - start new page
-          if (pages.length === 0 || pages[pages.length - 1].pageNumber === currentPage) {
-            // Save current page if it has content
-            if (pages.length > 0 && (pages[pages.length - 1].fields.length > 0 || pages[pages.length - 1].tables.length > 0)) {
-              // Page already exists, update it
-            } else {
-              pages.push({
-                pageNumber: currentPage,
-                fields: [],
-                tables: [],
-                offsetY: 0,
-              });
-            }
+          // Ensure previous page exists
+          if (pages.length < currentPage) {
+            pages.push({
+              pageNumber: currentPage,
+              fields: [],
+              tables: [],
+              offsetY: 0,
+            });
           }
+          
           currentPage++;
-          previousElementEnds.length = 0;
+          currentYOnPage = 0; // Reset Y position for new page
 
-          // Add field to new page
+          // Add field to new page (gap is not needed at start of new page)
           if (pages.length < currentPage) {
             pages.push({
               pageNumber: currentPage,
@@ -422,9 +583,9 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
             field: element.data,
             adjustedY: 0, // Start from top of new page
           });
-          previousElementEnds.push(element.height);
+          currentYOnPage = fieldHeight; // Update position after field
         } else {
-          // Field fits - add to current page
+          // Field fits - add to current page using gap
           if (pages.length < currentPage) {
             pages.push({
               pageNumber: currentPage,
@@ -437,72 +598,119 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
             field: element.data,
             adjustedY: elementStartY,
           });
-          previousElementEnds.push(fieldEndY);
+          currentYOnPage = fieldEndY; // Update position after field
         }
       } else if (element.type === 'contentDetailTable') {
-        // Content detail table - treat as single unit (no splitting)
-        const tableEndY = elementStartY + element.height;
+        // Content detail table - split rows across pages using gap-based positioning
+        const { table, rowHeight, headerHeight, numRows, contentName } = element.data;
+        let startIndex = 0;
+        let tablePage = currentPage;
+        // Use table.y when switching from different table type and starting on new page, otherwise use gap-based position
+        const isTableTypeSwitch = lastTableType !== null && lastTableType !== 'contentDetailTable';
+        const initialTableStartY = (isTableTypeSwitch && currentYOnPage === 0) ? (table.y || 0) : elementStartY;
 
-        if (tableEndY > availableHeight) {
-          // Table doesn't fit - start new page
-          if (pages.length === 0 || pages[pages.length - 1].pageNumber === currentPage) {
-            if (pages.length > 0 && (pages[pages.length - 1].fields.length > 0 || pages[pages.length - 1].tables.length > 0)) {
-              // Page exists
+        // Handle empty table case (numRows === 0) - just show header once
+        if (numRows === 0) {
+          // Ensure page exists
+          if (pages.length < tablePage) {
+            pages.push({
+              pageNumber: tablePage,
+              fields: [],
+              tables: [],
+              offsetY: 0,
+            });
+          }
+
+          // Add empty table (header only) to page using gap or table.y if switching types
+          pages[tablePage - 1].tables.push({
+            table,
+            type: 'contentDetailTable',
+            adjustedY: initialTableStartY,
+            startIndex: 0,
+            endIndex: 0,
+            contentName,
+          });
+
+          // Update position after table
+          currentYOnPage = initialTableStartY + headerHeight;
+          lastTableType = 'contentDetailTable';
+        } else {
+          // Normal case: table has rows - split across pages using gaps
+          while (startIndex < numRows) {
+            const pageAvailable = tablePage === 1 ? availableHeightFirstPage : availableHeightOtherPages;
+            // For first chunk, use initialTableStartY (includes gap or table.y); for subsequent chunks, use table.y if new page and switching types, otherwise 0
+            let tableStartY: number;
+            if (startIndex === 0) {
+              tableStartY = initialTableStartY;
             } else {
+              // Check if we're on a new page due to table type switch
+              const isNewPageForTypeSwitch = tablePage > 1 && isTableTypeSwitch;
+              tableStartY = isNewPageForTypeSwitch ? (table.y || 0) : 0;
+            }
+            
+            // Calculate space available for rows (subtract header and starting position)
+            const availableForRows = pageAvailable - tableStartY - headerHeight;
+
+            // Calculate how many rows fit
+            const rowsThisPage = Math.max(1, Math.floor(availableForRows / rowHeight));
+            const endIndex = Math.min(startIndex + rowsThisPage, numRows);
+
+            // Ensure page exists
+            if (pages.length < tablePage) {
               pages.push({
-                pageNumber: currentPage,
+                pageNumber: tablePage,
                 fields: [],
                 tables: [],
                 offsetY: 0,
               });
             }
-          }
-          currentPage++;
-          previousElementEnds.length = 0;
 
-          // Add table to new page
-          if (pages.length < currentPage) {
-            pages.push({
-              pageNumber: currentPage,
-              fields: [],
-              tables: [],
-              offsetY: 0,
+            // Add table chunk to page
+            pages[tablePage - 1].tables.push({
+              table,
+              type: 'contentDetailTable',
+              adjustedY: tableStartY,
+              startIndex,
+              endIndex,
+              contentName,
             });
+
+            // Track table end position for current page
+            const tableEndY = tableStartY + headerHeight + ((endIndex - startIndex) * rowHeight);
+            currentYOnPage = tableEndY; // Update position
+
+            startIndex = endIndex;
+            if (startIndex < numRows) {
+              tablePage++;
+              currentPage = tablePage;
+              currentYOnPage = 0; // Reset for new page
+            }
           }
-          pages[currentPage - 1].tables.push({
-            table: element.data.table,
-            type: 'contentDetailTable',
-            adjustedY: 0,
-            contentName: element.data.contentName,
-          });
-          previousElementEnds.push(element.height);
-        } else {
-          // Table fits - add to current page
-          if (pages.length < currentPage) {
-            pages.push({
-              pageNumber: currentPage,
-              fields: [],
-              tables: [],
-              offsetY: 0,
-            });
-          }
-          pages[currentPage - 1].tables.push({
-            table: element.data.table,
-            type: 'contentDetailTable',
-            adjustedY: elementStartY,
-            contentName: element.data.contentName,
-          });
-          previousElementEnds.push(tableEndY);
         }
+
+        // Update current page to where table ended
+        currentPage = tablePage;
+        lastTableType = 'contentDetailTable';
       } else if (element.type === 'billContentTable') {
-        // Bill content table - split rows across pages
+        // Bill content table - split rows across pages using gap-based positioning
         const { table, rowHeight, headerHeight, numItems } = element.data;
         let startIndex = 0;
         let tablePage = currentPage;
+        // Use table.y when switching from different table type and starting on new page, otherwise use gap-based position
+        const isTableTypeSwitch = lastTableType !== null && lastTableType !== 'billContentTable';
+        const initialTableStartY = (isTableTypeSwitch && currentYOnPage === 0) ? (table.y || 0) : elementStartY;
 
         while (startIndex < numItems) {
           const pageAvailable = tablePage === 1 ? availableHeightFirstPage : availableHeightOtherPages;
-          const tableStartY = startIndex === 0 && tablePage === currentPage ? elementStartY : 0;
+          // For first chunk, use initialTableStartY (includes gap or table.y); for subsequent chunks, use table.y if new page and switching types, otherwise 0
+          let tableStartY: number;
+          if (startIndex === 0) {
+            tableStartY = initialTableStartY;
+          } else {
+            // Check if we're on a new page due to table type switch
+            const isNewPageForTypeSwitch = tablePage > 1 && isTableTypeSwitch;
+            tableStartY = isNewPageForTypeSwitch ? (table.y || 0) : 0;
+          }
           
           // Calculate space available for rows (subtract header and starting position)
           const availableForRows = pageAvailable - tableStartY - headerHeight;
@@ -530,28 +738,21 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
             endIndex,
           });
 
-          // Track table end position
+          // Track table end position for current page
           const tableEndY = tableStartY + headerHeight + ((endIndex - startIndex) * rowHeight);
-          if (previousElementEnds.length === 0 || tablePage > currentPage) {
-            previousElementEnds.push(tableEndY);
-          } else {
-            previousElementEnds[previousElementEnds.length - 1] = Math.max(
-              previousElementEnds[previousElementEnds.length - 1] || 0,
-              tableEndY
-            );
-          }
+          currentYOnPage = tableEndY; // Update position
 
           startIndex = endIndex;
           if (startIndex < numItems) {
             tablePage++;
-            if (tablePage > currentPage) {
-              currentPage = tablePage;
-            }
+            currentPage = tablePage;
+            currentYOnPage = 0; // Reset for new page
           }
         }
 
         // Update current page to where table ended
         currentPage = tablePage;
+        lastTableType = 'billContentTable';
       }
     }
 
@@ -566,6 +767,8 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
         contentName?: string;
       }> = [];
 
+      
+    
       billContentTables.forEach(t => {
         tables.push({
           table: t,
@@ -644,9 +847,10 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
                 style={{
                   position: 'absolute',
                   top: 0,
-                  left: 0,
-                  right: 0,
+                  left: '20px',
+                  right: '20px',
                   height: `${sectionHeights.pageHeader || 60}px`,
+                  width: 'calc(100% - 40px)',
                 }}
               >
                 {templateJson.pageHeader.map((field) => renderField(field, pageNumber, totalPages))}
@@ -660,9 +864,10 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
                 style={{
                   position: 'absolute',
                   top: `${(sectionHeights.pageHeader || 60) + 10}px`,
-                  left: 0,
-                  right: 0,
+                  left: '20px',
+                  right: '20px',
                   height: `${sectionHeights.billHeader || 200}px`,
+                  width: 'calc(100% - 40px)',
                 }}
               >
                 {templateJson.header.map((field) => renderField(field, pageNumber, totalPages))}
@@ -675,10 +880,10 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
               style={{
                 position: 'absolute',
                 top: `${(sectionHeights.pageHeader || 60) + (sectionHeights.billHeader || 200) + 20}px`,
-                left: 0,
-                right: 0,
+                left: '20px',
+                right: '20px',
                 minHeight: `${sectionHeights.billContent || 100}px`,
-                width: '100%',
+                width: 'calc(100% - 40px)',
               }}
             >
               {/* Bill Content Fields */}
@@ -702,34 +907,37 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
                   );
                 } else if (tableInfo.type === 'contentDetailTable') {
                   const contentDetailsTable = tableInfo.table as ContentDetailsTableConfig;
-                  const contentData = previewData.contentDetails?.[tableInfo.contentName || ''];
-                  const tableData = contentData?.data
-                    ? (Array.isArray(contentData.data) 
-                        ? contentData.data as Record<string, any>[]
-                        : [])
-                    : [];
+                  const contentName = tableInfo.contentName || contentDetailsTable.contentName;
+                  // Extract table data directly from contentDetails - same pattern as billContentTable
+                  const tableData: Record<string, any>[] = (Array.isArray(previewData.contentDetails?.[contentName])
+                    ? previewData.contentDetails[contentName]
+                    : []) as Record<string, any>[];
+                  
                   return renderTable(
                     contentDetailsTable,
                     tableData,
                     pageNumber,
                     totalPages,
-                    tableInfo.adjustedY
+                    tableInfo.adjustedY,
+                    tableInfo.startIndex,
+                    tableInfo.endIndex
                   );
                 }
                 return null;
               })}
             </div>
 
-            {/* Bill Footer */}
-            {templateJson.billFooter && templateJson.billFooter.length > 0 && (
+            {/* Bill Footer - only render on last page */}
+            {templateJson.billFooter && templateJson.billFooter.length > 0 && pageNumber === totalPages && (
               <div
                 className="preview-section bill-footer"
                 style={{
                   position: 'absolute',
                   bottom: `${(sectionHeights.pageFooter || 60) + 10}px`,
-                  left: 0,
-                  right: 0,
+                  left: '20px',
+                  right: '20px',
                   height: `${sectionHeights.billFooter || 100}px`,
+                  width: 'calc(100% - 40px)',
                 }}
               >
                 {templateJson.billFooter.map((field) => renderField(field, pageNumber, totalPages))}
@@ -743,9 +951,10 @@ const TemplateHtmlPreview: React.FC<TemplateHtmlPreviewProps> = ({ templateId, p
                 style={{
                   position: 'absolute',
                   bottom: 0,
-                  left: 0,
-                  right: 0,
+                  left: '20px',
+                  right: '20px',
                   height: `${sectionHeights.pageFooter || 60}px`,
+                  width: 'calc(100% - 40px)',
                 }}
               >
                 {templateJson.pageFooter.map((field) => renderField(field, pageNumber, totalPages))}

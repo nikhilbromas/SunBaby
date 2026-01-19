@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import ParameterForm from './ParameterForm';
-import ExportControls from './ExportControls';
-import TemplateHtmlPreview from './TemplateHtmlPreview';
 import apiClient from '../../services/api';
 import type { Template } from '../../services/types';
 import './BillPreview.css';
 
-type PreviewMode = 'pdf' | 'html';
-
 const BillPreview: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>('pdf');
   const [parameters, setParameters] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -40,66 +35,60 @@ const BillPreview: React.FC = () => {
     }
 
     setParameters(params);
-    setLoading(true);
+    setError(null);
+    
+    // Auto-generate PDF when parameters are submitted
+    await handleGeneratePdf(params);
+  };
+
+  const handleGeneratePdf = async (params?: Record<string, any>) => {
+    const paramsToUse = params || parameters;
+    
+    if (!selectedTemplate || Object.keys(paramsToUse).length === 0) {
+      setError('Please select a template and enter parameters');
+      return;
+    }
+
+    setIsGeneratingPdf(true);
     setError(null);
 
     try {
-      if (previewMode === 'pdf') {
-        // Generate PDF preview (base64 encoded)
-        const pdfBase64 = await apiClient.generatePreviewPdf({
-          templateId: selectedTemplate.TemplateId,
-          parameters: params,
-        });
-        
-        // Store the base64 PDF for preview
-        setPreviewPdf(pdfBase64);
-      }
-      // HTML preview is handled by TemplateHtmlPreview component automatically
+      const pdfBase64String = await apiClient.generatePreviewPdf({
+        templateId: selectedTemplate.TemplateId,
+        parameters: paramsToUse,
+      });
+      setPdfBase64(pdfBase64String);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate preview');
-      setPreviewPdf(null);
+      setError(err.message || 'Failed to generate PDF');
     } finally {
-      setLoading(false);
+      setIsGeneratingPdf(false);
     }
   };
 
-  const handleExportPdf = () => {
-    if (!selectedTemplate) {
-      setError('Please select a template');
-      return;
-    }
+  const handleDownloadPdf = () => {
+    if (!pdfBase64 || !selectedTemplate) return;
 
-    if (!previewPdf) {
-      setError('Please generate preview first');
-      return;
+    const byteCharacters = atob(pdfBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
     }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
 
-    try {
-      // Convert base64 to blob and download
-      const byteCharacters = atob(previewPdf);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `bill_${selectedTemplate.TemplateId}_${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || 'Failed to export PDF');
-    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selectedTemplate.TemplateName || 'bill'}_${Date.now()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  const handlePrintHtml = () => {
-    window.print();
+  const getPdfUrl = (): string | null => {
+    if (!pdfBase64) return null;
+    return `data:application/pdf;base64,${pdfBase64}`;
   };
 
   return (
@@ -117,8 +106,9 @@ const BillPreview: React.FC = () => {
                     (t) => t.TemplateId === parseInt(e.target.value)
                   );
                   setSelectedTemplate(template || null);
-                  setPreviewPdf(null);
+                  setParameters({});
                   setError(null);
+                  setPdfBase64(null);
                 }}
               >
                 <option value="">-- Select Template --</option>
@@ -130,28 +120,16 @@ const BillPreview: React.FC = () => {
               </select>
             </label>
           </div>
-          <div className="preview-mode-toggle">
+          
+          {selectedTemplate && Object.keys(parameters).length > 0 && (
             <button
-              className={`mode-button ${previewMode === 'pdf' ? 'active' : ''}`}
-              onClick={() => {
-                setPreviewMode('pdf');
-                setError(null);
-              }}
-              title="PDF Preview"
+              className="generate-pdf-button"
+              onClick={() => handleGeneratePdf()}
+              disabled={isGeneratingPdf}
             >
-              📄 PDF
+              {isGeneratingPdf ? 'Generating PDF...' : 'Generate PDF'}
             </button>
-            <button
-              className={`mode-button ${previewMode === 'html' ? 'active' : ''}`}
-              onClick={() => {
-                setPreviewMode('html');
-                setError(null);
-              }}
-              title="HTML Preview"
-            >
-              🌐 HTML
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -161,32 +139,13 @@ const BillPreview: React.FC = () => {
             template={selectedTemplate}
             onSubmit={handleGeneratePreview}
           />
-          {selectedTemplate && previewPdf && previewMode === 'pdf' && (
-            <ExportControls
-              onPrint={() => {
-                // Open PDF in new window for printing
-                const pdfDataUri = `data:application/pdf;base64,${previewPdf}`;
-                const printWindow = window.open(pdfDataUri, '_blank');
-                if (printWindow) {
-                  printWindow.onload = () => {
-                    setTimeout(() => {
-                      printWindow.print();
-                    }, 250);
-                  };
-                } else {
-                  setError('Unable to open print window. Please allow pop-ups and try again.');
-                }
-              }}
-              onExportPdf={handleExportPdf}
-            />
-          )}
-          {previewMode === 'html' && selectedTemplate && Object.keys(parameters).length > 0 && (
-            <div className="html-print-controls">
-              <button onClick={handlePrintHtml} className="print-html-button" title="Print HTML Preview">
-                🖨️ Print Preview
+          {selectedTemplate && Object.keys(parameters).length > 0 && pdfBase64 && (
+            <div className="pdf-download-controls">
+              <button onClick={handleDownloadPdf} className="download-pdf-button" title="Download PDF">
+                📥 Download PDF
               </button>
-              <p className="print-hint">
-                💡 Click to print the HTML preview. Use your browser's print dialog to save as PDF.
+              <p className="download-hint">
+                💡 Click to download the PDF file.
               </p>
             </div>
           )}
@@ -194,37 +153,33 @@ const BillPreview: React.FC = () => {
 
         <div className="preview-right">
           {error && <div className="error-message">{error}</div>}
-          {loading && previewMode === 'pdf' && (
-            <div className="loading-message">Generating preview...</div>
+          {selectedTemplate && Object.keys(parameters).length > 0 && (
+            <>
+              {pdfBase64 && (
+                <div className="pdf-preview-container">
+                  <iframe
+                    src={getPdfUrl() || undefined}
+                    title="PDF Preview"
+                    className="pdf-preview-iframe"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                </div>
+              )}
+              {isGeneratingPdf && (
+                <div className="preview-placeholder">
+                  <p>Generating PDF preview...</p>
+                </div>
+              )}
+              {!pdfBase64 && !isGeneratingPdf && (
+                <div className="preview-placeholder">
+                  <p>Enter parameters and submit to generate PDF preview</p>
+                </div>
+              )}
+            </>
           )}
-          {previewMode === 'pdf' && previewPdf && (
-            <iframe
-              className="preview-iframe"
-              src={`data:application/pdf;base64,${previewPdf}`}
-              title="Bill Preview"
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                background: 'white',
-              }}
-            />
-          )}
-          {previewMode === 'pdf' && !previewPdf && !loading && !error && (
+          {(!selectedTemplate || Object.keys(parameters).length === 0) && !error && (
             <div className="preview-placeholder">
               <p>Select a template and enter parameters to generate preview</p>
-            </div>
-          )}
-          {previewMode === 'html' && selectedTemplate && Object.keys(parameters).length > 0 && (
-            <TemplateHtmlPreview
-              templateId={selectedTemplate.TemplateId}
-              parameters={parameters}
-              onError={(err) => setError(err)}
-            />
-          )}
-          {previewMode === 'html' && (!selectedTemplate || Object.keys(parameters).length === 0) && (
-            <div className="preview-placeholder">
-              <p>Select a template and enter parameters to generate HTML preview</p>
             </div>
           )}
         </div>

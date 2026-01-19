@@ -1,5 +1,5 @@
 .toolbar {
-  background: #ffffff;
+  background: var(--surface);
   padding: 1.25rem 1.5rem;
   height: 100%;
   overflow-y: auto;
@@ -8,7 +8,7 @@
 .toolbar h3 {
   font-size: 0.95rem;
   margin-bottom: 0.75rem;
-  color: #495057;
+  color: var(--muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -24,24 +24,26 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.875rem 1.25rem;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   cursor: grab;
   user-select: none;
-  transition: all 0.3s ease;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease,
+    color 120ms ease;
   min-height: 48px;
-  font-weight: 500;
-  color: #495057;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 
 .toolbar-item:hover {
-  background: linear-gradient(135deg, #e6f2ff 0%, #f0f7ff 100%);
-  border-color: #007bff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
-  color: #007bff;
+  background: linear-gradient(135deg, var(--brand-50) 0%, rgba(255, 255, 255, 0.95) 100%);
+  border-color: rgba(11, 99, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  color: var(--brand-600);
 }
 
 .toolbar-item.dragging {

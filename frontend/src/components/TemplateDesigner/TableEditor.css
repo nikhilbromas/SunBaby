@@ -1,13 +1,13 @@
 .table-editor {
   position: absolute;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--radius-md);
   cursor: grab;
   transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(10px);
   min-width: 300px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   will-change: transform;
 }
 
@@ -17,14 +17,14 @@
 }
 
 .table-editor:hover {
-  border-color: #007bff;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  border-color: rgba(11, 99, 255, 0.45);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
 .table-editor.selected {
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2), 0 4px 12px rgba(0, 123, 255, 0.15);
+  border-color: rgba(11, 99, 255, 0.55);
+  box-shadow: var(--shadow-sm), var(--focus);
   z-index: 10;
   background: rgba(255, 255, 255, 1);
   cursor: grabbing;
@@ -67,23 +67,36 @@
 .table-editor th,
 .table-editor td {
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   text-align: left;
   cursor: inherit;
   user-select: none;
 }
 
 .table-editor th {
-  background-color: #f0f0f0;
+  background-color: rgba(15, 23, 42, 0.04);
   font-weight: bold;
 }
 
 .table-editor td {
-  color: #666;
+  color: var(--muted);
   font-style: italic;
 }
 
 .table-editor tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: rgba(15, 23, 42, 0.02);
+}
+
+.table-editor.resizing-width {
+  cursor: ew-resize;
+}
+
+.table-width-resize-handle {
+  transition: all 0.2s ease;
+}
+
+.table-width-resize-handle:hover {
+  background-color: var(--brand-600) !important;
+  transform: translateY(-50%) scale(1.1);
 }
 

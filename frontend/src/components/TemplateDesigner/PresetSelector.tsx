@@ -18,7 +18,6 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
 }) => {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadPresets();
@@ -34,13 +33,10 @@ const PresetSelector: React.FC<PresetSelectorProps> = ({
 
   const loadPresets = async () => {
     try {
-      setLoading(true);
       const response = await apiClient.getPresets();
       setPresets(response.presets);
     } catch (error) {
       console.error('Error loading presets:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

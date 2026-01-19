@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDrop } from 'react-dnd';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, Preset } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig } from '../../services/types';
 import FieldEditor from './FieldEditor';
 import TableEditor from './TableEditor';
 import SidePanel from './SidePanel';
@@ -106,7 +106,6 @@ interface CanvasProps {
 const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId: initialPresetId }) => {
   const [selectedPresetId, setSelectedPresetId] = useState<number | undefined>(initialPresetId);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(initialTemplateId);
-  const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
   const [template, setTemplate] = useState<TemplateJson>({
     page: { size: 'A4', orientation: 'portrait' },
     header: [],
@@ -194,15 +193,6 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     return Math.max(MIN_HEIGHT, maxBottom + PADDING);
   };
 
-  // Load preset when selected
-  React.useEffect(() => {
-    if (selectedPresetId) {
-      loadPreset(selectedPresetId);
-    } else {
-      setSelectedPreset(null);
-    }
-  }, [selectedPresetId]);
-
   // Load template if templateId provided
   React.useEffect(() => {
     if (selectedTemplateId) {
@@ -219,16 +209,6 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
       setSelectedElement(null);
     }
   }, [selectedTemplateId]);
-
-  const loadPreset = async (presetId: number) => {
-    try {
-      const preset = await apiClient.getPreset(presetId);
-      setSelectedPreset(preset);
-    } catch (error) {
-      console.error('Error loading preset:', error);
-      alert('Failed to load preset');
-    }
-  };
 
   const loadTemplate = async (id: number) => {
     try {
@@ -1403,23 +1383,30 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   section="billContent"
                 />
               ))}
-              {(template.billContentTables || []).map((table, index) => (
-                <TableEditor
-                  key={`billContentTable-${index}`}
-                  table={table}
-                  isSelected={selectedElement?.type === 'billContentTable' && selectedElement.index === index}
-                  onSelect={() => setSelectedElement({ type: 'billContentTable', index })}
-                  onUpdate={(updatedTable) => updateBillContentTable(index, updatedTable as ItemsTableConfig)}
-                  x={table.x || 20}
-                  y={table.y || 20}
-                  onPositionChange={(x, y) => {
-                    updateBillContentTable(index, { ...table, x, y });
-                  }}
-                  onDelete={() => deleteBillContentTable(index)}
-                  relativeToSection={true}
-                  sampleData={sampleData?.items?.data || null}
-                />
-              ))}
+              {(template.billContentTables || []).map((table, index) => {
+                // Create a unique key that includes finalRows info to force re-render when finalRows change
+                const finalRowsKey = table.finalRows 
+                  ? `${table.finalRows.length}-${table.finalRows.map(r => r.cells.length).join('-')}`
+                  : '0';
+                return (
+                  <TableEditor
+                    key={`billContentTable-${index}-${finalRowsKey}`}
+                    table={table}
+                    isSelected={selectedElement?.type === 'billContentTable' && selectedElement.index === index}
+                    onSelect={() => setSelectedElement({ type: 'billContentTable', index })}
+                    onUpdate={(updatedTable) => updateBillContentTable(index, updatedTable as ItemsTableConfig)}
+                    x={table.x || 20}
+                    y={table.y || 20}
+                    onPositionChange={(x, y) => {
+                      // Preserve all table properties including finalRows when updating position
+                      updateBillContentTable(index, { ...table, x, y, finalRows: table.finalRows });
+                    }}
+                    onDelete={() => deleteBillContentTable(index)}
+                    relativeToSection={true}
+                    sampleData={sampleData?.items?.data || null}
+                  />
+                );
+              })}
               {(template.contentDetailsTables || []).map((cdTable, index) => {
                 // Only handle array-type contentDetails for tables
                 const contentDetail = cdTable.contentName && sampleData?.contentDetails?.[cdTable.contentName]
@@ -1537,7 +1524,6 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         onClose={() => setIsSetupPanelOpen(false)}
         selectedPresetId={selectedPresetId}
         selectedTemplateId={selectedTemplateId}
-        selectedPreset={selectedPreset}
         onPresetSelect={handlePresetSelect}
         onTemplateSelect={handleTemplateSelect}
         onDataReceived={handleDataReceived}

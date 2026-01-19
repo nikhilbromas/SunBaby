@@ -9,9 +9,9 @@ from app.services.preview_service import preview_service
 from app.services.export_service import export_service
 from app.utils.template_engine import template_engine
 from app.utils.html_organizer import html_organizer
-from app.utils.pdf_generator import pdf_generator
-import logging
+from app.utils.pdf_engine import pdf_engine
 import base64
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class PreviewRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-@router.post("/html", response_class=HTMLResponse)
+@router.post("/", response_class=HTMLResponse)
 async def generate_preview_html(request: PreviewRequest):
     """
     Generate HTML preview of a bill.
@@ -65,9 +65,9 @@ async def generate_preview_html(request: PreviewRequest):
 
 
 @router.post("/pdf")
-async def generate_preview_pdf(request: PreviewRequest):
+async def generate_pdf(request: PreviewRequest):
     """
-    Generate PDF preview of a bill and return as base64.
+    Generate PDF from template and return as base64.
     
     - **template_id**: Template ID to use
     - **parameters**: Dictionary of parameter values for SQL queries
@@ -85,13 +85,52 @@ async def generate_preview_pdf(request: PreviewRequest):
         # Prepare data for template
         data = preview_service.prepare_data_for_template(preview_data)
         
-        # Generate PDF directly from template JSON and data
-        pdf_bytes = pdf_generator.generate_pdf(
-            preview_data['template'].TemplateJson,
-            data
+        # Get template JSON
+        template_json = preview_data['template'].TemplateJson
+        
+        # Generate PDF using pdf_engine
+        pdf_bytes = pdf_engine.generate_pdf(template_json, data)
+        
+        # Encode to base64
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        
+        return JSONResponse(content={"pdf": pdf_base64})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error generating PDF: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/get-data")
+async def generate_preview_pdf(request: PreviewRequest):
+    """
+    Generate PDF preview of a bill and return as base64.
+    (Deprecated: Use /pdf endpoint instead)
+    
+    - **template_id**: Template ID to use
+    - **parameters**: Dictionary of parameter values for SQL queries
+    
+    Returns:
+        JSON response with base64 encoded PDF: {"pdf": "base64_string"}
+    """
+    try:
+        # Generate preview data
+        preview_data = preview_service.generate_preview_data(
+            request.templateId,
+            request.parameters
         )
         
-        # Encode PDF to base64
+        # Prepare data for template
+        data = preview_service.prepare_data_for_template(preview_data)
+        
+        # Get template JSON
+        template_json = preview_data['template'].TemplateJson
+        
+        # Generate PDF using pdf_engine
+        pdf_bytes = pdf_engine.generate_pdf(template_json, data)
+        
+        # Encode to base64
         pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
         
         return JSONResponse(content={"pdf": pdf_base64})
@@ -108,7 +147,7 @@ async def get_preview_data(
     parameters: Dict[str, Any]
 ):
     """
-    Get preview data (header and items) without rendering.
+    Get preview data (header and items , contentDetails) without rendering.
     Useful for frontend to render custom previews.
     
     - **template_id**: Template ID to use

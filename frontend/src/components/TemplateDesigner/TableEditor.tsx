@@ -32,6 +32,9 @@ const TableEditor: React.FC<TableEditorProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x, y });
+  const [isResizingWidth, setIsResizingWidth] = useState(false);
+  const [isDraggingResize, setIsDraggingResize] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, width: 0 });
   const tableRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -58,10 +61,24 @@ const TableEditor: React.FC<TableEditorProps> = ({
     return value !== null && value !== undefined ? String(value) : '[Value]';
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // Don't enable resize if clicking on delete button
+    if (target.tagName === 'BUTTON' || target.closest('.table-delete') || target.closest('.table-width-resize-handle')) {
+      return;
+    }
+    
+    // Enable width resizing mode (show the resize handle)
+    setIsResizingWidth(true);
+    onSelect();
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    // Only prevent dragging if clicking on the delete button
-    if (target.tagName === 'BUTTON' || target.closest('.table-delete')) {
+    // Only prevent dragging if clicking on the delete button or resize handle
+    if (target.tagName === 'BUTTON' || target.closest('.table-delete') || target.closest('.table-width-resize-handle')) {
       return;
     }
     
@@ -180,6 +197,21 @@ const TableEditor: React.FC<TableEditorProps> = ({
   };
 
   React.useEffect(() => {
+    // Close resize mode when clicking outside
+    if (isResizingWidth && !isDraggingResize) {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (tableRef.current && !tableRef.current.contains(e.target as Node)) {
+          setIsResizingWidth(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isResizingWidth, isDraggingResize]);
+
+  React.useEffect(() => {
     if (isDragging) {
       const handleGlobalMouseMove = (e: MouseEvent) => {
         if (relativeToSection && tableRef.current) {
@@ -225,15 +257,37 @@ const TableEditor: React.FC<TableEditorProps> = ({
     }
   }, [isDragging, dragStart, relativeToSection, onPositionChange]);
 
+  React.useEffect(() => {
+    if (isDraggingResize) {
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        const deltaX = e.clientX - resizeStart.x;
+        const newWidth = Math.max(200, resizeStart.width + deltaX); // Minimum width 200px
+        onUpdate({ ...table, tableWidth: newWidth });
+      };
+      
+      const handleGlobalMouseUp = () => {
+        setIsDraggingResize(false);
+      };
+      
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+    }
+  }, [isDraggingResize, resizeStart, table, onUpdate]);
+
   return (
     <div
       ref={tableRef}
-      className={`table-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+      className={`table-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isResizingWidth ? 'resizing-width' : ''}`}
       style={getTableStyles()}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
     >
       {label && (
         <div className="table-label" style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>
@@ -243,41 +297,189 @@ const TableEditor: React.FC<TableEditorProps> = ({
       <table style={getTableInlineStyles()}>
         <thead>
           <tr>
-            {visibleColumns.map((col, index) => (
-              <th key={index} style={{ ...getHeaderStyles(), textAlign: col.align || 'left' }}>
-                {col.label}
-              </th>
-            ))}
+            {(() => {
+              const headerCells = [];
+              let colIndex = 0;
+              while (colIndex < visibleColumns.length) {
+                const col = visibleColumns[colIndex];
+                const colSpan = col.colSpan || 1;
+                headerCells.push(
+                  <th key={colIndex} colSpan={colSpan} style={{ ...getHeaderStyles(), textAlign: col.align || 'left' }}>
+                    {col.label}
+                  </th>
+                );
+                colIndex += colSpan;
+              }
+              return headerCells;
+            })()}
           </tr>
         </thead>
         <tbody>
           <tr>
-            {visibleColumns.map((col, index) => (
-              <td key={index} style={{ ...getCellStyles(0), textAlign: col.align || 'left' }}>
-                {getCellValue(col, 0)}
-              </td>
-            ))}
+            {(() => {
+              const rowCells = [];
+              let colIndex = 0;
+              while (colIndex < visibleColumns.length) {
+                const col = visibleColumns[colIndex];
+                const colSpan = col.colSpan || 1;
+                rowCells.push(
+                  <td key={colIndex} colSpan={colSpan} style={{ ...getCellStyles(0), textAlign: col.align || 'left' }}>
+                    {getCellValue(col, 0)}
+                  </td>
+                );
+                colIndex += colSpan;
+              }
+              return rowCells;
+            })()}
           </tr>
           <tr>
-            {visibleColumns.map((col, index) => (
-              <td key={index} style={{ ...getCellStyles(1), textAlign: col.align || 'left' }}>
-                {getCellValue(col, 1)}
-              </td>
-            ))}
+            {(() => {
+              const rowCells = [];
+              let colIndex = 0;
+              while (colIndex < visibleColumns.length) {
+                const col = visibleColumns[colIndex];
+                const colSpan = col.colSpan || 1;
+                rowCells.push(
+                  <td key={colIndex} colSpan={colSpan} style={{ ...getCellStyles(1), textAlign: col.align || 'left' }}>
+                    {getCellValue(col, 1)}
+                  </td>
+                );
+                colIndex += colSpan;
+              }
+              return rowCells;
+            })()}
           </tr>
+          {/* Render final rows if they exist */}
+          {table.finalRows && table.finalRows.length > 0 && table.finalRows.map((finalRow, rowIndex) => {
+            if (finalRow.visible === false) return null;
+            
+            const baseRowStyles: React.CSSProperties = {};
+            if (finalRow.backgroundColor) {
+              baseRowStyles.backgroundColor = finalRow.backgroundColor;
+            }
+            
+            // Render cells based on the actual cells array, handling column spanning
+            let columnIndex = 0; // Track which visible column we're on
+            
+            return (
+              <tr 
+                key={`final-${rowIndex}`} 
+                style={{
+                  ...baseRowStyles,
+                  borderTop: finalRow.borderTop ? `${(table.borderWidth || 1) * 2}px solid ${table.borderColor || '#dddddd'}` : undefined,
+                }}
+              >
+                {finalRow.cells.map((cell, cellIndex) => {
+                  // Get the corresponding visible column for this cell
+                  const col = visibleColumns[columnIndex] || visibleColumns[visibleColumns.length - 1];
+                  
+                  // Ensure minimum font size for visibility (at least 10px, or use table fontSize, or cell fontSize)
+                  const tableFontSize = table.fontSize || 12;
+                  const cellFontSize = cell.fontSize || tableFontSize;
+                  const minFontSize = Math.max(10, cellFontSize); // Minimum 10px for visibility
+                  
+                  const cellStyles: React.CSSProperties = {
+                    ...getCellStyles(2 + rowIndex),
+                    textAlign: cell.align || col?.align || 'left',
+                    fontWeight: cell.fontWeight || 'normal',
+                    fontSize: `${minFontSize}px`, // Always set font size with minimum
+                    color: cell.color || '#000000', // Default to black if not set
+                    backgroundColor: finalRow.backgroundColor || undefined,
+                  };
+                  
+                  // Get cell value based on value type
+                  let cellValue = '';
+                  if (cell.valueType === 'static') {
+                    cellValue = cell.value || cell.label || '';
+                  } else if (cell.valueType === 'calculation') {
+                    // For preview, show calculation placeholder
+                    const calcType = cell.calculationType || 'sum';
+                    const source = cell.calculationSource || 'items';
+                    const field = cell.calculationField || 'amount';
+                    cellValue = `[${calcType}(${source}.${field})]`;
+                  } else if (cell.valueType === 'formula') {
+                    // For preview, show formula placeholder
+                    cellValue = `[${cell.formula || 'formula'}]`;
+                  } else {
+                    // Default to label if no value type
+                    cellValue = cell.label || '';
+                  }
+                  
+                  // If cell value is empty, show a placeholder to ensure visibility
+                  if (!cellValue || cellValue.trim() === '') {
+                    cellValue = '\u00A0'; // Non-breaking space to maintain cell height
+                  }
+                  
+                  const colSpan = cell.colSpan || 1;
+                  // Advance column index by the colspan
+                  columnIndex += colSpan;
+                  
+                  return (
+                    <td
+                      key={cellIndex}
+                      colSpan={colSpan}
+                      style={cellStyles}
+                    >
+                      {cellValue}
+                    </td>
+                  );
+                })}
+                {/* Fill remaining columns if cells don't cover all visible columns */}
+                {columnIndex < visibleColumns.length && (
+                  Array.from({ length: visibleColumns.length - columnIndex }).map((_, fillIndex) => (
+                    <td
+                      key={`fill-${fillIndex}`}
+                      style={{ ...getCellStyles(2 + rowIndex), textAlign: visibleColumns[columnIndex + fillIndex]?.align || 'left' }}
+                    >
+                      &nbsp;
+                    </td>
+                  ))
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {isSelected && (
-        <button className="table-delete" onClick={(e) => {
-          e.stopPropagation();
-          if (onDelete) {
-            onDelete();
-          } else {
-            onUpdate({ ...table, columns: [] });
-          }
-        }} title="Delete table">
-          ×
-        </button>
+        <>
+          <button className="table-delete" onClick={(e) => {
+            e.stopPropagation();
+            if (onDelete) {
+              onDelete();
+            } else {
+              onUpdate({ ...table, columns: [] });
+            }
+          }} title="Delete table">
+            ×
+          </button>
+          {isResizingWidth && (
+            <div 
+              className="table-width-resize-handle"
+              style={{
+                position: 'absolute',
+                right: '-5px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '10px',
+                height: '40px',
+                backgroundColor: '#007bff',
+                cursor: 'ew-resize',
+                borderRadius: '5px',
+                zIndex: 1000,
+                boxShadow: '0 2px 8px rgba(0, 123, 255, 0.4)',
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (tableRef.current) {
+                  const currentWidth = table.tableWidth || tableRef.current.offsetWidth;
+                  setResizeStart({ x: e.clientX, width: currentWidth });
+                  setIsDraggingResize(true);
+                }
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

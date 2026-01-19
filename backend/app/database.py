@@ -14,7 +14,9 @@ class Database:
     """Database connection manager."""
     
     def __init__(self):
-        self.connection_string = self._build_connection_string()
+        self._auth_connection_string = self._build_connection_string()
+        self.connection_string = self._auth_connection_string
+        self._current_db_context = "auth"
     
     def _build_connection_string(self) -> str:
         """Build MSSQL connection string from settings."""
@@ -34,6 +36,48 @@ class Database:
                 f"PWD={settings.DB_PASSWORD};"
             )
         return conn_str
+
+    def switch_to_auth_db(self) -> None:
+        """Revert the active connection string back to the configured auth DB."""
+        self.connection_string = self._auth_connection_string
+        self._current_db_context = "auth"
+
+    def switch_to_company_db(self, company_db_details: dict) -> None:
+        """
+        Switch the active connection string to a company database.
+
+        Expected keys in company_db_details:
+        - DBserver, DBname, DBuserName, DBpassword
+        """
+        server = (company_db_details.get("DBserver") or "").strip()
+        name = (company_db_details.get("DBname") or "").strip()
+        user = (company_db_details.get("DBuserName") or "").strip()
+        pw = (company_db_details.get("DBpassword") or "").strip()
+
+        if not server or not name:
+            raise ValueError("Missing company DBserver/DBname")
+
+        # Always use SQL auth for company DB (details come from CompanyProfile)
+        conn_str = (
+            f"DRIVER={{{settings.DB_DRIVER}}};"
+            f"SERVER={server};"
+            f"DATABASE={name};"
+        )
+        if user:
+            conn_str += f"UID={user};"
+        if pw:
+            conn_str += f"PWD={pw};"
+
+        # Validate connection before switching permanently
+        test_conn = None
+        try:
+            test_conn = pyodbc.connect(conn_str)
+        finally:
+            if test_conn:
+                test_conn.close()
+
+        self.connection_string = conn_str
+        self._current_db_context = "company"
     
     @contextmanager
     def get_connection(self):
@@ -164,6 +208,40 @@ class Database:
                 
                 result = cursor.fetchone()
                 return result[0] if result else None
+            finally:
+                cursor.close()
+
+    def execute_non_query(self, query: str, params: Optional[dict] = None) -> None:
+        """
+        Execute a non-SELECT query (DDL/DML). Supports @ParamName placeholders.
+        """
+        params = params or {}
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                import re
+
+                param_pattern = r'@(\w+)'
+                all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+
+                if not all_param_matches:
+                    cursor.execute(query)
+                    return
+
+                param_names = list(set(match.group(1) for match in all_param_matches))
+                missing_params = [p for p in param_names if p not in params]
+                if missing_params:
+                    raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+
+                formatted_query = query
+                param_values = []
+                for match in reversed(all_param_matches):
+                    param_name = match.group(1)
+                    start, end = match.span()
+                    formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
+                    param_values.insert(0, params[param_name])
+
+                cursor.execute(formatted_query, param_values)
             finally:
                 cursor.close()
 

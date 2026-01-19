@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Lottie from 'lottie-react';
 import ParameterInput from './ParameterInput';
 import apiClient from '../../services/api';
@@ -6,14 +6,13 @@ import type { Preset, Template } from '../../services/types';
 import lottieAnimation from '../../Printer.json';
 import './SetupPanel.css';
 
-type SetupStep = 'preset' | 'template' | 'parameters';
+type SetupStep = 'template' | 'preset' | 'createTemplate' | 'parameters';
 
 interface SetupPanelProps {
   isOpen: boolean;
   onClose: () => void;
   selectedPresetId?: number;
   selectedTemplateId?: number;
-  selectedPreset: Preset | null;
   onPresetSelect: (presetId: number) => void;
   onTemplateSelect: (templateId: number) => void;
   onDataReceived: (data: {
@@ -28,12 +27,11 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
   onClose,
   selectedPresetId,
   selectedTemplateId,
-  selectedPreset,
   onPresetSelect,
   onTemplateSelect,
   onDataReceived,
 }) => {
-  const [step, setStep] = useState<SetupStep>('preset');
+  const [step, setStep] = useState<SetupStep>('template');
   const [presets, setPresets] = useState<Preset[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,86 +40,102 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
   const [localTemplateId, setLocalTemplateId] = useState<number | null>(selectedTemplateId || null);
   const [templateName, setTemplateName] = useState('');
   const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setStep('preset');
+      setStep('template');
       setLocalPresetId(selectedPresetId || null);
       setLocalTemplateId(selectedTemplateId || null);
       setSearchQuery('');
       setTemplateName('');
-      loadPresets();
+      loadPresetsAndTemplates();
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (localPresetId) {
-      loadTemplates(localPresetId);
-      const preset = presets.find(p => p.PresetId === localPresetId);
-      if (preset) {
-        onPresetSelect(localPresetId);
-      }
-    }
+    // keep parent in sync when preset changes during create flow
+    if (!localPresetId) return;
+    onPresetSelect(localPresetId);
   }, [localPresetId]);
 
-  const loadPresets = async () => {
+  const loadPresetsAndTemplates = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getPresets();
-      setPresets(response.presets);
+      const [presetResp, templateResp] = await Promise.all([
+        apiClient.getPresets(),
+        apiClient.getTemplates(undefined),
+      ]);
+      setPresets(presetResp.presets);
+      setTemplates(templateResp.templates);
     } catch (error) {
-      console.error('Error loading presets:', error);
+      console.error('Error loading presets/templates:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadTemplates = async (presetId: number) => {
+  const loadAllTemplates = async () => {
     try {
-      const response = await apiClient.getTemplates(presetId);
+      setLoadingTemplates(true);
+      const response = await apiClient.getTemplates(undefined);
       setTemplates(response.templates);
     } catch (error) {
       console.error('Error loading templates:', error);
       setTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
     }
   };
 
-  const handlePresetSelect = (presetId: number) => {
+  const handlePresetSelectForCreate = (presetId: number) => {
     setLocalPresetId(presetId);
     onPresetSelect(presetId);
-    setStep('template');
+    setStep('createTemplate');
   };
 
-  const handleTemplateSelect = async (templateId: number | null) => {
-    if (templateId) {
-      setLocalTemplateId(templateId);
-      onTemplateSelect(templateId);
+  const handleExistingTemplateSelect = (template: Template) => {
+    setLocalTemplateId(template.TemplateId);
+    setLocalPresetId(template.PresetId);
+    onPresetSelect(template.PresetId);
+    onTemplateSelect(template.TemplateId);
+    setStep('parameters');
+  };
+
+  const handleCreateNewClick = () => {
+    setLocalPresetId(null);
+    setLocalTemplateId(null);
+    setTemplateName('');
+    setStep('preset');
+  };
+
+  const handleCreateTemplateConfirm = async () => {
+    if (!localPresetId) {
+      alert('Please select a preset');
+      return;
+    }
+    if (!templateName.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+    try {
+      setCreatingTemplate(true);
+      const newTemplate = await apiClient.createTemplate({
+        presetId: localPresetId,
+        templateName: templateName.trim(),
+        templateJson: JSON.stringify({
+          page: { size: 'A4', orientation: 'portrait' },
+          header: [],
+        }),
+      });
+      setLocalTemplateId(newTemplate.TemplateId);
+      onTemplateSelect(newTemplate.TemplateId);
+      await loadAllTemplates();
       setStep('parameters');
-    } else {
-      // Create new template
-      if (!templateName.trim()) {
-        alert('Please enter a template name');
-        return;
-      }
-      try {
-        setCreatingTemplate(true);
-        const newTemplate = await apiClient.createTemplate({
-          presetId: localPresetId!,
-          templateName: templateName.trim(),
-          templateJson: JSON.stringify({
-            page: { size: 'A4', orientation: 'portrait' },
-            header: [],
-          }),
-        });
-        setLocalTemplateId(newTemplate.TemplateId);
-        onTemplateSelect(newTemplate.TemplateId);
-        await loadTemplates(localPresetId!);
-        setStep('parameters');
-      } catch (error: any) {
-        alert(`Failed to create template: ${error.message}`);
-      } finally {
-        setCreatingTemplate(false);
-      }
+    } catch (error: any) {
+      alert(`Failed to create template: ${error.message}`);
+    } finally {
+      setCreatingTemplate(false);
     }
   };
 
@@ -138,18 +152,45 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
   };
 
   const handleBack = () => {
-    if (step === 'template') {
+    if (step === 'preset') {
+      setStep('template');
+      return;
+    }
+    if (step === 'createTemplate') {
       setStep('preset');
-      setLocalTemplateId(null);
-    } else if (step === 'parameters') {
+      return;
+    }
+    if (step === 'parameters') {
+      // return to template list; keep selections but don't force them
       setStep('template');
     }
   };
 
-  const filteredPresets = presets.filter(preset =>
-    preset.PresetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (preset.CreatedBy && preset.CreatedBy.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const presetById = useMemo(() => {
+    const m = new Map<number, Preset>();
+    for (const p of presets) m.set(p.PresetId, p);
+    return m;
+  }, [presets]);
+
+  const filteredTemplates = templates.filter((t) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const presetName = presetById.get(t.PresetId)?.PresetName || '';
+    return (
+      t.TemplateName.toLowerCase().includes(q) ||
+      presetName.toLowerCase().includes(q) ||
+      (t.CreatedBy && t.CreatedBy.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredPresets = presets.filter((preset) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      preset.PresetName.toLowerCase().includes(q) ||
+      (preset.CreatedBy && preset.CreatedBy.toLowerCase().includes(q))
+    );
+  });
 
   const currentPreset = presets.find(p => p.PresetId === localPresetId);
 
@@ -161,8 +202,9 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
       <div className={`setup-panel ${isOpen ? 'open' : ''}`}>
         <div className="setup-panel-header">
           <h3>
-            {step === 'preset' && 'Select Preset'}
             {step === 'template' && 'Select Template'}
+            {step === 'preset' && 'Select Preset'}
+            {step === 'createTemplate' && 'Create Template'}
             {step === 'parameters' && 'Enter Parameters'}
           </h3>
           <button className="setup-panel-close" onClick={onClose}>
@@ -178,6 +220,64 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
           />
         </div>
         <div className="setup-panel-content">
+          {step === 'template' && (
+            <div className="template-selection">
+              <div className="search-container">
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Search templates by name, preset, or creator..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <span className="search-icon">🔍</span>
+              </div>
+
+              {loading ? (
+                <div className="loading-state">Loading templates...</div>
+              ) : (
+                <div className="template-cards">
+                  <div className="template-card template-card-create" onClick={handleCreateNewClick}>
+                    <div className="template-card-create-icon">＋</div>
+                    <div className="template-card-create-title">Create New Template</div>
+                    <div className="template-card-create-subtitle">Select a preset → name → parameters</div>
+                  </div>
+
+                  {loadingTemplates && (
+                    <div className="loading-state">Refreshing templates...</div>
+                  )}
+
+                  {filteredTemplates.length === 0 ? (
+                    <div className="no-results">No templates found matching "{searchQuery}"</div>
+                  ) : (
+                    filteredTemplates.map((template) => {
+                      const presetName = presetById.get(template.PresetId)?.PresetName || `Preset #${template.PresetId}`;
+                      return (
+                        <div
+                          key={template.TemplateId}
+                          className={`template-card ${localTemplateId === template.TemplateId ? 'selected' : ''}`}
+                          onClick={() => handleExistingTemplateSelect(template)}
+                        >
+                          <div className="template-card-header">
+                            <h4>{template.TemplateName}</h4>
+                            {localTemplateId === template.TemplateId && <span className="check-mark">✓</span>}
+                          </div>
+                          <div className="template-card-meta">
+                            <span className="template-card-pill">{presetName}</span>
+                            {template.CreatedBy && <span className="template-card-muted">by {template.CreatedBy}</span>}
+                          </div>
+                          <div className="template-card-date">
+                            {new Date(template.CreatedOn).toLocaleDateString()}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {step === 'preset' && (
             <div className="preset-selection">
               <div className="search-container">
@@ -201,7 +301,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
                       <div
                         key={preset.PresetId}
                         className={`preset-card ${localPresetId === preset.PresetId ? 'selected' : ''}`}
-                        onClick={() => handlePresetSelect(preset.PresetId)}
+                        onClick={() => handlePresetSelectForCreate(preset.PresetId)}
                       >
                         <div className="preset-card-header">
                           <h4>{preset.PresetName}</h4>
@@ -223,53 +323,29 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
             </div>
           )}
 
-          {step === 'template' && currentPreset && (
-            <div className="template-selection">
+          {step === 'createTemplate' && currentPreset && (
+            <div className="create-template-flow">
               <div className="selected-preset-info">
                 <h4>Preset: {currentPreset.PresetName}</h4>
               </div>
-              
-              <div className="template-options">
-                <div className="create-template-section">
-                  <h5>Create New Template</h5>
-                  <div className="create-template-form">
-                    <input
-                      type="text"
-                      className="template-name-input"
-                      placeholder="Enter template name..."
-                      value={templateName}
-                      onChange={(e) => setTemplateName(e.target.value)}
-                    />
-                    <button
-                      className="create-template-btn"
-                      onClick={() => handleTemplateSelect(null)}
-                      disabled={!templateName.trim() || creatingTemplate}
-                    >
-                      {creatingTemplate ? 'Creating...' : '+ Create New Template'}
-                    </button>
-                  </div>
+              <div className="create-template-section">
+                <h5>Template Name</h5>
+                <div className="create-template-form">
+                  <input
+                    type="text"
+                    className="template-name-input"
+                    placeholder="Enter template name..."
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                  />
+                  <button
+                    className="create-template-btn"
+                    onClick={handleCreateTemplateConfirm}
+                    disabled={!templateName.trim() || creatingTemplate}
+                  >
+                    {creatingTemplate ? 'Creating...' : '+ Create'}
+                  </button>
                 </div>
-
-                {templates.length > 0 && (
-                  <>
-                    <div className="divider">OR</div>
-                    <div className="existing-templates-section">
-                      <h5>Select Existing Template</h5>
-                      <div className="template-list">
-                        {templates.map((template) => (
-                          <div
-                            key={template.TemplateId}
-                            className={`template-item ${localTemplateId === template.TemplateId ? 'selected' : ''}`}
-                            onClick={() => handleTemplateSelect(template.TemplateId)}
-                          >
-                            <span>{template.TemplateName}</span>
-                            {localTemplateId === template.TemplateId && <span className="check-mark">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           )}
@@ -284,7 +360,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
             </div>
           )}
 
-          {step !== 'preset' && (
+          {step !== 'template' && (
             <div className="setup-panel-actions">
               <button className="back-button" onClick={handleBack}>
                 ← Back

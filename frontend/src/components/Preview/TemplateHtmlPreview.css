@@ -51,8 +51,9 @@
 }
 
 .preview-section.bill-content {
-  position: relative;
+  position: absolute;
   width: 100%;
+  min-height: 100px;
 }
 
 .preview-section.page-header {

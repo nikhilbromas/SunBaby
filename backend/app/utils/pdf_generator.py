@@ -5,7 +5,7 @@ Refactored version using separate modules for field rendering, table rendering, 
 """
 from reportlab.pdfgen import canvas
 from io import BytesIO
-from typing import Dict, Any
+from typing import Dict, Any, List
 import json
 import logging
 
@@ -207,11 +207,17 @@ class PDFGenerator:
         container_padding_bottom = 40
         container_padding_total = container_padding_top + container_padding_bottom
         
-        # Get static section heights from template config
+        # Get section heights from template config, calculate dynamically if needed
         section_heights = template_config.get('sectionHeights', {})
         page_header_height_pt = section_heights.get('pageHeader', 60)
         bill_header_height_pt = section_heights.get('billHeader', 200)
-        page_footer_height_pt = section_heights.get('pageFooter', 60)
+        
+        # Calculate page footer height dynamically from fields if not provided
+        page_footer_fields = template_config.get('pageFooter', [])
+        if 'pageFooter' in section_heights:
+            page_footer_height_pt = section_heights.get('pageFooter', 60)
+        else:
+            page_footer_height_pt = self._calculate_section_height_from_fields(page_footer_fields, 60)
         
         # Calculate available height for content area
         # Available = page height - page header - page footer - container padding (top and bottom)
@@ -229,13 +235,17 @@ class PDFGenerator:
         # Render page header (on every page) - static height
         page_header_fields = template_config.get('pageHeader', [])
         if page_header_fields:
-            header_y = current_y - page_header_height_pt
+            # header_y is the bottom of the header area
+            # Field Y is offset from TOP of header area (current_y)
             for field in page_header_fields:
                 if field.get('visible', True):
                     x_pt = field.get('x', 0)
-                    y_pt = header_y - field.get('y', 0)
+                    # Position relative to top of header area (current_y)
+                    y_pt = current_y - field.get('y', 0)
                     render_field(c, field, data, x_pt, y_pt, page_context)
-            current_y = header_y
+            
+            # Move current_y to bottom of header area for next section
+            current_y = current_y - page_header_height_pt
         
         # Render bill header (first page only) - static height
         if page_num == 1:
@@ -371,7 +381,29 @@ class PDFGenerator:
                             bill_content_bottom = min(bill_content_bottom, y_pt - field_height)
                     
                     # Render tables for this page and calculate their heights
-                    for table_idx, table_info in enumerate(page_info.get('tables', [])):
+                    # Sort tables by adjusted_y to ensure correct processing order
+                    # Note: adjusted_y is the Y position relative to bill_content_start_y
+                    
+                    tables_to_render = page_info.get('tables', [])
+                    # Sort by adjusted_y (smaller adjusted_y means higher up on page check? 
+                    # No, y_pt = start - adjusted_y. 
+                    # If adjusted_y is larger, y_pt is smaller (lower on page).
+                    # If adjusted_y is smaller, y_pt is larger (higher on page).
+                    # We want to render from top to bottom, so we sort by adjusted_y ascending (smallest adjusted_y = highest Y = first)
+                    # BUT WAIT: In calculate_bill_content_pages, adjusted_y might be accumulating offsets.
+                    # Let's trust the sort order from pagination or re-sort.
+                    
+                    # Ensure we have a consistent sort key. 
+                    # If strictly following pagination, valid tables are already sorted by Y in calculate_bill_content_pages. 
+                    # But let's be safe.
+                    tables_to_render.sort(key=lambda t: t.get('adjusted_y', 0))
+                    
+                    # Track current Y position cursor for flowing content
+                    # Initialize with bill_content_start_y (top of content area)
+                    # We will push this down as we render tables
+                    current_table_cursor_y = bill_content_start_y
+                    
+                    for table_idx, table_info in enumerate(tables_to_render):
                         table_config = table_info['table_config']
                         adjusted_y = table_info.get('adjusted_y', 0)
                         table_type = table_info.get('type', 'billContent')
@@ -380,18 +412,41 @@ class PDFGenerator:
                         
                         x_pt = table_config.get('x', 0)
                         
-                        # For contentDetail tables, use adjusted_y from pagination (which is original_y on page 1, adjusted position on page 2+)
-                        # For billContent tables, use adjusted_y for pagination
+                        # Determine efficient Y position
+                        # Base positions from pagination calculation
                         if table_type == 'contentDetail':
-                            # ContentDetail tables use adjusted_y from pagination (which is original_y on page 1, adjusted position on page 2+)
-                            # Fallback to original_y if adjusted_y not in pagination info (backward compatibility)
-                            adjusted_y_for_table = table_info.get('adjusted_y')
-                            if adjusted_y_for_table is None:
-                                adjusted_y_for_table = table_config.get('y', 0)
-                            y_pt = bill_content_start_y - adjusted_y_for_table
+                             # For contentDetail, adjusted_y might be None or specific.
+                             # If we use logic from earlier:
+                             raw_adjusted_y = table_info.get('adjusted_y')
+                             if raw_adjusted_y is None:
+                                 # Fallback to configured Y
+                                 raw_adjusted_y = table_config.get('y', 0)
+                             
+                             # Calculate proposed Y based on pagination plan
+                             y_pt_pagination = bill_content_start_y - raw_adjusted_y
                         else:
-                            # BillContent tables use adjusted_y from pagination
-                            y_pt = bill_content_start_y - adjusted_y
+                             # billContent uses Adjusted Y from pagination
+                             y_pt_pagination = bill_content_start_y - adjusted_y
+                        
+                        # NOW APPLY DYNAMIC STACKING LOGIC
+                        # We want to ensure this table starts *below* the previous one.
+                        # current_table_cursor_y is the bottom of the previous element.
+                        
+                        # However, on the very first element of the page, we should respect the initial spacing/margin 
+                        # implied by adjusted_y or just start at top?
+                        # Using y_pt_pagination respects the relative offsets planned by pagination engine.
+                        # But if previous table grew, current_table_cursor_y will be lower (smaller Y) than expected.
+                        
+                        # So, permissible Y is MIN(y_pt_pagination, current_table_cursor_y - spacing)
+                        # (Remember: smaller Y = lower on page)
+                        
+                        if table_idx == 0:
+                            # First table on page: respect pagination plan
+                            y_pt = y_pt_pagination
+                        else:
+                            # Subsequent tables: stack dynamically
+                            spacing = 10
+                            y_pt = min(y_pt_pagination, current_table_cursor_y - spacing)
                         
                         # On subsequent pages (page 2+), ensure table header doesn't overlap with page header
                         # Add minimum spacing after page header
@@ -415,42 +470,36 @@ class PDFGenerator:
                         if table_type == 'contentDetail':
                             table_bottom = y_pt - table_height
                             # Ensure table doesn't overlap with page footer
-                            # min_content_y_from_top is the minimum Y from top where content can end (smaller = closer to bottom)
                             if table_bottom < min_content_y_from_top:
                                 logger.warning(f"Page {page_num}: contentDetail table exceeds page boundary. "
                                               f"table_bottom={table_bottom}, min_y={min_content_y_from_top}. "
                                               f"Adjusting position.")
-                                # Adjust y_pt so table fits within page boundaries
-                                # table_bottom should be >= min_content_y_from_top
-                                # So: y_pt - table_height >= min_content_y_from_top
-                                # Therefore: y_pt >= min_content_y_from_top + table_height
                                 y_pt = min_content_y_from_top + table_height
                                 table_bottom = min_content_y_from_top
                         
                         # Render table (pagination logic handles overlap prevention)
                         table_bottom = y_pt - table_height
-                        # Render table - pagination has already calculated correct positions
+                        
+                        # Render...
                         if table_type == 'contentDetail':
                             content_name = table_info.get('content_name')
                             if content_name and content_name in content_details_data:
                                 cd_data = content_details_data[content_name]
                                 if isinstance(cd_data, list) and len(cd_data) > 0:
-                                    # Calculate min_content_y_from_top for height checking
                                     min_content_y_from_top_for_table = min_content_y_from_top if 'min_content_y_from_top' in locals() else None
-                                    rows_rendered, last_index = render_table(c, table_config, cd_data, x_pt, y_pt, 
+                                    rows_rendered, last_index, actual_height = render_table(c, table_config, cd_data, x_pt, y_pt, 
                                                       page_num, 0, min_content_y_from_top_for_table, True)
+                                    # Use actual_height for accurate stacking
+                                    table_bottom = y_pt - actual_height
                                     bill_content_bottom = min(bill_content_bottom, table_bottom)
                         else:
                             table_items = table_info.get('items', data.get('items', []))
-                            # Use a unique key for tracking: table x,y position (should be unique per table)
                             table_x = table_config.get('x', 0)
                             table_y = table_config.get('y', 0)
                             table_key = f"billContent_table_{table_x}_{table_y}"
                             
-                            # Adjust start_index if we have a tracked last rendered index from previous page
                             original_start_index = table_info.get('start_index', 0)
                             if table_key in table_last_rendered_index:
-                                # Continue from where we left off on previous page
                                 tracked_last_index = table_last_rendered_index[table_key]
                                 start_index = tracked_last_index + 1
                                 logger.debug(f"Page {page_num}: Adjusting start_index from {original_start_index} to {start_index} "
@@ -459,40 +508,34 @@ class PDFGenerator:
                                 start_index = original_start_index
                             
                             original_end_index = table_info.get('end_index', len(table_items) if table_items else 0)
-                            
-                            # Ensure we don't go beyond total items
                             total_items = len(table_items) if table_items else 0
-                            if start_index >= total_items:
-                                # All rows already rendered, skip this table on this page
-                                continue
                             
-                            # If we're continuing from a previous page, render all remaining rows
-                            # Use the maximum of original_end_index and total_items to ensure we render all remaining rows
+                            if start_index >= total_items:
+                                continue
+                                
                             end_index = min(original_end_index, total_items) if original_end_index > 0 else total_items
                             
-                            # Make sure we have rows to render
                             if start_index >= end_index:
-                                # No rows to render, skip this table on this page
                                 continue
                             
-                            # Pass min_content_y_from_top for height checking (from top coordinates)
-                            # Note: new render_table renders from start_index to end of items list
-                            # We've already validated start_index < total_items and start_index < end_index above
-                            rows_rendered, last_index = render_table(c, table_config, table_items, x_pt, y_pt,
+                            rows_rendered, last_index, actual_height = render_table(c, table_config, table_items, x_pt, y_pt,
                                              page_num, start_index, min_content_y_from_top, True)
                             
-                            # Update tracked last rendered index
                             table_last_rendered_index[table_key] = last_index
                             
-                            # Check if fewer rows were rendered than expected (pagination stopped early)
                             expected_rows = end_index - start_index
                             if rows_rendered < expected_rows and last_index < end_index - 1:
-                                # Fewer rows fit than estimated - log for debugging
                                 logger.debug(f"Page {page_num}: Rendered {rows_rendered} rows instead of {expected_rows} "
                                            f"(last_index={last_index}, expected end={end_index-1}). "
                                            f"Actual row heights are larger than estimated. Remaining rows will continue on next page.")
                             
+                            # Use actual_height for accurate stacking
+                            table_bottom = y_pt - actual_height
                             bill_content_bottom = min(bill_content_bottom, table_bottom)
+
+                        # UPDATE CURSOR for next table using ACTUAL height
+                        if actual_height > 0:
+                            current_table_cursor_y = table_bottom
                     
                     # Render bill footer only after ALL bill content is fully rendered
                     # Check if all rows have been rendered for all bill content tables
@@ -597,30 +640,98 @@ class PDFGenerator:
                     # Smaller Y value = closer to bottom of page
                     min_content_y_from_top = container_padding_bottom + page_footer_height_pt + 10
                     
-                    # Render bill content tables
-                    for table_config in bill_content_tables:
-                        x_pt = table_config.get('x', 0)
-                        y_pt = bill_content_start_y - table_config.get('y', 0)
-                        table_items = data.get('items', [])
-                        table_height = calculate_table_height_simple(table_config, table_items)
-                        table_bottom = y_pt - table_height
-                        # Render table (pagination logic handles overlap prevention)
-                        rows_rendered, last_index = render_table(c, table_config, table_items, x_pt, y_pt, 1, 0, min_content_y_from_top, True)
-                        bill_content_bottom = min(bill_content_bottom, table_bottom)
+                    # Render bill content tables - sort by Y position to handle stacking
+                    # Combine billContentTables and contentDetailsTables for proper sorting and stacking
+                    all_tables_to_render = []
                     
-                    # Render content details tables
+                    for table_config in bill_content_tables:
+                        all_tables_to_render.append({
+                            'config': table_config, 
+                            'type': 'billContent',
+                            'y': table_config.get('y', 0)
+                        })
+                        
                     for cd_table_config in content_details_tables:
-                        content_name = cd_table_config.get('contentName')
-                        if content_name and content_name in content_details_data:
-                            cd_data = content_details_data[content_name]
-                            if isinstance(cd_data, list) and len(cd_data) > 0:
-                                x_pt = cd_table_config.get('x', 0)
-                                y_pt = bill_content_start_y - cd_table_config.get('y', 0)
-                                table_height = calculate_table_height_simple(cd_table_config, cd_data)
-                                table_bottom = y_pt - table_height
-                                # Render table (pagination logic handles overlap prevention)
-                                rows_rendered, last_index = render_table(c, cd_table_config, cd_data, x_pt, y_pt, 1, 0, min_content_y_from_top, True)
-                                bill_content_bottom = min(bill_content_bottom, table_bottom)
+                        all_tables_to_render.append({
+                            'config': cd_table_config, 
+                            'type': 'contentDetail',
+                            'y': cd_table_config.get('y', 0)
+                        })
+                    
+                    # Sort by Y position
+                    all_tables_to_render.sort(key=lambda t: t['y'])
+                    
+                    # Track current Y position within the content area for flowing content
+                    # Start at the highest possible Y (top of content area) minus the first table's configured Y
+                    # This respects the initial offset, but subsequent tables will stack
+                    current_table_cursor_y = bill_content_start_y
+                    
+                    # Calculate effective content height (available space, accounting for footer)
+                    # This is the usable vertical space between content start and footer top
+                    effective_content_height = bill_content_start_y - min_content_y_from_top
+                    
+                    # Track lowest Y of any table rendered
+                    lowest_table_bottom = bill_content_start_y
+                    
+                    for i, table_info in enumerate(all_tables_to_render):
+                        table_config = table_info['config']
+                        table_type = table_info['type']
+                        
+                        # Determine efficient Y position
+                        # If this is the first table, use its configured Y offset from top
+                        # If subsequent table, place it after the previous table with padding
+                        config_y = table_config.get('y', 0)
+                        
+                        if i == 0:
+                            # First table: respect its Y position, but clamp to content area
+                            y_pt = bill_content_start_y - config_y
+                            # Ensure we don't start below the minimum content Y
+                            if y_pt < min_content_y_from_top:
+                                y_pt = bill_content_start_y  # Start at top if offset is too large
+                        else:
+                            # Subsequent tables: check if we need to stack
+                            # "y" in config is usually relative to start of section
+                            # But if previous table grew, we must push this down
+                            # Place at current_table_cursor_y - spacing (e.g. 10pt)
+                            # However, we should also respect if the user configured a VERY large gap
+                            # So we take the lower of (calculated stack position) OR (absolute config position)
+                            # Remember larger Y = higher up. So "lower" means min().
+                            
+                            stack_y = current_table_cursor_y - 10
+                            absolute_y = bill_content_start_y - config_y
+                            
+                            # Use the swappable logic: if it overlaps, move it down (smaller Y)
+                            y_pt = min(stack_y, absolute_y)
+                            
+                            # Ensure we don't go below the minimum content Y
+                            if y_pt < min_content_y_from_top:
+                                logger.warning(f"Table {i} y_pt {y_pt} is below min {min_content_y_from_top}, clamping")
+                                y_pt = min_content_y_from_top
+                            
+                        x_pt = table_config.get('x', 0)
+                        
+                        table_height = 0
+                        actual_height = 0
+                        table_bottom = y_pt
+                        
+                        if table_type == 'billContent':
+                            table_items = data.get('items', [])
+                            if table_items:
+                                rows_rendered, last_index, actual_height = render_table(c, table_config, table_items, x_pt, y_pt, 1, 0, min_content_y_from_top, True)
+                                table_bottom = y_pt - actual_height
+                        
+                        elif table_type == 'contentDetail':
+                            content_name = table_config.get('contentName')
+                            if content_name and content_name in content_details_data:
+                                cd_data = content_details_data[content_name]
+                                if isinstance(cd_data, list) and len(cd_data) > 0:
+                                    rows_rendered, last_index, actual_height = render_table(c, table_config, cd_data, x_pt, y_pt, 1, 0, min_content_y_from_top, True)
+                                    table_bottom = y_pt - actual_height
+                        
+                        # Update cursor for next table using ACTUAL height
+                        if actual_height > 0:
+                            current_table_cursor_y = table_bottom
+                            bill_content_bottom = min(bill_content_bottom, table_bottom)
                     
                     # Render bill footer - dynamic height
                     bill_footer_fields = template_config.get('billFooter', [])
@@ -704,7 +815,7 @@ class PDFGenerator:
                     # Pass min_table_y_from_top for pagination checking
                     # Use full items list with proper indices so pagination can work correctly
                     # Note: new render_table renders from start_index until boundary or end of items
-                    rows_rendered, last_index = render_table(c, items_table, items, table_x, items_table_y,
+                    rows_rendered, last_index, actual_height = render_table(c, items_table, items, table_x, items_table_y,
                                      page_num, chunk_start_index, min_table_y_from_top, True)
                     
                     # Check if fewer rows were rendered than expected
@@ -719,15 +830,21 @@ class PDFGenerator:
         # Ensure page footer is positioned correctly at the bottom
         page_footer_fields = template_config.get('pageFooter', [])
         if page_footer_fields:
-            # Page footer starts at bottom padding, with height above it
-            # Y coordinate is from bottom: container_padding_bottom + field.y
-            footer_base_y = container_padding_bottom
+            # Page footer starts at bottom padding
+            # We want fields to be positioned relative to the TOP of the page footer area
+            # Page Footer Area:
+            # Bottom Y = container_padding_bottom
+            # Top Y = container_padding_bottom + page_footer_height_pt
+            
+            footer_top_y = container_padding_bottom + page_footer_height_pt
+            
             for field in page_footer_fields:
                 if field.get('visible', True):
                     x_pt = field.get('x', 0)
-                    # Field Y is relative to footer base, convert to absolute from bottom
+                    # Field Y is relative to footer TOP
+                    # y_pt = Top - field_y
                     field_y_offset = field.get('y', 0)
-                    y_pt = footer_base_y + field_y_offset
+                    y_pt = footer_top_y - field_y_offset
                     render_field(c, field, data, x_pt, y_pt, page_context)
         
         # Determine if bill footer needs a new page
@@ -765,6 +882,35 @@ class PDFGenerator:
             'bill_footer_rendered': bill_footer_rendered,
             'bill_footer_needs_new_page': bill_footer_needs_new_page
         }
+    
+    def _calculate_section_height_from_fields(self, fields: List[Dict[str, Any]], default_height: int = 60) -> int:
+        """
+        Calculate section height based on field positions and sizes.
+        
+        Args:
+            fields: List of field configurations
+            default_height: Default height if no fields or calculation fails
+            
+        Returns:
+            Calculated height in pixels
+        """
+        if not fields or len(fields) == 0:
+            return default_height
+        
+        MIN_HEIGHT = 40
+        PADDING = 20
+        
+        max_bottom = 0
+        for field in fields:
+            if field.get('visible', True):
+                field_y = field.get('y', 0)
+                font_size = field.get('fontSize', 12)
+                field_height = font_size * 1.5 if font_size else 20
+                bottom = field_y + field_height
+                max_bottom = max(max_bottom, bottom)
+        
+        calculated_height = max(MIN_HEIGHT, max_bottom + PADDING)
+        return calculated_height if calculated_height > default_height else default_height
 
 
 # Global instance

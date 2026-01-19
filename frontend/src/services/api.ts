@@ -13,6 +13,9 @@ import type {
   TemplateListResponse,
   PreviewRequest,
   PreviewData,
+  LoginResponse,
+  CompanySelectResponse,
+  MeResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -49,6 +52,13 @@ class ApiClient {
       (error: AxiosError) => {
         if (error.response) {
           // Server responded with error
+          if (error.response.status === 401) {
+            // Session invalid/expired (backend uses in-memory sessions). Clear local auth and force re-login.
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_email');
+            localStorage.removeItem('auth_user_id');
+            localStorage.removeItem('auth_company_id');
+          }
           const message = (error.response.data as any)?.detail || error.message;
           console.error('API Error:', message);
           throw new Error(message);
@@ -130,7 +140,7 @@ class ApiClient {
 
   // Preview endpoints
   async generatePreviewHtml(request: PreviewRequest): Promise<string> {
-    const response = await this.client.post<string>('/preview/html', request, {
+    const response = await this.client.post<string>('/preview/', request, {
       responseType: 'text',
     });
     return response.data;
@@ -143,6 +153,27 @@ class ApiClient {
 
   async getPreviewData(templateId: number, parameters: Record<string, any>): Promise<PreviewData> {
     const response = await this.client.post<PreviewData>(`/preview/data/${templateId}`, parameters);
+    return response.data;
+  }
+
+  // Auth endpoints
+  async login(email: string, password: string): Promise<LoginResponse> {
+    const response = await this.client.post<LoginResponse>('/auth/login', { email, password });
+    return response.data;
+  }
+
+  async selectCompany(companyId: number): Promise<CompanySelectResponse> {
+    const response = await this.client.post<CompanySelectResponse>('/auth/select-company', { company_id: companyId });
+    return response.data;
+  }
+
+  async getCurrentUser(): Promise<MeResponse> {
+    const response = await this.client.get<MeResponse>('/auth/me');
+    return response.data;
+  }
+
+  async logout(): Promise<{ success: boolean }> {
+    const response = await this.client.post<{ success: boolean }>('/auth/logout');
     return response.data;
   }
 }

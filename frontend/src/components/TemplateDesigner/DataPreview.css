@@ -1,5 +1,5 @@
 .data-preview {
-  background: #ffffff;
+  background: var(--surface);
   padding: 1.5rem;
   height: 100%;
   overflow-y: auto;
@@ -7,16 +7,16 @@
 
 .data-preview h4 {
   margin: 0 0 1.25rem 0;
-  color: #2c3e50;
+  color: var(--text);
   font-size: 1.2rem;
   font-weight: 600;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 0.75rem;
 }
 
 .data-preview h5 {
   margin: 1.25rem 0 0.75rem 0;
-  color: #495057;
+  color: var(--muted);
   font-size: 0.95rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -38,10 +38,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.875rem 1rem;
-  background: #ffffff;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .field-item.draggable-field {
@@ -50,10 +51,10 @@
 }
 
 .field-item.draggable-field:hover {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
-  border-color: #007bff;
+  background: linear-gradient(135deg, var(--brand-50) 0%, rgba(255, 255, 255, 0.92) 100%);
+  border-color: rgba(11, 99, 255, 0.35);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+  box-shadow: var(--shadow-md);
 }
 
 .field-item.draggable-field.dragging {
@@ -64,30 +65,30 @@
 
 .drag-hint {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--muted);
   margin: 0.5rem 0 1.25rem 0;
   font-style: italic;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: rgba(15, 23, 42, 0.04);
   border-radius: 6px;
-  border-left: 3px solid #007bff;
+  border-left: 3px solid var(--brand-600);
 }
 
 .field-item code {
   font-family: 'Courier New', monospace;
   font-size: 0.9rem;
-  color: #007bff;
+  color: var(--brand-600);
   font-weight: 600;
-  background: #f0f7ff;
+  background: var(--brand-50);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
 }
 
 .field-value {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--muted);
   font-style: italic;
-  background: #f8f9fa;
+  background: rgba(15, 23, 42, 0.04);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
 }
@@ -95,7 +96,7 @@
 .sample-data {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
-  border-top: 2px solid #e9ecef;
+  border-top: 1px solid var(--border);
 }
 
 .sample-count {

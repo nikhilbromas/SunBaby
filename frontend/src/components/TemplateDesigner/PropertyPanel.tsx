@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig } from '../../services/types';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
@@ -277,6 +277,19 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <h4>Content Detail Table: {table.contentName}</h4>
         </div>
         <div className="property-group">
+          <h4>Layout</h4>
+          <label>
+            Orientation:
+            <select
+              value={table.orientation || 'vertical'}
+              onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, orientation: e.target.value as 'vertical' | 'horizontal' })}
+            >
+              <option value="vertical">Vertical (Normal)</option>
+              <option value="horizontal">Horizontal (Transposed)</option>
+            </select>
+          </label>
+        </div>
+        <div className="property-group">
           <h4>Position</h4>
           <label>
             X:
@@ -432,6 +445,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   />
                 </label>
                 <label>
+                  Width:
+                  <input
+                    type="number"
+                    value={col.width || ''}
+                    min="0"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Auto"
+                  />
+                </label>
+                <label>
+                  Height:
+                  <input
+                    type="number"
+                    value={col.height || ''}
+                    min="0"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Auto"
+                  />
+                </label>
+                <label>
                   Align:
                   <select
                     value={col.align || 'left'}
@@ -443,6 +478,84 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   </select>
                 </label>
                 <label>
+                  Row Span:
+                  <input
+                    type="number"
+                    value={col.rowSpan || ''}
+                    min="1"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="1"
+                  />
+                </label>
+                <label>
+                  Column Span:
+                  <input
+                    type="number"
+                    value={col.colSpan || ''}
+                    min="1"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="1"
+                  />
+                </label>
+                <div className="property-group" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Data Manipulation</h5>
+                  <label>
+                    Calculation Type:
+                    <select
+                      value={col.calculationType || 'none'}
+                      onChange={(e) => updateColumn(index, { calculationType: e.target.value as any })}
+                    >
+                      <option value="none">None</option>
+                      <option value="sum">Sum</option>
+                      <option value="avg">Average</option>
+                      <option value="count">Count</option>
+                      <option value="min">Min</option>
+                      <option value="max">Max</option>
+                      <option value="custom">Custom Formula</option>
+                    </select>
+                  </label>
+                  {(col.calculationType && col.calculationType !== 'none') && (
+                    <>
+                      {col.calculationType !== 'custom' && (
+                        <>
+                          <label>
+                            Source Table/Array:
+                            <input
+                              type="text"
+                              value={col.calculationSource || ''}
+                              onChange={(e) => updateColumn(index, { calculationSource: e.target.value })}
+                              placeholder="e.g., items, contentDetails.items"
+                            />
+                          </label>
+                          <label>
+                            Field to Calculate:
+                            <input
+                              type="text"
+                              value={col.calculationField || ''}
+                              onChange={(e) => updateColumn(index, { calculationField: e.target.value })}
+                              placeholder="e.g., rate, price"
+                            />
+                          </label>
+                        </>
+                      )}
+                      {col.calculationType === 'custom' && (
+                        <label>
+                          Custom Formula:
+                          <input
+                            type="text"
+                            value={col.calculationFormula || ''}
+                            onChange={(e) => updateColumn(index, { calculationFormula: e.target.value })}
+                            placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                            style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+                          />
+                        </label>
+                      )}
+                    </>
+                  )}
+                </div>
+                <label>
                   <input
                     type="checkbox"
                     checked={col.visible}
@@ -453,6 +566,312 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
             </div>
           ))}
+        </div>
+        <div className="property-group column-group">
+          <div className="column-header">
+            <h4>Final Rows</h4>
+            <button
+              type="button"
+              className="action-button"
+              onClick={() => {
+                const visibleColumns = table.columns.filter(col => col.visible !== false);
+                const newRow: FinalRowConfig = {
+                  cells: visibleColumns.map(() => ({
+                    label: '',
+                    valueType: 'static',
+                    value: '',
+                    align: 'left',
+                    colSpan: 1,
+                  })),
+                  visible: true,
+                };
+                onUpdateContentDetailTable(selectedElement.index, {
+                  ...table,
+                  finalRows: [...(table.finalRows || []), newRow],
+                });
+              }}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+            >
+              + Add Row
+            </button>
+          </div>
+          {table.finalRows && table.finalRows.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {table.finalRows.map((finalRow, rowIndex) => (
+                <div key={rowIndex} style={{ border: '1px solid #e9ecef', borderRadius: '6px', padding: '0.75rem', background: '#f8f9fa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <strong style={{ fontSize: '0.875rem' }}>Row {rowIndex + 1}</strong>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newRows = [...table.finalRows!];
+                          // Add a new cell at the end
+                          newRows[rowIndex].cells.push({
+                            label: '',
+                            valueType: 'static',
+                            value: '',
+                            align: 'left',
+                            colSpan: 1,
+                          });
+                          onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                        }}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', 
+                          fontSize: '0.75rem',
+                          background: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                        title="Add cell to row"
+                      >
+                        + Cell
+                      </button>
+                      {rowIndex > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newRows = [...table.finalRows!];
+                            [newRows[rowIndex], newRows[rowIndex - 1]] = [newRows[rowIndex - 1], newRows[rowIndex]];
+                            onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                          }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {rowIndex < table.finalRows!.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newRows = [...table.finalRows!];
+                            [newRows[rowIndex], newRows[rowIndex + 1]] = [newRows[rowIndex + 1], newRows[rowIndex]];
+                            onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                          }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          ↓
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newRows = table.finalRows!.filter((_, i) => i !== rowIndex);
+                          onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows.length > 0 ? newRows : undefined });
+                        }}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc3545' }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {finalRow.cells.map((cell, cellIndex) => {
+                      const column = table.columns[cellIndex];
+                      if (column && column.visible === false) return null;
+                      return (
+                        <div key={cellIndex} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem', background: '#ffffff', borderRadius: '4px', position: 'relative' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6c757d', fontWeight: 600 }}>
+                              Cell {cellIndex + 1} ({column?.label || 'Column ' + (cellIndex + 1)})
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells = newRows[rowIndex].cells.filter((_, i) => i !== cellIndex);
+                                // If no cells left, remove the row
+                                if (newRows[rowIndex].cells.length === 0) {
+                                  newRows.splice(rowIndex, 1);
+                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows.length > 0 ? newRows : undefined });
+                                } else {
+                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }
+                              }}
+                              style={{ 
+                                padding: '0.25rem 0.5rem', 
+                                fontSize: '0.75rem', 
+                                color: '#dc3545',
+                                background: 'transparent',
+                                border: '1px solid #dc3545',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              title="Delete cell"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <label style={{ fontSize: '0.875rem' }}>
+                            Label:
+                            <input
+                              type="text"
+                              value={cell.label || ''}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].label = e.target.value;
+                                onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                              }}
+                              placeholder="e.g., Sub Total"
+                              style={{ width: '100%', marginTop: '0.25rem' }}
+                            />
+                          </label>
+                          <label style={{ fontSize: '0.875rem' }}>
+                            Value Type:
+                            <select
+                              value={cell.valueType || 'static'}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].valueType = e.target.value as any;
+                                onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                              }}
+                              style={{ width: '100%', marginTop: '0.25rem' }}
+                            >
+                              <option value="static">Static</option>
+                              <option value="calculation">Calculation</option>
+                              <option value="formula">Formula</option>
+                            </select>
+                          </label>
+                          {cell.valueType === 'static' && (
+                            <label style={{ fontSize: '0.875rem' }}>
+                              Value:
+                              <input
+                                type="text"
+                                value={cell.value || ''}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].value = e.target.value;
+                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                placeholder="e.g., 400"
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              />
+                            </label>
+                          )}
+                          {cell.valueType === 'calculation' && (
+                            <>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Calculation:
+                                <select
+                                  value={cell.calculationType || 'sum'}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationType = e.target.value as any;
+                                    onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                >
+                                  <option value="sum">Sum</option>
+                                  <option value="avg">Average</option>
+                                  <option value="count">Count</option>
+                                  <option value="min">Min</option>
+                                  <option value="max">Max</option>
+                                </select>
+                              </label>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Source Table/Array:
+                                <input
+                                  type="text"
+                                  value={cell.calculationSource || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
+                                    onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  placeholder="e.g., items"
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                />
+                              </label>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Field:
+                                <input
+                                  type="text"
+                                  value={cell.calculationField || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
+                                    onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  placeholder="e.g., rate, price"
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                />
+                              </label>
+                            </>
+                          )}
+                          {cell.valueType === 'formula' && (
+                            <label style={{ fontSize: '0.875rem' }}>
+                              Formula:
+                              <input
+                                type="text"
+                                value={cell.formula || ''}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].formula = e.target.value;
+                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                                style={{ width: '100%', marginTop: '0.25rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                              />
+                            </label>
+                          )}
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                              Align:
+                              <select
+                                value={cell.align || 'left'}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].align = e.target.value as any;
+                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              >
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                              </select>
+                            </label>
+                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                              Col Span:
+                              <input
+                                type="number"
+                                value={cell.colSpan || 1}
+                                min="1"
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
+                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              />
+                            </label>
+                          </div>
+                          <label style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={cell.fontWeight === 'bold'}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].fontWeight = e.target.checked ? 'bold' : 'normal';
+                                onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                              }}
+                            />
+                            Bold
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: '0.875rem', color: '#6c757d', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
+              No final rows. Click "Add Row" to create one.
+            </p>
+          )}
         </div>
         <div className="property-group">
           <h4>Pagination</h4>
@@ -532,6 +951,19 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
     return (
       <div className="property-panel">
+        <div className="property-group">
+          <h4>Layout</h4>
+          <label>
+            Orientation:
+            <select
+              value={table.orientation || 'vertical'}
+              onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, orientation: e.target.value as 'vertical' | 'horizontal' })}
+            >
+              <option value="vertical">Vertical (Normal)</option>
+              <option value="horizontal">Horizontal (Transposed)</option>
+            </select>
+          </label>
+        </div>
         <div className="property-group">
           <h4>Position</h4>
           <label>
@@ -688,6 +1120,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   />
                 </label>
                 <label>
+                  Width:
+                  <input
+                    type="number"
+                    value={col.width || ''}
+                    min="0"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Auto"
+                  />
+                </label>
+                <label>
+                  Height:
+                  <input
+                    type="number"
+                    value={col.height || ''}
+                    min="0"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Auto"
+                  />
+                </label>
+                <label>
                   Align:
                   <select
                     value={col.align || 'left'}
@@ -699,6 +1153,84 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   </select>
                 </label>
                 <label>
+                  Row Span:
+                  <input
+                    type="number"
+                    value={col.rowSpan || ''}
+                    min="1"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="1"
+                  />
+                </label>
+                <label>
+                  Column Span:
+                  <input
+                    type="number"
+                    value={col.colSpan || ''}
+                    min="1"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="1"
+                  />
+                </label>
+                <div className="property-group" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Data Manipulation</h5>
+                  <label>
+                    Calculation Type:
+                    <select
+                      value={col.calculationType || 'none'}
+                      onChange={(e) => updateColumn(index, { calculationType: e.target.value as any })}
+                    >
+                      <option value="none">None</option>
+                      <option value="sum">Sum</option>
+                      <option value="avg">Average</option>
+                      <option value="count">Count</option>
+                      <option value="min">Min</option>
+                      <option value="max">Max</option>
+                      <option value="custom">Custom Formula</option>
+                    </select>
+                  </label>
+                  {(col.calculationType && col.calculationType !== 'none') && (
+                    <>
+                      {col.calculationType !== 'custom' && (
+                        <>
+                          <label>
+                            Source Table/Array:
+                            <input
+                              type="text"
+                              value={col.calculationSource || ''}
+                              onChange={(e) => updateColumn(index, { calculationSource: e.target.value })}
+                              placeholder="e.g., items, contentDetails.items"
+                            />
+                          </label>
+                          <label>
+                            Field to Calculate:
+                            <input
+                              type="text"
+                              value={col.calculationField || ''}
+                              onChange={(e) => updateColumn(index, { calculationField: e.target.value })}
+                              placeholder="e.g., rate, price"
+                            />
+                          </label>
+                        </>
+                      )}
+                      {col.calculationType === 'custom' && (
+                        <label>
+                          Custom Formula:
+                          <input
+                            type="text"
+                            value={col.calculationFormula || ''}
+                            onChange={(e) => updateColumn(index, { calculationFormula: e.target.value })}
+                            placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                            style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+                          />
+                        </label>
+                      )}
+                    </>
+                  )}
+                </div>
+                <label>
                   <input
                     type="checkbox"
                     checked={col.visible}
@@ -709,6 +1241,312 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
             </div>
           ))}
+        </div>
+        <div className="property-group column-group">
+          <div className="column-header">
+            <h4>Final Rows</h4>
+            <button
+              type="button"
+              className="action-button"
+              onClick={() => {
+                const visibleColumns = table.columns.filter(col => col.visible !== false);
+                const newRow: FinalRowConfig = {
+                  cells: visibleColumns.map(() => ({
+                    label: '',
+                    valueType: 'static',
+                    value: '',
+                    align: 'left',
+                    colSpan: 1,
+                  })),
+                  visible: true,
+                };
+                onUpdateBillContentTable(selectedElement.index, {
+                  ...table,
+                  finalRows: [...(table.finalRows || []), newRow],
+                });
+              }}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+            >
+              + Add Row
+            </button>
+          </div>
+          {table.finalRows && table.finalRows.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {table.finalRows.map((finalRow, rowIndex) => (
+                <div key={rowIndex} style={{ border: '1px solid #e9ecef', borderRadius: '6px', padding: '0.75rem', background: '#f8f9fa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <strong style={{ fontSize: '0.875rem' }}>Row {rowIndex + 1}</strong>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newRows = [...table.finalRows!];
+                          // Add a new cell at the end
+                          newRows[rowIndex].cells.push({
+                            label: '',
+                            valueType: 'static',
+                            value: '',
+                            align: 'left',
+                            colSpan: 1,
+                          });
+                          onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                        }}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', 
+                          fontSize: '0.75rem',
+                          background: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                        title="Add cell to row"
+                      >
+                        + Cell
+                      </button>
+                      {rowIndex > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newRows = [...table.finalRows!];
+                            [newRows[rowIndex], newRows[rowIndex - 1]] = [newRows[rowIndex - 1], newRows[rowIndex]];
+                            onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                          }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {rowIndex < table.finalRows!.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newRows = [...table.finalRows!];
+                            [newRows[rowIndex], newRows[rowIndex + 1]] = [newRows[rowIndex + 1], newRows[rowIndex]];
+                            onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                          }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          ↓
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newRows = table.finalRows!.filter((_, i) => i !== rowIndex);
+                          onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows.length > 0 ? newRows : undefined });
+                        }}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc3545' }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {finalRow.cells.map((cell, cellIndex) => {
+                      const column = table.columns[cellIndex];
+                      if (column && column.visible === false) return null;
+                      return (
+                        <div key={cellIndex} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem', background: '#ffffff', borderRadius: '4px', position: 'relative' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6c757d', fontWeight: 600 }}>
+                              Cell {cellIndex + 1} ({column?.label || 'Column ' + (cellIndex + 1)})
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells = newRows[rowIndex].cells.filter((_, i) => i !== cellIndex);
+                                // If no cells left, remove the row
+                                if (newRows[rowIndex].cells.length === 0) {
+                                  newRows.splice(rowIndex, 1);
+                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows.length > 0 ? newRows : undefined });
+                                } else {
+                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }
+                              }}
+                              style={{ 
+                                padding: '0.25rem 0.5rem', 
+                                fontSize: '0.75rem', 
+                                color: '#dc3545',
+                                background: 'transparent',
+                                border: '1px solid #dc3545',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              title="Delete cell"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <label style={{ fontSize: '0.875rem' }}>
+                            Label:
+                            <input
+                              type="text"
+                              value={cell.label || ''}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].label = e.target.value;
+                                onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                              }}
+                              placeholder="e.g., Sub Total"
+                              style={{ width: '100%', marginTop: '0.25rem' }}
+                            />
+                          </label>
+                          <label style={{ fontSize: '0.875rem' }}>
+                            Value Type:
+                            <select
+                              value={cell.valueType || 'static'}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].valueType = e.target.value as any;
+                                onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                              }}
+                              style={{ width: '100%', marginTop: '0.25rem' }}
+                            >
+                              <option value="static">Static</option>
+                              <option value="calculation">Calculation</option>
+                              <option value="formula">Formula</option>
+                            </select>
+                          </label>
+                          {cell.valueType === 'static' && (
+                            <label style={{ fontSize: '0.875rem' }}>
+                              Value:
+                              <input
+                                type="text"
+                                value={cell.value || ''}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].value = e.target.value;
+                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                placeholder="e.g., 400"
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              />
+                            </label>
+                          )}
+                          {cell.valueType === 'calculation' && (
+                            <>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Calculation:
+                                <select
+                                  value={cell.calculationType || 'sum'}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationType = e.target.value as any;
+                                    onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                >
+                                  <option value="sum">Sum</option>
+                                  <option value="avg">Average</option>
+                                  <option value="count">Count</option>
+                                  <option value="min">Min</option>
+                                  <option value="max">Max</option>
+                                </select>
+                              </label>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Source Table/Array:
+                                <input
+                                  type="text"
+                                  value={cell.calculationSource || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
+                                    onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  placeholder="e.g., items"
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                />
+                              </label>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Field:
+                                <input
+                                  type="text"
+                                  value={cell.calculationField || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
+                                    onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  placeholder="e.g., rate, price"
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                />
+                              </label>
+                            </>
+                          )}
+                          {cell.valueType === 'formula' && (
+                            <label style={{ fontSize: '0.875rem' }}>
+                              Formula:
+                              <input
+                                type="text"
+                                value={cell.formula || ''}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].formula = e.target.value;
+                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                                style={{ width: '100%', marginTop: '0.25rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                              />
+                            </label>
+                          )}
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                              Align:
+                              <select
+                                value={cell.align || 'left'}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].align = e.target.value as any;
+                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              >
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                              </select>
+                            </label>
+                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                              Col Span:
+                              <input
+                                type="number"
+                                value={cell.colSpan || 1}
+                                min="1"
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
+                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                }}
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              />
+                            </label>
+                          </div>
+                          <label style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={cell.fontWeight === 'bold'}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].fontWeight = e.target.checked ? 'bold' : 'normal';
+                                onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                              }}
+                            />
+                            Bold
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: '0.875rem', color: '#6c757d', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
+              No final rows. Click "Add Row" to create one.
+            </p>
+          )}
         </div>
         {(onSave || onSetup) && (
           <div className="property-panel-actions">
@@ -772,6 +1610,19 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
     return (
       <div className="property-panel">
+        <div className="property-group">
+          <h4>Layout</h4>
+          <label>
+            Orientation:
+            <select
+              value={table.orientation || 'vertical'}
+              onChange={(e) => onUpdateTable({ ...table, orientation: e.target.value as 'vertical' | 'horizontal' })}
+            >
+              <option value="vertical">Vertical (Normal)</option>
+              <option value="horizontal">Horizontal (Transposed)</option>
+            </select>
+          </label>
+        </div>
         <div className="property-group">
           <h4>Position</h4>
           <label>
@@ -928,6 +1779,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   />
                 </label>
                 <label>
+                  Width:
+                  <input
+                    type="number"
+                    value={col.width || ''}
+                    min="0"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Auto"
+                  />
+                </label>
+                <label>
+                  Height:
+                  <input
+                    type="number"
+                    value={col.height || ''}
+                    min="0"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    placeholder="Auto"
+                  />
+                </label>
+                <label>
                   Align:
                   <select
                     value={col.align || 'left'}
@@ -939,6 +1812,84 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   </select>
                 </label>
                 <label>
+                  Row Span:
+                  <input
+                    type="number"
+                    value={col.rowSpan || ''}
+                    min="1"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="1"
+                  />
+                </label>
+                <label>
+                  Column Span:
+                  <input
+                    type="number"
+                    value={col.colSpan || ''}
+                    min="1"
+                    step="1"
+                    onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="1"
+                  />
+                </label>
+                <div className="property-group" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Data Manipulation</h5>
+                  <label>
+                    Calculation Type:
+                    <select
+                      value={col.calculationType || 'none'}
+                      onChange={(e) => updateColumn(index, { calculationType: e.target.value as any })}
+                    >
+                      <option value="none">None</option>
+                      <option value="sum">Sum</option>
+                      <option value="avg">Average</option>
+                      <option value="count">Count</option>
+                      <option value="min">Min</option>
+                      <option value="max">Max</option>
+                      <option value="custom">Custom Formula</option>
+                    </select>
+                  </label>
+                  {(col.calculationType && col.calculationType !== 'none') && (
+                    <>
+                      {col.calculationType !== 'custom' && (
+                        <>
+                          <label>
+                            Source Table/Array:
+                            <input
+                              type="text"
+                              value={col.calculationSource || ''}
+                              onChange={(e) => updateColumn(index, { calculationSource: e.target.value })}
+                              placeholder="e.g., items, contentDetails.items"
+                            />
+                          </label>
+                          <label>
+                            Field to Calculate:
+                            <input
+                              type="text"
+                              value={col.calculationField || ''}
+                              onChange={(e) => updateColumn(index, { calculationField: e.target.value })}
+                              placeholder="e.g., rate, price"
+                            />
+                          </label>
+                        </>
+                      )}
+                      {col.calculationType === 'custom' && (
+                        <label>
+                          Custom Formula:
+                          <input
+                            type="text"
+                            value={col.calculationFormula || ''}
+                            onChange={(e) => updateColumn(index, { calculationFormula: e.target.value })}
+                            placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                            style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+                          />
+                        </label>
+                      )}
+                    </>
+                  )}
+                </div>
+                <label>
                   <input
                     type="checkbox"
                     checked={col.visible}
@@ -949,6 +1900,312 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               </div>
             </div>
           ))}
+        </div>
+        <div className="property-group">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h4>Final Rows</h4>
+            <button
+              type="button"
+              className="action-button"
+              onClick={() => {
+                const visibleColumns = table.columns.filter(col => col.visible !== false);
+                const newRow: FinalRowConfig = {
+                  cells: visibleColumns.map(() => ({
+                    label: '',
+                    valueType: 'static',
+                    value: '',
+                    align: 'left',
+                    colSpan: 1,
+                  })),
+                  visible: true,
+                };
+                onUpdateTable({
+                  ...table,
+                  finalRows: [...(table.finalRows || []), newRow],
+                });
+              }}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+            >
+              + Add Row
+            </button>
+          </div>
+          {table.finalRows && table.finalRows.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {table.finalRows.map((finalRow, rowIndex) => (
+                <div key={rowIndex} style={{ border: '1px solid #e9ecef', borderRadius: '6px', padding: '0.75rem', background: '#f8f9fa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <strong style={{ fontSize: '0.875rem' }}>Row {rowIndex + 1}</strong>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newRows = [...table.finalRows!];
+                          // Add a new cell at the end
+                          newRows[rowIndex].cells.push({
+                            label: '',
+                            valueType: 'static',
+                            value: '',
+                            align: 'left',
+                            colSpan: 1,
+                          });
+                          onUpdateTable({ ...table, finalRows: newRows });
+                        }}
+                        style={{ 
+                          padding: '0.25rem 0.5rem', 
+                          fontSize: '0.75rem',
+                          background: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                        title="Add cell to row"
+                      >
+                        + Cell
+                      </button>
+                      {rowIndex > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newRows = [...table.finalRows!];
+                            [newRows[rowIndex], newRows[rowIndex - 1]] = [newRows[rowIndex - 1], newRows[rowIndex]];
+                            onUpdateTable({ ...table, finalRows: newRows });
+                          }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {rowIndex < table.finalRows!.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newRows = [...table.finalRows!];
+                            [newRows[rowIndex], newRows[rowIndex + 1]] = [newRows[rowIndex + 1], newRows[rowIndex]];
+                            onUpdateTable({ ...table, finalRows: newRows });
+                          }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        >
+                          ↓
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newRows = table.finalRows!.filter((_, i) => i !== rowIndex);
+                          onUpdateTable({ ...table, finalRows: newRows.length > 0 ? newRows : undefined });
+                        }}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc3545' }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {finalRow.cells.map((cell, cellIndex) => {
+                      const column = table.columns[cellIndex];
+                      if (column && column.visible === false) return null;
+                      return (
+                        <div key={cellIndex} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem', background: '#ffffff', borderRadius: '4px', position: 'relative' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#6c757d', fontWeight: 600 }}>
+                              Cell {cellIndex + 1} ({column?.label || 'Column ' + (cellIndex + 1)})
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells = newRows[rowIndex].cells.filter((_, i) => i !== cellIndex);
+                                // If no cells left, remove the row
+                                if (newRows[rowIndex].cells.length === 0) {
+                                  newRows.splice(rowIndex, 1);
+                                  onUpdateTable({ ...table, finalRows: newRows.length > 0 ? newRows : undefined });
+                                } else {
+                                  onUpdateTable({ ...table, finalRows: newRows });
+                                }
+                              }}
+                              style={{ 
+                                padding: '0.25rem 0.5rem', 
+                                fontSize: '0.75rem', 
+                                color: '#dc3545',
+                                background: 'transparent',
+                                border: '1px solid #dc3545',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              title="Delete cell"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <label style={{ fontSize: '0.875rem' }}>
+                            Label:
+                            <input
+                              type="text"
+                              value={cell.label || ''}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].label = e.target.value;
+                                onUpdateTable({ ...table, finalRows: newRows });
+                              }}
+                              placeholder="e.g., Sub Total"
+                              style={{ width: '100%', marginTop: '0.25rem' }}
+                            />
+                          </label>
+                          <label style={{ fontSize: '0.875rem' }}>
+                            Value Type:
+                            <select
+                              value={cell.valueType || 'static'}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].valueType = e.target.value as any;
+                                onUpdateTable({ ...table, finalRows: newRows });
+                              }}
+                              style={{ width: '100%', marginTop: '0.25rem' }}
+                            >
+                              <option value="static">Static</option>
+                              <option value="calculation">Calculation</option>
+                              <option value="formula">Formula</option>
+                            </select>
+                          </label>
+                          {cell.valueType === 'static' && (
+                            <label style={{ fontSize: '0.875rem' }}>
+                              Value:
+                              <input
+                                type="text"
+                                value={cell.value || ''}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].value = e.target.value;
+                                  onUpdateTable({ ...table, finalRows: newRows });
+                                }}
+                                placeholder="e.g., 400"
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              />
+                            </label>
+                          )}
+                          {cell.valueType === 'calculation' && (
+                            <>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Calculation:
+                                <select
+                                  value={cell.calculationType || 'sum'}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationType = e.target.value as any;
+                                    onUpdateTable({ ...table, finalRows: newRows });
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                >
+                                  <option value="sum">Sum</option>
+                                  <option value="avg">Average</option>
+                                  <option value="count">Count</option>
+                                  <option value="min">Min</option>
+                                  <option value="max">Max</option>
+                                </select>
+                              </label>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Source Table/Array:
+                                <input
+                                  type="text"
+                                  value={cell.calculationSource || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
+                                    onUpdateTable({ ...table, finalRows: newRows });
+                                  }}
+                                  placeholder="e.g., items"
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                />
+                              </label>
+                              <label style={{ fontSize: '0.875rem' }}>
+                                Field:
+                                <input
+                                  type="text"
+                                  value={cell.calculationField || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
+                                    onUpdateTable({ ...table, finalRows: newRows });
+                                  }}
+                                  placeholder="e.g., rate, price"
+                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                />
+                              </label>
+                            </>
+                          )}
+                          {cell.valueType === 'formula' && (
+                            <label style={{ fontSize: '0.875rem' }}>
+                              Formula:
+                              <input
+                                type="text"
+                                value={cell.formula || ''}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].formula = e.target.value;
+                                  onUpdateTable({ ...table, finalRows: newRows });
+                                }}
+                                placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                                style={{ width: '100%', marginTop: '0.25rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                              />
+                            </label>
+                          )}
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                              Align:
+                              <select
+                                value={cell.align || 'left'}
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].align = e.target.value as any;
+                                  onUpdateTable({ ...table, finalRows: newRows });
+                                }}
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              >
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                              </select>
+                            </label>
+                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                              Col Span:
+                              <input
+                                type="number"
+                                value={cell.colSpan || 1}
+                                min="1"
+                                onChange={(e) => {
+                                  const newRows = [...table.finalRows!];
+                                  newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
+                                  onUpdateTable({ ...table, finalRows: newRows });
+                                }}
+                                style={{ width: '100%', marginTop: '0.25rem' }}
+                              />
+                            </label>
+                          </div>
+                          <label style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={cell.fontWeight === 'bold'}
+                              onChange={(e) => {
+                                const newRows = [...table.finalRows!];
+                                newRows[rowIndex].cells[cellIndex].fontWeight = e.target.checked ? 'bold' : 'normal';
+                                onUpdateTable({ ...table, finalRows: newRows });
+                              }}
+                            />
+                            Bold
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: '0.875rem', color: '#6c757d', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
+              No final rows. Click "Add Row" to create one.
+            </p>
+          )}
         </div>
         {onUpdatePagination && (
           <div className="property-group">

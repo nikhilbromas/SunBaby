@@ -67,13 +67,48 @@ export interface TableColumnConfig {
   label: string;
   visible: boolean;
   width?: number;
+  height?: number; // Column-based height customization
   align?: 'left' | 'center' | 'right';
+  rowSpan?: number; // Row merging (number of rows to span)
+  colSpan?: number; // Column merging (number of columns to span)
+  // Data manipulation properties
+  calculationType?: 'none' | 'sum' | 'avg' | 'count' | 'min' | 'max' | 'custom'; // Calculation type
+  calculationSource?: string; // Source table/array (e.g., 'items', 'contentDetails.items')
+  calculationField?: string; // Field to calculate from (e.g., 'rate', 'price')
+  calculationFormula?: string; // Custom formula (e.g., 'sum(items.rate) * header.exchangeRate')
+}
+
+export interface FinalRowCellConfig {
+  label?: string; // Static label/text for the cell
+  valueType?: 'static' | 'calculation' | 'formula'; // Type of value
+  value?: string; // Static value or calculation/formula
+  // For calculation type
+  calculationType?: 'sum' | 'avg' | 'count' | 'min' | 'max';
+  calculationSource?: string; // Source table/array (e.g., 'items', 'contentDetails.items')
+  calculationField?: string; // Field to calculate from (e.g., 'rate', 'price')
+  // For formula type
+  formula?: string; // Custom formula (e.g., 'sum(items.rate) * header.exchangeRate')
+  // Cell properties
+  align?: 'left' | 'center' | 'right';
+  colSpan?: number; // Number of columns to span
+  fontWeight?: 'normal' | 'bold';
+  fontSize?: number;
+  color?: string;
+}
+
+export interface FinalRowConfig {
+  cells: FinalRowCellConfig[]; // One cell per column (or merged columns)
+  visible?: boolean;
+  backgroundColor?: string;
+  borderTop?: boolean; // Whether to show top border (separator)
 }
 
 export interface ItemsTableConfig {
   columns: TableColumnConfig[];
   x?: number;
   y?: number;
+  // Layout properties
+  orientation?: 'vertical' | 'horizontal'; // Table orientation: vertical (normal) or horizontal (transposed)
   // Style properties
   borderColor?: string;
   borderWidth?: number;
@@ -83,6 +118,8 @@ export interface ItemsTableConfig {
   fontSize?: number;
   alternateRowColor?: string;
   tableWidth?: number;
+  // Final rows (custom rows at the end of table)
+  finalRows?: FinalRowConfig[];
 }
 
 export interface ContentDetailsTableConfig {
@@ -90,6 +127,8 @@ export interface ContentDetailsTableConfig {
   columns: TableColumnConfig[];
   x?: number;
   y?: number;
+  // Layout properties
+  orientation?: 'vertical' | 'horizontal'; // Table orientation: vertical (normal) or horizontal (transposed)
   // Style properties
   borderColor?: string;
   borderWidth?: number;
@@ -100,6 +139,8 @@ export interface ContentDetailsTableConfig {
   alternateRowColor?: string;
   tableWidth?: number;
   rowsPerPage?: number;
+  // Final rows (custom rows at the end of table)
+  finalRows?: FinalRowConfig[];
 }
 
 export interface PaginationConfig {
@@ -168,5 +209,53 @@ export interface PreviewData {
   items: Record<string, any>[];
   contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
   templateId: number;
+}
+
+// ---- Auth / Company Selection ----
+
+export interface UserPermissions {
+  AllowPreset: boolean;
+  AllowTemplate: boolean;
+  AllowPreview: boolean;
+}
+
+export interface Company {
+  CompanyId: number;
+  CompanyName?: string | null;
+  PermanentAddress?: string | null;
+  CompanyDescription?: string | null;
+  PhoneNo?: string | null;
+  Permissions: UserPermissions;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user_id: number;
+  email: string;
+  companies: Company[];
+}
+
+export interface CompanySelectRequest {
+  company_id: number;
+}
+
+export interface CompanySelectResponse {
+  success: boolean;
+  company_id: number;
+  company_name?: string | null;
+  permissions: UserPermissions;
+}
+
+export interface MeResponse {
+  user_id: number;
+  email: string;
+  company_id?: number | null;
+  company_name?: string | null;
+  permissions?: UserPermissions | null;
 }
 

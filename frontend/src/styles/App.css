@@ -1,59 +1,313 @@
+/* Theme tokens (shared) */
+:root {
+  --brand-50: #f0f7ff;
+  --brand-100: #e6f2ff;
+  --brand-200: #cfe6ff;
+  --brand-500: #0b63ff;
+  --brand-600: #0a56e0;
+
+  --bg: #f6f9ff;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --focus: 0 0 0 3px rgba(11, 99, 255, 0.18);
+
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+}
+
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: radial-gradient(1000px 420px at 20% -10%, var(--brand-100) 0%, transparent 60%),
+    radial-gradient(900px 380px at 90% 0%, rgba(11, 99, 255, 0.10) 0%, transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* Shared buttons */
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease,
+    color 120ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(11, 99, 255, 0.30);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-sm), var(--focus);
+}
+
+.btn-primary {
+  border-color: rgba(11, 99, 255, 0.35);
+  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  border-color: rgba(11, 99, 255, 0.55);
+}
+
+.btn-ghost {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.btn-ghost:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.06);
+  box-shadow: none;
+  transform: none;
+  color: var(--text);
 }
 
 .app-header {
-  background: #fff;
-  border-bottom: 1px solid #ddd;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 18px 24px;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: visible;
+  z-index: 200;
 }
 
 .app-header h1 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #333;
+  font-size: 1.1rem;
+  margin: 0 0 12px 0;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+
+.app-topbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.app-topbar > h1 {
+  margin: 0;
+}
+
+.user-menu-container {
+  position: relative;
+  z-index: 300;
+}
+
+.user-icon-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+  padding: 0;
+}
+
+.user-icon-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(11, 99, 255, 0.30);
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+.user-icon-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-sm), var(--focus);
+}
+
+.user-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  /* Open to the left so it doesn't cover top-right actions under the header */
+  transform: translateX(-120px);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 220px;
+  padding: 12px;
+  z-index: 5000;
+  animation: fadeInDown 0.15s ease-out;
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.user-menu-item:first-child {
+  padding-top: 0;
+}
+
+.user-menu-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.user-menu-value {
+  font-size: 0.875rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.user-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.user-menu-logout {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  margin-top: 4px;
+}
+
+.user-menu-logout:hover {
+  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
+  border-color: rgba(11, 99, 255, 0.35);
+  color: #fff;
+}
+
+.user-menu-logout:active {
+  transform: translateY(0);
+}
+
+.user-menu-logout:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 .app-nav {
-  display: flex;
-  gap: 1rem;
+  display: inline-flex;
+  gap: 10px;
+  padding: 6px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--radius-pill);
 }
 
 .app-nav button {
-  padding: 0.5rem 1rem;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+  padding: 10px 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 
 .app-nav button:hover {
-  background: #e0e0e0;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+}
+
+.app-nav button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 .app-nav button.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
+  background: var(--surface);
+  color: var(--brand-600);
+  border-color: rgba(11, 99, 255, 0.25);
+  box-shadow: var(--shadow-sm);
 }
 
 .app-main {
   flex: 1;
-  padding: 2rem;
+  padding: 20px;
   overflow: auto;
 }
 
 @media (max-width: 768px) {
   .app-header {
-    padding: 1rem;
+    padding: 16px;
   }
   
   .app-header h1 {
-    font-size: 1.25rem;
+    font-size: 1rem;
   }
   
   .app-nav {
@@ -61,7 +315,12 @@
   }
   
   .app-main {
-    padding: 1rem;
+    padding: 14px;
+  }
+
+  .user-menu-dropdown {
+    right: 0;
+    min-width: 200px;
   }
 }
 
