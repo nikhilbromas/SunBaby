@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     DB_DRIVER: str = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
     DB_TRUSTED_CONNECTION: bool = os.getenv("DB_TRUSTED_CONNECTION", "False").lower() == "true"
     
+    # Database Encryption (disable in Docker/containers due to TLS version issues)
+    # Set DB_DISABLE_ENCRYPTION=True in Docker/Render environment
+    DB_DISABLE_ENCRYPTION: bool = os.getenv("DB_DISABLE_ENCRYPTION", "False").lower() == "true"
+    
     # API Configuration
     API_TITLE: str = "Dynamic Bill Preview API"
     API_VERSION: str = "1.0.0"
@@ -39,9 +43,6 @@ class Settings(BaseSettings):
     
     # Export Configuration
     PDF_EXPORT_ENABLED: bool = os.getenv("PDF_EXPORT_ENABLED", "True").lower() == "true"
-    
-    # Debug Configuration
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
     
     class Config:
         env_file = ".env"

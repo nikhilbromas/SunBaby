@@ -20,28 +20,28 @@ class Database:
     
     def _build_connection_string(self) -> str:
         """Build MSSQL connection string from settings."""
+        # Base connection string parts
+        base_parts = [
+            f"DRIVER={{{settings.DB_DRIVER}}};",
+            f"SERVER={settings.DB_SERVER};",
+            f"DATABASE={settings.DB_NAME};"
+        ]
+        
+        # Add authentication
         if settings.DB_TRUSTED_CONNECTION:
-            conn_str = (
-                f"DRIVER={{{settings.DB_DRIVER}}};"
-                f"SERVER={settings.DB_SERVER};"
-                f"DATABASE={settings.DB_NAME};"
-                f"Trusted_Connection=yes;"
-                # Disable encryption to avoid TLS version issues between Linux container and SQL Server
-                f"Encrypt=no;"
-                f"TrustServerCertificate=yes;"
-            )
+            base_parts.append("Trusted_Connection=yes;")
         else:
-            conn_str = (
-                f"DRIVER={{{settings.DB_DRIVER}}};"
-                f"SERVER={settings.DB_SERVER};"
-                f"DATABASE={settings.DB_NAME};"
-                f"UID={settings.DB_USER};"
-                f"PWD={settings.DB_PASSWORD};"
-                # Disable encryption to avoid TLS version issues between Linux container and SQL Server
-                f"Encrypt=no;"
-                f"TrustServerCertificate=yes;"
-            )
-        return conn_str
+            base_parts.append(f"UID={settings.DB_USER};")
+            base_parts.append(f"PWD={settings.DB_PASSWORD};")
+        
+        # Add encryption settings (disable only in Docker/container environments)
+        if settings.DB_DISABLE_ENCRYPTION:
+            # Disable encryption for Docker/container environments to avoid TLS version issues
+            base_parts.append("Encrypt=no;")
+            base_parts.append("TrustServerCertificate=yes;")
+        # If DB_DISABLE_ENCRYPTION is False, use default encryption (works on localhost)
+        
+        return "".join(base_parts)
 
     def switch_to_auth_db(self) -> None:
         """Revert the active connection string back to the configured auth DB."""
@@ -74,8 +74,11 @@ class Database:
         if pw:
             conn_str += f"PWD={pw};"
 
-        # Disable encryption to avoid TLS version issues between Linux container and company DB
-        conn_str += "Encrypt=no;TrustServerCertificate=yes;"
+        # Add encryption settings (disable only in Docker/container environments)
+        if settings.DB_DISABLE_ENCRYPTION:
+            # Disable encryption for Docker/container environments to avoid TLS version issues
+            conn_str += "Encrypt=no;TrustServerCertificate=yes;"
+        # If DB_DISABLE_ENCRYPTION is False, use default encryption (works on localhost)
 
         # Validate connection before switching permanently
         test_conn = None
