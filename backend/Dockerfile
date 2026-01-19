@@ -40,6 +40,19 @@ RUN mkdir -p /etc/apt/keyrings && \
 RUN echo "/opt/microsoft/msodbcsql18/lib64" > /etc/ld.so.conf.d/msodbcsql18.conf && \
     ldconfig
 
+# Configure OpenSSL 3.0 to allow legacy signature algorithms (required for SQL Server certificates)
+# OpenSSL 3.0 defaults to SECLEVEL=2 which disallows legacy sigalgs
+# SECLEVEL=1 allows legacy algorithms while maintaining reasonable security
+# This is necessary when SQL Server uses certificates with legacy signature algorithms
+RUN if grep -q "^\[system_default_sect\]" /etc/ssl/openssl.cnf; then \
+        sed -i '/^\[system_default_sect\]/,/^\[/ s/^\(CipherString = DEFAULT@SECLEVEL=\)2/\11/' /etc/ssl/openssl.cnf; \
+    else \
+        echo "" >> /etc/ssl/openssl.cnf && \
+        echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
+        echo "MinProtocol = TLSv1.2" >> /etc/ssl/openssl.cnf && \
+        echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf; \
+    fi
+
 # Set working directory
 WORKDIR /app
 
