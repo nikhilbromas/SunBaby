@@ -47,6 +47,8 @@ class Database:
         # Add SSL/TLS encryption settings
         if encrypt:
             conn_str += f"Encrypt=yes;"
+            # Explicitly set TLS 1.2 to avoid protocol negotiation issues
+            conn_str += f"TLSVersion=TLS1.2;"
             if trust_cert:
                 conn_str += f"TrustServerCertificate=yes;"
             else:
@@ -95,6 +97,8 @@ class Database:
         # Add SSL/TLS encryption settings
         if encrypt:
             conn_str += f"Encrypt=yes;"
+            # Explicitly set TLS 1.2 to avoid protocol negotiation issues
+            conn_str += f"TLSVersion=TLS1.2;"
             if trust_cert:
                 conn_str += f"TrustServerCertificate=yes;"
             else:

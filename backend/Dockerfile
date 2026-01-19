@@ -1,5 +1,5 @@
-# Python 3.11 on Debian 11 (Bullseye)
-FROM python:3.11-slim-bullseye
+# Python 3.11 on Debian 12 (Bookworm) - OpenSSL 3.0 for better TLS compatibility
+FROM python:3.11-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -9,6 +9,7 @@ RUN apt-get update && \
       curl \
       gnupg \
       apt-transport-https \
+      openssl \
       unixodbc \
       unixodbc-dev \
       ca-certificates \
@@ -24,7 +25,7 @@ RUN apt-get update && \
 
 # Add Microsoft repository and install ODBC Driver 18
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-    curl https://packages.microsoft.com/config/debian/11/prod.list \
+    curl https://packages.microsoft.com/config/debian/12/prod.list \
       > /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
     ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 && \
