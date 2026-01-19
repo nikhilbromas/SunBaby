@@ -20,6 +20,12 @@ class Database:
     
     def _build_connection_string(self) -> str:
         """Build MSSQL connection string from settings."""
+        import os
+        
+        # SSL/TLS configuration (can be overridden via environment variables)
+        encrypt = os.getenv("DB_ENCRYPT", "False").lower() == "true"
+        trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "True").lower() == "true"
+        
         if settings.DB_TRUSTED_CONNECTION:
             conn_str = (
                 f"DRIVER={{{settings.DB_DRIVER}}};"
@@ -36,16 +42,13 @@ class Database:
                 f"PWD={settings.DB_PASSWORD};"
             )
         
-        # Add SSL/TLS configuration
-        if settings.DB_ENCRYPT:
+        # Add SSL/TLS encryption settings
+        if encrypt:
             conn_str += f"Encrypt=yes;"
-            if settings.DB_TRUST_SERVER_CERTIFICATE:
+            if trust_cert:
                 conn_str += f"TrustServerCertificate=yes;"
             else:
                 conn_str += f"TrustServerCertificate=no;"
-                # If certificate path is provided, add it (ODBC Driver 18+ supports this)
-                if settings.DB_CERTIFICATE_PATH:
-                    conn_str += f"Certificate={settings.DB_CERTIFICATE_PATH};"
         else:
             conn_str += f"Encrypt=no;"
         
@@ -72,6 +75,10 @@ class Database:
             raise ValueError("Missing company DBserver/DBname")
 
         # Always use SQL auth for company DB (details come from CompanyProfile)
+        import os
+        encrypt = os.getenv("DB_ENCRYPT", "False").lower() == "true"
+        trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "True").lower() == "true"
+        
         conn_str = (
             f"DRIVER={{{settings.DB_DRIVER}}};"
             f"SERVER={server};"
@@ -82,22 +89,20 @@ class Database:
         if pw:
             conn_str += f"PWD={pw};"
         
-        # Add SSL/TLS configuration (use same settings as main connection)
-        if settings.DB_ENCRYPT:
+        # Add SSL/TLS encryption settings
+        if encrypt:
             conn_str += f"Encrypt=yes;"
-            if settings.DB_TRUST_SERVER_CERTIFICATE:
+            if trust_cert:
                 conn_str += f"TrustServerCertificate=yes;"
             else:
                 conn_str += f"TrustServerCertificate=no;"
-                if settings.DB_CERTIFICATE_PATH:
-                    conn_str += f"Certificate={settings.DB_CERTIFICATE_PATH};"
         else:
             conn_str += f"Encrypt=no;"
 
         # Validate connection before switching permanently
         test_conn = None
         try:
-            test_conn = pyodbc.connect(conn_str)
+            test_conn = pyodbc.connect(conn_str, timeout=5)
         finally:
             if test_conn:
                 test_conn.close()
@@ -110,7 +115,7 @@ class Database:
         """Get a database connection context manager."""
         conn = None
         try:
-            conn = pyodbc.connect(self.connection_string)
+            conn = pyodbc.connect(self.connection_string, timeout=5)
             conn.autocommit = False
             yield conn
             conn.commit()
