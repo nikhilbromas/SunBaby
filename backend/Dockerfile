@@ -65,7 +65,7 @@ RUN echo "openssl_conf = openssl_init" >> /etc/ssl/openssl.cnf && \
     echo "" >> /etc/ssl/openssl.cnf && \
     echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
     echo "Options = UnsafeLegacyServerConnect" >> /etc/ssl/openssl.cnf && \
-    echo "MinProtocol = TLSv1.2" >> /etc/ssl/openssl.cnf && \
+    echo "MinProtocol = TLSv1" >> /etc/ssl/openssl.cnf && \
     echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
 
 # Set working directory
