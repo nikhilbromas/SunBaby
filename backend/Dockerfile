@@ -1,29 +1,30 @@
-# Use Python 3.11 slim image (stable and smaller)
-FROM python:3.11-slim
+# Use Python 3.11 on Debian 11 (Bullseye) – compatible with msodbcsql17 packages
+FROM python:3.11-slim-bullseye
 
-# Install system dependencies for ODBC, WeasyPrint, and other requirements
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install base system dependencies (including WeasyPrint deps and unixodbc-dev)
 RUN apt-get update && \
-    apt-get install -y \
-    curl \
-    gnupg2 \
-    apt-transport-https \
-    unixodbc-dev \
-    # WeasyPrint dependencies
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libfontconfig1 \
-    libcairo2 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
-    shared-mime-info \
-    && \
-    # Add Microsoft repository for ODBC driver
-    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    apt-get install -y --no-install-recommends \
+      curl \
+      gnupg \
+      apt-transport-https \
+      unixodbc-dev \
+      # WeasyPrint dependencies
+      libpango-1.0-0 \
+      libpangoft2-1.0-0 \
+      libfontconfig1 \
+      libcairo2 \
+      libgdk-pixbuf2.0-0 \
+      libffi-dev \
+      shared-mime-info && \
+    rm -rf /var/lib/apt/lists/*
+
+# Add Microsoft repository for SQL Server ODBC driver 17 and install it
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
     curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
-    # Install Microsoft ODBC Driver 17 for SQL Server
-    ACCEPT_EULA=Y apt-get install -y msodbcsql17 && \
-    # Clean up to reduce image size
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
