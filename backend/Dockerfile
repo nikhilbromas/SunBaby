@@ -21,12 +21,12 @@ RUN apt-get update && \
       shared-mime-info && \
     rm -rf /var/lib/apt/lists/*
 
-# Add Microsoft repository and install ODBC Driver 17
+# Add Microsoft repository and install ODBC Driver 18
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
     curl https://packages.microsoft.com/config/debian/11/prod.list \
       > /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
-    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 && \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

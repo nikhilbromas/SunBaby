@@ -23,7 +23,9 @@ class Database:
         import os
         
         # SSL/TLS configuration (can be overridden via environment variables)
-        encrypt = os.getenv("DB_ENCRYPT", "False").lower() == "true"
+        # For ODBC Driver 18 with TLS-enforced SQL Server, encryption is required
+        # Default to True for ODBC Driver 18, but can be overridden via DB_ENCRYPT
+        encrypt = os.getenv("DB_ENCRYPT", "True").lower() == "true"
         trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "True").lower() == "true"
         
         if settings.DB_TRUSTED_CONNECTION:
@@ -76,7 +78,8 @@ class Database:
 
         # Always use SQL auth for company DB (details come from CompanyProfile)
         import os
-        encrypt = os.getenv("DB_ENCRYPT", "False").lower() == "true"
+        # For ODBC Driver 18 with TLS-enforced SQL Server, encryption is required
+        encrypt = os.getenv("DB_ENCRYPT", "True").lower() == "true"
         trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "True").lower() == "true"
         
         conn_str = (
