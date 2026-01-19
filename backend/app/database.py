@@ -20,28 +20,36 @@ class Database:
     
     def _build_connection_string(self) -> str:
         """Build MSSQL connection string from settings."""
-        # Base connection string parts
-        base_parts = [
-            f"DRIVER={{{settings.DB_DRIVER}}};",
-            f"SERVER={settings.DB_SERVER};",
-            f"DATABASE={settings.DB_NAME};"
-        ]
-        
-        # Add authentication
         if settings.DB_TRUSTED_CONNECTION:
-            base_parts.append("Trusted_Connection=yes;")
+            conn_str = (
+                f"DRIVER={{{settings.DB_DRIVER}}};"
+                f"SERVER={settings.DB_SERVER};"
+                f"DATABASE={settings.DB_NAME};"
+                f"Trusted_Connection=yes;"
+            )
         else:
-            base_parts.append(f"UID={settings.DB_USER};")
-            base_parts.append(f"PWD={settings.DB_PASSWORD};")
+            conn_str = (
+                f"DRIVER={{{settings.DB_DRIVER}}};"
+                f"SERVER={settings.DB_SERVER};"
+                f"DATABASE={settings.DB_NAME};"
+                f"UID={settings.DB_USER};"
+                f"PWD={settings.DB_PASSWORD};"
+            )
         
-        # Add encryption settings (disable only in Docker/container environments)
-        if settings.DB_DISABLE_ENCRYPTION:
-            # Disable encryption for Docker/container environments to avoid TLS version issues
-            base_parts.append("Encrypt=no;")
-            base_parts.append("TrustServerCertificate=yes;")
-        # If DB_DISABLE_ENCRYPTION is False, use default encryption (works on localhost)
+        # Add SSL/TLS configuration
+        if settings.DB_ENCRYPT:
+            conn_str += f"Encrypt=yes;"
+            if settings.DB_TRUST_SERVER_CERTIFICATE:
+                conn_str += f"TrustServerCertificate=yes;"
+            else:
+                conn_str += f"TrustServerCertificate=no;"
+                # If certificate path is provided, add it (ODBC Driver 18+ supports this)
+                if settings.DB_CERTIFICATE_PATH:
+                    conn_str += f"Certificate={settings.DB_CERTIFICATE_PATH};"
+        else:
+            conn_str += f"Encrypt=no;"
         
-        return "".join(base_parts)
+        return conn_str
 
     def switch_to_auth_db(self) -> None:
         """Revert the active connection string back to the configured auth DB."""
@@ -73,12 +81,18 @@ class Database:
             conn_str += f"UID={user};"
         if pw:
             conn_str += f"PWD={pw};"
-
-        # Add encryption settings (disable only in Docker/container environments)
-        if settings.DB_DISABLE_ENCRYPTION:
-            # Disable encryption for Docker/container environments to avoid TLS version issues
-            conn_str += "Encrypt=no;TrustServerCertificate=yes;"
-        # If DB_DISABLE_ENCRYPTION is False, use default encryption (works on localhost)
+        
+        # Add SSL/TLS configuration (use same settings as main connection)
+        if settings.DB_ENCRYPT:
+            conn_str += f"Encrypt=yes;"
+            if settings.DB_TRUST_SERVER_CERTIFICATE:
+                conn_str += f"TrustServerCertificate=yes;"
+            else:
+                conn_str += f"TrustServerCertificate=no;"
+                if settings.DB_CERTIFICATE_PATH:
+                    conn_str += f"Certificate={settings.DB_CERTIFICATE_PATH};"
+        else:
+            conn_str += f"Encrypt=no;"
 
         # Validate connection before switching permanently
         test_conn = None
@@ -220,40 +234,6 @@ class Database:
                 
                 result = cursor.fetchone()
                 return result[0] if result else None
-            finally:
-                cursor.close()
-
-    def execute_non_query(self, query: str, params: Optional[dict] = None) -> None:
-        """
-        Execute a non-SELECT query (DDL/DML). Supports @ParamName placeholders.
-        """
-        params = params or {}
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                import re
-
-                param_pattern = r'@(\w+)'
-                all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
-
-                if not all_param_matches:
-                    cursor.execute(query)
-                    return
-
-                param_names = list(set(match.group(1) for match in all_param_matches))
-                missing_params = [p for p in param_names if p not in params]
-                if missing_params:
-                    raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
-
-                formatted_query = query
-                param_values = []
-                for match in reversed(all_param_matches):
-                    param_name = match.group(1)
-                    start, end = match.span()
-                    formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
-                    param_values.insert(0, params[param_name])
-
-                cursor.execute(formatted_query, param_values)
             finally:
                 cursor.close()
 
