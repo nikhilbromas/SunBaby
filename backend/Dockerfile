@@ -9,6 +9,7 @@ RUN apt-get update && \
       curl \
       gnupg \
       apt-transport-https \
+      unixodbc \
       unixodbc-dev \
       ca-certificates \
       # WeasyPrint dependencies
@@ -29,6 +30,10 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
     ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Configure dynamic linker to find ODBC Driver 18 library
+RUN echo "/opt/microsoft/msodbcsql18/lib64" > /etc/ld.so.conf.d/msodbcsql18.conf && \
+    ldconfig
 
 # Set working directory
 WORKDIR /app
