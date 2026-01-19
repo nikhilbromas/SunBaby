@@ -26,6 +26,9 @@ class Database:
                 f"SERVER={settings.DB_SERVER};"
                 f"DATABASE={settings.DB_NAME};"
                 f"Trusted_Connection=yes;"
+                # Disable encryption to avoid TLS version issues between Linux container and SQL Server
+                f"Encrypt=no;"
+                f"TrustServerCertificate=yes;"
             )
         else:
             conn_str = (
@@ -34,6 +37,9 @@ class Database:
                 f"DATABASE={settings.DB_NAME};"
                 f"UID={settings.DB_USER};"
                 f"PWD={settings.DB_PASSWORD};"
+                # Disable encryption to avoid TLS version issues between Linux container and SQL Server
+                f"Encrypt=no;"
+                f"TrustServerCertificate=yes;"
             )
         return conn_str
 
@@ -67,6 +73,9 @@ class Database:
             conn_str += f"UID={user};"
         if pw:
             conn_str += f"PWD={pw};"
+
+        # Disable encryption to avoid TLS version issues between Linux container and company DB
+        conn_str += "Encrypt=no;TrustServerCertificate=yes;"
 
         # Validate connection before switching permanently
         test_conn = None
