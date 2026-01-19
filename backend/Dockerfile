@@ -1,9 +1,9 @@
-# Use Python 3.11 on Debian 11 (Bullseye) – compatible with msodbcsql17 packages
+# Python 3.11 on Debian 11 (Bullseye)
 FROM python:3.11-slim-bullseye
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install base system dependencies (including WeasyPrint deps and unixodbc-dev)
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       curl \
@@ -21,18 +21,19 @@ RUN apt-get update && \
       shared-mime-info && \
     rm -rf /var/lib/apt/lists/*
 
-# Add Microsoft repository for SQL Server ODBC driver 17 and install it
+# Add Microsoft repository and install ODBC Driver 18
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-    curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    curl https://packages.microsoft.com/config/debian/11/prod.list \
+      > /etc/apt/sources.list.d/mssql-release.list && \
     apt-get update && \
-    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 && \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements first (for better Docker layer caching)
+# Copy requirements
 COPY requirements.txt .
 
 # Install Python dependencies
@@ -42,15 +43,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Optional: Copy SQL Server certificate if available
-# Uncomment and provide certificate file to enable proper SSL validation
-# COPY sqlserver-cert.pem /usr/local/share/ca-certificates/sqlserver-cert.crt
-# RUN update-ca-certificates
-
-# Expose port (Render will set PORT env var)
+# Expose port
 EXPOSE 8000
 
-# Use PORT environment variable (Render provides this)
-# Default to 8000 if not set
+# Start app
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
-
