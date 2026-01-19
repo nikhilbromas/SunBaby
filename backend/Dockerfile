@@ -42,15 +42,31 @@ RUN echo "/opt/microsoft/msodbcsql17/lib64" > /etc/ld.so.conf.d/msodbcsql17.conf
     ldconfig
 
 # Configure OpenSSL 3.0 to allow legacy signature algorithms (required for SQL Server certificates)
-# Driver 17 uses system OpenSSL, so we configure it to support legacy signature algorithms
-RUN if grep -q "^\[system_default_sect\]" /etc/ssl/openssl.cnf; then \
-        sed -i '/^\[system_default_sect\]/,/^\[/ s/^\(CipherString = DEFAULT@SECLEVEL=\)2/\11/' /etc/ssl/openssl.cnf; \
-    else \
-        echo "" >> /etc/ssl/openssl.cnf && \
-        echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
-        echo "MinProtocol = TLSv1.2" >> /etc/ssl/openssl.cnf && \
-        echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf; \
-    fi
+# Driver 17 uses system OpenSSL, so we need to enable the legacy provider
+# Create a custom OpenSSL config that enables legacy provider
+RUN echo "openssl_conf = openssl_init" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[openssl_init]" >> /etc/ssl/openssl.cnf && \
+    echo "providers = provider_sect" >> /etc/ssl/openssl.cnf && \
+    echo "ssl_conf = ssl_sect" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[provider_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "default = default_sect" >> /etc/ssl/openssl.cnf && \
+    echo "legacy = legacy_sect" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[default_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "activate = 1" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[legacy_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "activate = 1" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[ssl_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "system_default = system_default_sect" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "Options = UnsafeLegacyServerConnect" >> /etc/ssl/openssl.cnf && \
+    echo "MinProtocol = TLSv1.2" >> /etc/ssl/openssl.cnf && \
+    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
 
 # Set working directory
 WORKDIR /app
