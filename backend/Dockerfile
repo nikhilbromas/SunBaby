@@ -10,6 +10,7 @@ RUN apt-get update && \
       gnupg \
       apt-transport-https \
       unixodbc-dev \
+      ca-certificates \
       # WeasyPrint dependencies
       libpango-1.0-0 \
       libpangoft2-1.0-0 \
@@ -40,6 +41,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy application code
 COPY . .
+
+# Optional: Copy SQL Server certificate if available
+# Uncomment and provide certificate file to enable proper SSL validation
+# COPY sqlserver-cert.pem /usr/local/share/ca-certificates/sqlserver-cert.crt
+# RUN update-ca-certificates
 
 # Expose port (Render will set PORT env var)
 EXPOSE 8000
