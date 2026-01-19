@@ -43,30 +43,38 @@ RUN echo "/opt/microsoft/msodbcsql17/lib64" > /etc/ld.so.conf.d/msodbcsql17.conf
 
 # Configure OpenSSL 3.0 to allow legacy signature algorithms (required for SQL Server certificates)
 # Driver 17 uses system OpenSSL, so we need to enable the legacy provider
-# Create a custom OpenSSL config that enables legacy provider
-RUN echo "openssl_conf = openssl_init" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
-    echo "[openssl_init]" >> /etc/ssl/openssl.cnf && \
-    echo "providers = provider_sect" >> /etc/ssl/openssl.cnf && \
-    echo "ssl_conf = ssl_sect" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
-    echo "[provider_sect]" >> /etc/ssl/openssl.cnf && \
-    echo "default = default_sect" >> /etc/ssl/openssl.cnf && \
-    echo "legacy = legacy_sect" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
-    echo "[default_sect]" >> /etc/ssl/openssl.cnf && \
-    echo "activate = 1" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
-    echo "[legacy_sect]" >> /etc/ssl/openssl.cnf && \
-    echo "activate = 1" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
-    echo "[ssl_sect]" >> /etc/ssl/openssl.cnf && \
-    echo "system_default = system_default_sect" >> /etc/ssl/openssl.cnf && \
-    echo "" >> /etc/ssl/openssl.cnf && \
-    echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
-    echo "Options = UnsafeLegacyServerConnect" >> /etc/ssl/openssl.cnf && \
-    echo "MinProtocol = TLSv1" >> /etc/ssl/openssl.cnf && \
-    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
+# Create a custom OpenSSL config that includes the default config and enables legacy provider
+RUN cat > /etc/ssl/openssl_legacy.cnf << 'OPENSSL_EOF' && \
+.include /etc/ssl/openssl.cnf
+
+# Override openssl_conf to enable legacy provider
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+ssl_conf = ssl_sect
+
+[provider_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+Options = UnsafeLegacyServerConnect
+MinProtocol = TLSv1
+CipherString = DEFAULT@SECLEVEL=1
+OPENSSL_EOF
+    echo "Created custom OpenSSL config with legacy provider enabled"
+
+ENV OPENSSL_CONF=/etc/ssl/openssl_legacy.cnf
 
 # Set working directory
 WORKDIR /app
