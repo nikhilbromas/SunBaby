@@ -10,6 +10,7 @@ RUN apt-get update && \
       gnupg \
       apt-transport-https \
       openssl \
+      libssl3 \
       unixodbc \
       unixodbc-dev \
       ca-certificates \
@@ -42,11 +43,15 @@ RUN echo "/opt/microsoft/msodbcsql17/lib64" > /etc/ld.so.conf.d/msodbcsql17.conf
     ldconfig
 
 # Configure OpenSSL 3.0 to allow legacy signature algorithms (required for SQL Server certificates)
-# Directly modify the system OpenSSL config to ensure ODBC Driver 17 picks it up
-# Append openssl_conf override and legacy provider configuration to the end of openssl.cnf
-RUN echo "" >> /etc/ssl/openssl.cnf && \
-    echo "# Legacy provider configuration for SQL Server certificate compatibility" >> /etc/ssl/openssl.cnf && \
-    echo "openssl_conf = openssl_init" >> /etc/ssl/openssl.cnf && \
+# Verify OpenSSL version and enable legacy provider
+# First, check if openssl.cnf already has openssl_conf directive and handle accordingly
+RUN if grep -q "^openssl_conf" /etc/ssl/openssl.cnf; then \
+        echo "OpenSSL config already has openssl_conf directive"; \
+    else \
+        echo "" >> /etc/ssl/openssl.cnf && \
+        echo "# Legacy provider configuration for SQL Server certificate compatibility" >> /etc/ssl/openssl.cnf && \
+        echo "openssl_conf = openssl_init" >> /etc/ssl/openssl.cnf; \
+    fi && \
     echo "" >> /etc/ssl/openssl.cnf && \
     echo "[openssl_init]" >> /etc/ssl/openssl.cnf && \
     echo "providers = provider_sect" >> /etc/ssl/openssl.cnf && \
@@ -68,7 +73,9 @@ RUN echo "" >> /etc/ssl/openssl.cnf && \
     echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
     echo "Options = UnsafeLegacyServerConnect" >> /etc/ssl/openssl.cnf && \
     echo "MinProtocol = TLSv1" >> /etc/ssl/openssl.cnf && \
-    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
+    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf && \
+    openssl version && \
+    openssl list -providers 2>&1 || echo "OpenSSL provider check completed"
 
 # Set working directory
 WORKDIR /app
