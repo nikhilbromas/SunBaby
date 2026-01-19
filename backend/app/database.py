@@ -47,8 +47,8 @@ class Database:
         # Add SSL/TLS encryption settings
         if encrypt:
             conn_str += f"Encrypt=yes;"
-            # Explicitly set TLS 1.2 to avoid protocol negotiation issues
-            conn_str += f"TLSVersion=TLS1.2;"
+            # Don't set TLSVersion - let OpenSSL negotiate based on MinProtocol in openssl.cnf
+            # This avoids conflicts between connection string TLSVersion and OpenSSL config
             if trust_cert:
                 conn_str += f"TrustServerCertificate=yes;"
             else:
@@ -97,8 +97,8 @@ class Database:
         # Add SSL/TLS encryption settings
         if encrypt:
             conn_str += f"Encrypt=yes;"
-            # Explicitly set TLS 1.2 to avoid protocol negotiation issues
-            conn_str += f"TLSVersion=TLS1.2;"
+            # Don't set TLSVersion - let OpenSSL negotiate based on MinProtocol in openssl.cnf
+            # This avoids conflicts between connection string TLSVersion and OpenSSL config
             if trust_cert:
                 conn_str += f"TrustServerCertificate=yes;"
             else:
