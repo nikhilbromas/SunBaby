@@ -42,36 +42,33 @@ RUN echo "/opt/microsoft/msodbcsql17/lib64" > /etc/ld.so.conf.d/msodbcsql17.conf
     ldconfig
 
 # Configure OpenSSL 3.0 to allow legacy signature algorithms (required for SQL Server certificates)
-# Driver 17 uses system OpenSSL, so we need to enable the legacy provider
-# Create a custom OpenSSL config that includes the default config and enables legacy provider
-RUN echo ".include /etc/ssl/openssl.cnf" > /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "# Override openssl_conf to enable legacy provider" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "openssl_conf = openssl_init" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "[openssl_init]" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "providers = provider_sect" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "ssl_conf = ssl_sect" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "[provider_sect]" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "default = default_sect" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "legacy = legacy_sect" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "[default_sect]" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "activate = 1" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "[legacy_sect]" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "activate = 1" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "[ssl_sect]" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "system_default = system_default_sect" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "[system_default_sect]" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "Options = UnsafeLegacyServerConnect" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "MinProtocol = TLSv1" >> /etc/ssl/openssl_legacy.cnf && \
-    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl_legacy.cnf
-
-ENV OPENSSL_CONF=/etc/ssl/openssl_legacy.cnf
+# Directly modify the system OpenSSL config to ensure ODBC Driver 17 picks it up
+# Append openssl_conf override and legacy provider configuration to the end of openssl.cnf
+RUN echo "" >> /etc/ssl/openssl.cnf && \
+    echo "# Legacy provider configuration for SQL Server certificate compatibility" >> /etc/ssl/openssl.cnf && \
+    echo "openssl_conf = openssl_init" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[openssl_init]" >> /etc/ssl/openssl.cnf && \
+    echo "providers = provider_sect" >> /etc/ssl/openssl.cnf && \
+    echo "ssl_conf = ssl_sect" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[provider_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "default = default_sect" >> /etc/ssl/openssl.cnf && \
+    echo "legacy = legacy_sect" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[default_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "activate = 1" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[legacy_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "activate = 1" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[ssl_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "system_default = system_default_sect" >> /etc/ssl/openssl.cnf && \
+    echo "" >> /etc/ssl/openssl.cnf && \
+    echo "[system_default_sect]" >> /etc/ssl/openssl.cnf && \
+    echo "Options = UnsafeLegacyServerConnect" >> /etc/ssl/openssl.cnf && \
+    echo "MinProtocol = TLSv1" >> /etc/ssl/openssl.cnf && \
+    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
 
 # Set working directory
 WORKDIR /app
