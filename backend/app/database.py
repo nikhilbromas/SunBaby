@@ -72,9 +72,19 @@ class Database:
         test_conn = None
         try:
             test_conn = pyodbc.connect(conn_str)
+            test_conn.autocommit = True  # Use autocommit for test connection to avoid transaction issues
+            # Test the connection with a simple query
+            cursor = test_conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+        except Exception as e:
+            raise ValueError(f"Failed to connect to company database: {str(e)}")
         finally:
             if test_conn:
-                test_conn.close()
+                try:
+                    test_conn.close()
+                except Exception:
+                    pass
 
         self.connection_string = conn_str
         self._current_db_context = "company"
@@ -94,15 +104,35 @@ class Database:
             conn = pyodbc.connect(conn_str)
             conn.autocommit = False
             yield conn
-            conn.commit()
+            # Only commit if connection is still valid and no error occurred
+            try:
+                if conn:
+                    conn.commit()
+            except Exception as commit_error:
+                # If commit fails, try to rollback
+                try:
+                    if conn:
+                        conn.rollback()
+                except Exception:
+                    pass  # Ignore rollback errors if connection is already closed
+                raise commit_error
         except Exception as e:
             if conn:
-                conn.rollback()
+                try:
+                    # Check if connection is still valid before rollback
+                    conn.rollback()
+                except Exception:
+                    # Connection might already be closed or in invalid state
+                    pass
             logger.error(f"Database error: {str(e)}")
             raise
         finally:
             if conn:
-                conn.close()
+                try:
+                    conn.close()
+                except Exception:
+                    # Ignore errors when closing connection
+                    pass
     
     def execute_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> list[dict]:
         """
