@@ -27,7 +27,14 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # CORS Configuration
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,https://sunbaby-1.onrender.com/"
+    # Add your frontend origins here (comma-separated)
+    # Note: These should be the origins of your FRONTEND application, not the API itself
+    # If frontend is on same domain as API, you may not need to add it
+    # For development, you can use "*" to allow all origins (not recommended for production)
+    CORS_ORIGINS: str = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,https://sunbaby-1.onrender.com/"
+    )
     
     @property
     def cors_origins_list(self) -> list[str]:
