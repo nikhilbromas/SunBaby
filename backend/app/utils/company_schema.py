@@ -11,6 +11,7 @@ from app.database import db
 def ensure_company_schema() -> None:
     # If objects exist but are missing columns (older schema), patch them.
     # We use COL_LENGTH checks to avoid failing on CREATE INDEX / FK.
+    # Use autocommit=True for DDL operations to avoid transaction issues
 
     # Create ReportSqlPresets if missing
     db.execute_non_query(
@@ -28,7 +29,8 @@ def ensure_company_schema() -> None:
                 IsActive BIT DEFAULT 1
             );
         END
-        """
+        """,
+        autocommit=True
     )
 
     # Patch missing columns in dbo.ReportSqlPresets (if table exists but schema differs)
@@ -50,10 +52,11 @@ def ensure_company_schema() -> None:
                 ALTER TABLE dbo.ReportSqlPresets ADD CreatedOn DATETIME NULL;
             IF COL_LENGTH('dbo.ReportSqlPresets','UpdatedOn') IS NULL
                 ALTER TABLE dbo.ReportSqlPresets ADD UpdatedOn DATETIME NULL;
-            IF COL_LENGTH('dbo.ReportSqlPresets','IsActive') IS NULL
+                IF COL_LENGTH('dbo.ReportSqlPresets','IsActive') IS NULL
                 ALTER TABLE dbo.ReportSqlPresets ADD IsActive BIT NULL;
         END
-        """
+        """,
+        autocommit=True
     )
 
     # Create indexes if missing
@@ -65,7 +68,8 @@ def ensure_company_schema() -> None:
         BEGIN
             CREATE INDEX IX_ReportSqlPresets_PresetName ON dbo.ReportSqlPresets(PresetName);
         END
-        """
+        """,
+        autocommit=True
     )
     db.execute_non_query(
         """
@@ -75,7 +79,8 @@ def ensure_company_schema() -> None:
         BEGIN
             CREATE INDEX IX_ReportSqlPresets_IsActive ON dbo.ReportSqlPresets(IsActive);
         END
-        """
+        """,
+        autocommit=True
     )
 
     # Create ReportTemplates if missing
@@ -95,7 +100,8 @@ def ensure_company_schema() -> None:
                 FOREIGN KEY (PresetId) REFERENCES dbo.ReportSqlPresets(PresetId) ON DELETE CASCADE
             );
         END
-        """
+        """,
+        autocommit=True
     )
 
     # Patch missing columns in dbo.ReportTemplates (if table exists but schema differs)
@@ -117,10 +123,11 @@ def ensure_company_schema() -> None:
                 ALTER TABLE dbo.ReportTemplates ADD CreatedOn DATETIME NULL;
             IF COL_LENGTH('dbo.ReportTemplates','UpdatedOn') IS NULL
                 ALTER TABLE dbo.ReportTemplates ADD UpdatedOn DATETIME NULL;
-            IF COL_LENGTH('dbo.ReportTemplates','IsActive') IS NULL
+                IF COL_LENGTH('dbo.ReportTemplates','IsActive') IS NULL
                 ALTER TABLE dbo.ReportTemplates ADD IsActive BIT NULL;
         END
-        """
+        """,
+        autocommit=True
     )
 
     # Create indexes if missing
@@ -132,7 +139,8 @@ def ensure_company_schema() -> None:
         BEGIN
             CREATE INDEX IX_ReportTemplates_PresetId ON dbo.ReportTemplates(PresetId);
         END
-        """
+        """,
+        autocommit=True
     )
     db.execute_non_query(
         """
@@ -142,7 +150,8 @@ def ensure_company_schema() -> None:
         BEGIN
             CREATE INDEX IX_ReportTemplates_TemplateName ON dbo.ReportTemplates(TemplateName);
         END
-        """
+        """,
+        autocommit=True
     )
     db.execute_non_query(
         """
@@ -152,7 +161,8 @@ def ensure_company_schema() -> None:
         BEGIN
             CREATE INDEX IX_ReportTemplates_IsActive ON dbo.ReportTemplates(IsActive);
         END
-        """
+        """,
+        autocommit=True
     )
 
     # Add FK if possible and missing (optional if existing data prevents it)
@@ -178,7 +188,8 @@ def ensure_company_schema() -> None:
                 -- If existing data violates FK or permissions are limited, skip FK creation.
             END CATCH
         END
-        """
+        """,
+        autocommit=True
     )
 
 

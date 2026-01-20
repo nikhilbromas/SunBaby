@@ -288,7 +288,7 @@ class Database:
             finally:
                 cursor.close()
 
-    def execute_non_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> None:
+    def execute_non_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False, autocommit: bool = False) -> None:
         """
         Execute a non-SELECT query (DDL/DML). Supports @ParamName placeholders.
         
@@ -296,36 +296,79 @@ class Database:
             query: SQL query
             params: Dictionary of parameter values
             use_auth_db: If True, always execute against auth DB regardless of current context
+            autocommit: If True, use autocommit mode (recommended for DDL statements)
         """
         params = params or {}
-        with self.get_connection(use_auth_db=use_auth_db) as conn:
-            cursor = conn.cursor()
+        
+        # For autocommit operations, use a simpler connection approach
+        if autocommit:
+            conn_str = self._auth_connection_string if use_auth_db else self.connection_string
+            conn = None
             try:
-                import re
+                conn = pyodbc.connect(conn_str)
+                conn.autocommit = True
+                cursor = conn.cursor()
+                try:
+                    import re
 
-                param_pattern = r'@(\w+)'
-                all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+                    param_pattern = r'@(\w+)'
+                    all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
 
-                if not all_param_matches:
-                    cursor.execute(query)
-                    return
+                    if not all_param_matches:
+                        cursor.execute(query)
+                    else:
+                        param_names = list(set(match.group(1) for match in all_param_matches))
+                        missing_params = [p for p in param_names if p not in params]
+                        if missing_params:
+                            raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
 
-                param_names = list(set(match.group(1) for match in all_param_matches))
-                missing_params = [p for p in param_names if p not in params]
-                if missing_params:
-                    raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+                        formatted_query = query
+                        param_values = []
+                        for match in reversed(all_param_matches):
+                            param_name = match.group(1)
+                            start, end = match.span()
+                            formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
+                            param_values.insert(0, params[param_name])
 
-                formatted_query = query
-                param_values = []
-                for match in reversed(all_param_matches):
-                    param_name = match.group(1)
-                    start, end = match.span()
-                    formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
-                    param_values.insert(0, params[param_name])
-
-                cursor.execute(formatted_query, param_values)
+                        cursor.execute(formatted_query, param_values)
+                finally:
+                    cursor.close()
             finally:
-                cursor.close()
+                if conn:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+        else:
+            # Use transaction-based connection for DML operations
+            with self.get_connection(use_auth_db=use_auth_db) as conn:
+                cursor = conn.cursor()
+                try:
+                    import re
+
+                    param_pattern = r'@(\w+)'
+                    all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+
+                    if not all_param_matches:
+                        cursor.execute(query)
+                        return
+
+                    param_names = list(set(match.group(1) for match in all_param_matches))
+                    missing_params = [p for p in param_names if p not in params]
+                    if missing_params:
+                        raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+
+                    formatted_query = query
+                    param_values = []
+                    for match in reversed(all_param_matches):
+                        param_name = match.group(1)
+                        start, end = match.span()
+                        formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
+                        param_values.insert(0, params[param_name])
+
+                    cursor.execute(formatted_query, param_values)
+                finally:
+                    cursor.close()
 
 
 # Global database instance
