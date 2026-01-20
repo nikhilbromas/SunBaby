@@ -80,11 +80,18 @@ class Database:
         self._current_db_context = "company"
     
     @contextmanager
-    def get_connection(self):
-        """Get a database connection context manager."""
+    def get_connection(self, use_auth_db: bool = False):
+        """
+        Get a database connection context manager.
+        
+        Args:
+            use_auth_db: If True, always use auth DB connection regardless of current context
+        """
         conn = None
         try:
-            conn = pyodbc.connect(self.connection_string)
+            # Use auth DB connection if requested
+            conn_str = self._auth_connection_string if use_auth_db else self.connection_string
+            conn = pyodbc.connect(conn_str)
             conn.autocommit = False
             yield conn
             conn.commit()
@@ -97,19 +104,20 @@ class Database:
             if conn:
                 conn.close()
     
-    def execute_query(self, query: str, params: Optional[dict] = None) -> list[dict]:
+    def execute_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> list[dict]:
         """
         Execute a SELECT query and return results as list of dictionaries.
         
         Args:
             query: SQL SELECT query with parameter placeholders (@ParamName)
             params: Dictionary of parameter values
+            use_auth_db: If True, always execute against auth DB regardless of current context
             
         Returns:
             List of dictionaries representing rows
         """
         params = params or {}
-        with self.get_connection() as conn:
+        with self.get_connection(use_auth_db=use_auth_db) as conn:
             cursor = conn.cursor()
             try:
                 import re
@@ -158,19 +166,20 @@ class Database:
             finally:
                 cursor.close()
     
-    def execute_scalar(self, query: str, params: Optional[dict] = None) -> Optional[any]:
+    def execute_scalar(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> Optional[any]:
         """
         Execute a query that returns a single scalar value.
         
         Args:
             query: SQL query
             params: Dictionary of parameter values
+            use_auth_db: If True, always execute against auth DB regardless of current context
             
         Returns:
             Single scalar value or None
         """
         params = params or {}
-        with self.get_connection() as conn:
+        with self.get_connection(use_auth_db=use_auth_db) as conn:
             cursor = conn.cursor()
             try:
                 import re
@@ -211,12 +220,17 @@ class Database:
             finally:
                 cursor.close()
 
-    def execute_non_query(self, query: str, params: Optional[dict] = None) -> None:
+    def execute_non_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> None:
         """
         Execute a non-SELECT query (DDL/DML). Supports @ParamName placeholders.
+        
+        Args:
+            query: SQL query
+            params: Dictionary of parameter values
+            use_auth_db: If True, always execute against auth DB regardless of current context
         """
         params = params or {}
-        with self.get_connection() as conn:
+        with self.get_connection(use_auth_db=use_auth_db) as conn:
             cursor = conn.cursor()
             try:
                 import re
