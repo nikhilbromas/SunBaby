@@ -1,0 +1,68 @@
+{
+  "family": "sunbaby-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "containerDefinitions": [
+    {
+      "name": "sunbaby-backend",
+      "image": "390167164043.dkr.ecr.ap-south-1.amazonaws.com/sunbaby-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "8000"
+        },
+        {
+          "name": "DB_ENCRYPT",
+          "value": "True"
+        },
+        {
+          "name": "DB_TRUST_SERVER_CERTIFICATE",
+          "value": "True"
+        },
+        {
+          "name": "DB_SERVER",
+          "value": "13.234.194.76\\devtest,1435"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "fiesauthentication"
+        },
+        {
+          "name": "DB_USER",
+          "value": "sa"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "fiessystems@123"
+        },
+        {
+          "name": "DB_DRIVER",
+          "value": "ODBC Driver 17 for SQL Server"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/sunbaby-backend",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "platformVersion": "1.0.0",
+  "runtimePlatform": {
+    "operatingSystemFamily": "WINDOWS_SERVER_2019_CORE",
+    "cpuArchitecture": "X86_64"
+  }
+}
+

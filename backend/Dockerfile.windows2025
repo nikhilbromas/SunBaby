@@ -1,0 +1,49 @@
+FROM mcr.microsoft.com/windows/servercore:ltsc2025
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
+
+# ---- Install Python ----
+RUN Invoke-WebRequest https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe -OutFile python.exe ; \
+    Start-Process python.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait ; \
+    Remove-Item python.exe
+
+WORKDIR C:\app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+# Refresh PATH in case it wasn't persisted, then install dependencies
+RUN powershell -Command " \
+    $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH', 'User'); \
+    python -m pip install --no-cache-dir --upgrade pip; \
+    python -m pip install --no-cache-dir -r requirements.txt"
+
+# Install ODBC Driver 17 for SQL Server (Windows version)
+# Download and install ODBC Driver 17 for SQL Server
+RUN powershell -Command " \
+    $ErrorActionPreference = 'Stop'; \
+    Write-Host 'Downloading ODBC Driver 17 for SQL Server...'; \
+    Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2249004' -OutFile 'C:\\msodbcsql.msi'; \
+    Write-Host 'Installing ODBC Driver 17...'; \
+    $process = Start-Process msiexec.exe -ArgumentList '/i C:\\msodbcsql.msi /quiet /norestart IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait -PassThru -NoNewWindow; \
+    if ($process.ExitCode -ne 0) { throw \"ODBC Driver installation failed with exit code $($process.ExitCode)\" }; \
+    Remove-Item C:\\msodbcsql.msi -Force; \
+    Write-Host 'Verifying ODBC Driver installation...'; \
+    $drivers = Get-OdbcDriver | Where-Object { $_.Name -like '*SQL Server*' }; \
+    if (-not $drivers) { throw 'ODBC Driver 17 for SQL Server not found after installation' }; \
+    Write-Host 'ODBC Driver installed successfully:'; \
+    $drivers | ForEach-Object { Write-Host \"  - $($_.Name)\" }"
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Set environment variable for port
+ENV PORT=8000
+
+# Start app using PowerShell
+CMD powershell -Command "python -m uvicorn app.main:app --host 0.0.0.0 --port $env:PORT"
+
