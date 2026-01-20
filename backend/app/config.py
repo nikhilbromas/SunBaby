@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     DB_NAME: str = os.getenv("DB_NAME", "SunBabyDB")
     DB_USER: str = os.getenv("DB_USER", "sa")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
+    # Default driver name - Linux uses "ODBC Driver 17 for SQL Server"
+    # Windows uses the same name, but ensure ODBC Driver 17 is installed
     DB_DRIVER: str = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
     DB_TRUSTED_CONNECTION: bool = os.getenv("DB_TRUSTED_CONNECTION", "False").lower() == "true"
     

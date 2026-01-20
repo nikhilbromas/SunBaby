@@ -1,4 +1,5 @@
-# Python 3.11 on Debian 12 (Bookworm) - OpenSSL 3.0 for better TLS compatibility
+# Python 3.11 on Debian 12 (Bookworm) - Optimized for Render deployment
+# Render only supports Linux containers, so this Dockerfile targets Linux
 FROM python:3.11-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
