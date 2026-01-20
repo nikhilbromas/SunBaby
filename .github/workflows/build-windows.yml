@@ -1,0 +1,72 @@
+name: Build Windows Docker Image
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+    inputs:
+      dockerfile:
+        description: 'Dockerfile to use'
+        required: false
+        default: 'Dockerfile.windows'
+        type: choice
+        options:
+          - Dockerfile.windows
+          - Dockerfile.windows2025
+
+jobs:
+  build-windows:
+    name: Build Windows Container
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Windows Docker image
+      working-directory: ./backend
+      run: |
+        $dockerfile = "${{ github.event.inputs.dockerfile }}"
+        if (-not $dockerfile) {
+          $dockerfile = "Dockerfile.windows"
+        }
+        Write-Host "Building with $dockerfile"
+        docker build -f $dockerfile -t sunbaby-backend:${{ github.sha }} -t sunbaby-backend:latest .
+    
+    - name: Test Docker image
+      working-directory: ./backend
+      run: |
+        docker images sunbaby-backend
+    
+    - name: Save Docker image
+      working-directory: ./backend
+      run: |
+        docker save sunbaby-backend:latest -o sunbaby-backend-windows.tar
+    
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-docker-image
+        path: backend/sunbaby-backend-windows.tar
+        retention-days: 7
+    
+    - name: Display image info
+      run: |
+        Write-Host "=== Build Complete ===" -ForegroundColor Green
+        Write-Host "Image: sunbaby-backend:latest" -ForegroundColor Cyan
+        Write-Host "Tag: ${{ github.sha }}" -ForegroundColor Cyan
+        Write-Host "`nTo use this image:" -ForegroundColor Yellow
+        Write-Host "1. Download artifact from Actions tab" -ForegroundColor White
+        Write-Host "2. Copy to Windows Server EC2" -ForegroundColor White
+        Write-Host "3. Load image: docker load -i sunbaby-backend-windows.tar" -ForegroundColor White
+        Write-Host "4. Run container: docker run -d -p 8000:8000 sunbaby-backend:latest" -ForegroundColor White
+

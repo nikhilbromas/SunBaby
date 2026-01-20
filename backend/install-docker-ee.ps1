@@ -1,7 +1,10 @@
-# Install Docker Enterprise Edition on Windows Server 2019 EC2
+# Install Docker Enterprise Edition on Windows Server 2019/2022/2025 EC2
 # Run this script as Administrator
 
-Write-Host "=== Installing Docker Enterprise Edition on Windows Server 2019 ===" -ForegroundColor Green
+# Detect Windows Server version
+$osInfo = Get-ComputerInfo | Select-Object WindowsProductName
+Write-Host "=== Installing Docker Enterprise Edition ===" -ForegroundColor Green
+Write-Host "Detected OS: $($osInfo.WindowsProductName)" -ForegroundColor Cyan
 
 # Check if running as Administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -21,22 +24,74 @@ if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 3010) {
 # Step 2: Install Docker Engine
 Write-Host "`n[2/5] Installing Docker Engine..." -ForegroundColor Yellow
 
-# Download Docker EE installer
-$dockerUrl = "https://download.docker.com/win/static/stable/x86_64/docker-20.10.26.zip"
+# Try multiple Docker versions (newest to older stable versions)
+$dockerVersions = @(
+    "29.1.5",      # Latest stable
+    "27.4.0",      # Recent stable
+    "26.1.4",      # Alternative stable
+    "25.0.5",      # Fallback stable
+    "24.0.7",      # Older stable
+    "20.10.24"     # Last 20.10.x version
+)
+
 $dockerZip = "$env:TEMP\docker.zip"
 $dockerDir = "C:\Program Files\Docker"
+$dockerDownloaded = $false
+
+foreach ($version in $dockerVersions) {
+    $dockerUrl = "https://download.docker.com/win/static/stable/x86_64/docker-${version}.zip"
+    
+    try {
+        Write-Host "Attempting to download Docker Engine ${version}..." -ForegroundColor Cyan
+        Write-Host "URL: $dockerUrl" -ForegroundColor Gray
+        
+        # Try to download with timeout
+        $response = Invoke-WebRequest -Uri $dockerUrl -OutFile $dockerZip -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+        
+        # Verify file was downloaded and has content
+        if (Test-Path $dockerZip) {
+            $fileSize = (Get-Item $dockerZip).Length
+            if ($fileSize -gt 0) {
+                Write-Host "Successfully downloaded Docker Engine ${version} (Size: $([math]::Round($fileSize/1MB, 2)) MB)" -ForegroundColor Green
+                $dockerDownloaded = $true
+                break
+            } else {
+                Write-Host "Downloaded file is empty, trying next version..." -ForegroundColor Yellow
+                Remove-Item $dockerZip -Force -ErrorAction SilentlyContinue
+            }
+        }
+    } catch {
+        Write-Host "Failed to download version ${version}: $($_.Exception.Message)" -ForegroundColor Yellow
+        if (Test-Path $dockerZip) {
+            Remove-Item $dockerZip -Force -ErrorAction SilentlyContinue
+        }
+        continue
+    }
+}
+
+if (-not $dockerDownloaded) {
+    Write-Host "`nERROR: Failed to download Docker Engine from all attempted versions!" -ForegroundColor Red
+    Write-Host "Please check your internet connection and try again." -ForegroundColor Yellow
+    Write-Host "`nAlternative: Install Docker Desktop for Windows Server or use Microsoft's install script:" -ForegroundColor Yellow
+    Write-Host "  https://learn.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment" -ForegroundColor Cyan
+    exit 1
+}
 
 try {
-    Write-Host "Downloading Docker Engine from $dockerUrl..." -ForegroundColor Cyan
-    Invoke-WebRequest -Uri $dockerUrl -OutFile $dockerZip -UseBasicParsing
-    
     # Extract Docker
-    Write-Host "Extracting Docker..." -ForegroundColor Cyan
+    Write-Host "`nExtracting Docker..." -ForegroundColor Cyan
     if (Test-Path $dockerDir) {
-        Remove-Item $dockerDir -Recurse -Force
+        Write-Host "Removing existing Docker installation..." -ForegroundColor Yellow
+        Remove-Item $dockerDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     New-Item -ItemType Directory -Path $dockerDir -Force | Out-Null
     Expand-Archive -Path $dockerZip -DestinationPath $dockerDir -Force
+    
+    # Verify extraction
+    $dockerdExe = Join-Path $dockerDir "dockerd.exe"
+    if (-not (Test-Path $dockerdExe)) {
+        throw "dockerd.exe not found after extraction"
+    }
     
     # Add Docker to PATH
     Write-Host "Adding Docker to PATH..." -ForegroundColor Cyan
@@ -49,11 +104,11 @@ try {
     
     Write-Host "Docker Engine extracted successfully" -ForegroundColor Green
 } catch {
-    Write-Host "ERROR: Failed to download/extract Docker: $_" -ForegroundColor Red
+    Write-Host "ERROR: Failed to extract Docker: $_" -ForegroundColor Red
     exit 1
 } finally {
     if (Test-Path $dockerZip) {
-        Remove-Item $dockerZip -Force
+        Remove-Item $dockerZip -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -102,14 +157,23 @@ Start-Sleep -Seconds 5
 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
 
 try {
-    $dockerVersion = & docker --version 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "Docker version: $dockerVersion" -ForegroundColor Green
+    
+    # Try to get Docker version
+    $dockerExePath = Join-Path $dockerDir "docker.exe"
+    if (Test-Path $dockerExePath) {
+        $dockerVersion = & $dockerExePath --version 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Docker version: $dockerVersion" -ForegroundColor Green
+        } else {
+            Write-Host "WARNING: Docker command failed. Service may need a restart." -ForegroundColor Yellow
+            Write-Host "Docker executable found at: $dockerExePath" -ForegroundColor Cyan
+        }
     } else {
-        Write-Host "WARNING: Docker command failed. Service may need a restart." -ForegroundColor Yellow
+        Write-Host "WARNING: docker.exe not found at expected location: $dockerExePath" -ForegroundColor Yellow
     }
 } catch {
     Write-Host "WARNING: Could not verify Docker installation: $_" -ForegroundColor Yellow
+    Write-Host "Docker files should be at: $dockerDir" -ForegroundColor Cyan
 }
 
 # Display final instructions
@@ -121,7 +185,14 @@ Write-Host "`n2. After restart, verify Docker is running:" -ForegroundColor Whit
 Write-Host "   docker version" -ForegroundColor Cyan
 Write-Host "   docker info" -ForegroundColor Cyan
 Write-Host "`n3. Test with a Windows container:" -ForegroundColor White
-Write-Host "   docker run mcr.microsoft.com/windows/servercore:ltsc2019 cmd /c echo Hello" -ForegroundColor Cyan
+# Detect Windows Server version for appropriate base image
+if ($osInfo.WindowsProductName -like "*Server 2025*") {
+    Write-Host "   docker run mcr.microsoft.com/windows/servercore:ltsc2025 cmd /c echo Hello" -ForegroundColor Cyan
+} elseif ($osInfo.WindowsProductName -like "*Server 2022*") {
+    Write-Host "   docker run mcr.microsoft.com/windows/servercore:ltsc2022 cmd /c echo Hello" -ForegroundColor Cyan
+} else {
+    Write-Host "   docker run mcr.microsoft.com/windows/servercore:ltsc2019 cmd /c echo Hello" -ForegroundColor Cyan
+}
 
 Write-Host "`nNOTE: If Docker commands don't work after restart, you may need to:" -ForegroundColor Yellow
 Write-Host "- Manually start the Docker service: Start-Service Docker" -ForegroundColor White

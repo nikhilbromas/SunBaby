@@ -229,7 +229,7 @@ scp -r backend/ Administrator@<public-ip>:C:/SunBaby/
 
 ```powershell
 # Navigate to backend directory
-cd C:\SunBaby\backend\SunBaby\backend
+cd C:\SunBaby\back\SunBaby\backend
 
 # Run Docker installation script
 .\install-docker-ee.ps1
