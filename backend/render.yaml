@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sunbaby-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DB_ENCRYPT
+        value: True
+      - key: DB_TRUST_SERVER_CERTIFICATE
+        value: True
+      # Add your database credentials as environment variables in Render dashboard
+      # DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD
+

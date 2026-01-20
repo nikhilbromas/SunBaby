@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     DB_NAME: str = os.getenv("DB_NAME", "SunBabyDB")
     DB_USER: str = os.getenv("DB_USER", "sa")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
+    # Default driver name - Linux uses "ODBC Driver 17 for SQL Server"
+    # Windows uses the same name, but ensure ODBC Driver 17 is installed
     DB_DRIVER: str = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
     DB_TRUSTED_CONNECTION: bool = os.getenv("DB_TRUSTED_CONNECTION", "False").lower() == "true"
     
@@ -22,9 +24,10 @@ class Settings(BaseSettings):
     API_TITLE: str = "Dynamic Bill Preview API"
     API_VERSION: str = "1.0.0"
     API_PREFIX: str = "/api/v1"
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # CORS Configuration
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,https://sunbaby-1.onrender.com/"
     
     @property
     def cors_origins_list(self) -> list[str]:
@@ -39,9 +42,6 @@ class Settings(BaseSettings):
     
     # Export Configuration
     PDF_EXPORT_ENABLED: bool = os.getenv("PDF_EXPORT_ENABLED", "True").lower() == "true"
-    
-    # Debug Configuration
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
     
     class Config:
         env_file = ".env"

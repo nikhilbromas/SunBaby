@@ -1,0 +1,32 @@
+# Python 3.11 on Windows Nano Server (smaller image)
+FROM python:3.11-windowsservercore
+
+# Set working directory
+WORKDIR C:\\app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Install ODBC Driver 17 for SQL Server (Windows version)
+# Download and install ODBC Driver 17 for SQL Server
+RUN powershell -Command " \
+    Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2249004' -OutFile 'C:\\msodbcsql.msi'; \
+    Start-Process msiexec.exe -ArgumentList '/i C:\\msodbcsql.msi /quiet /norestart IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait; \
+    Remove-Item C:\\msodbcsql.msi -Force"
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Set environment variable for port
+ENV PORT=8000
+
+# Start app using PowerShell
+CMD powershell -Command "uvicorn app.main:app --host 0.0.0.0 --port $env:PORT"
+

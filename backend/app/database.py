@@ -20,6 +20,14 @@ class Database:
     
     def _build_connection_string(self) -> str:
         """Build MSSQL connection string from settings."""
+        import os
+        
+        # SSL/TLS configuration (can be overridden via environment variables)
+        # For ODBC Driver 18 with TLS-enforced SQL Server, encryption is required
+        # Default to True for ODBC Driver 18, but can be overridden via DB_ENCRYPT
+        encrypt = os.getenv("DB_ENCRYPT", "True").lower() == "true"
+        trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "True").lower() == "true"
+        
         if settings.DB_TRUSTED_CONNECTION:
             conn_str = (
                 f"DRIVER={{{settings.DB_DRIVER}}};"
@@ -35,6 +43,19 @@ class Database:
                 f"UID={settings.DB_USER};"
                 f"PWD={settings.DB_PASSWORD};"
             )
+        
+        # Add SSL/TLS encryption settings
+        if encrypt:
+            conn_str += f"Encrypt=yes;"
+            # Don't set TLSVersion - let OpenSSL negotiate based on MinProtocol in openssl.cnf
+            # This avoids conflicts between connection string TLSVersion and OpenSSL config
+            if trust_cert:
+                conn_str += f"TrustServerCertificate=yes;"
+            else:
+                conn_str += f"TrustServerCertificate=no;"
+        else:
+            conn_str += f"Encrypt=no;"
+        
         return conn_str
 
     def switch_to_auth_db(self) -> None:
@@ -58,6 +79,11 @@ class Database:
             raise ValueError("Missing company DBserver/DBname")
 
         # Always use SQL auth for company DB (details come from CompanyProfile)
+        import os
+        # For ODBC Driver 18 with TLS-enforced SQL Server, encryption is required
+        encrypt = os.getenv("DB_ENCRYPT", "True").lower() == "true"
+        trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "True").lower() == "true"
+        
         conn_str = (
             f"DRIVER={{{settings.DB_DRIVER}}};"
             f"SERVER={server};"
@@ -67,11 +93,23 @@ class Database:
             conn_str += f"UID={user};"
         if pw:
             conn_str += f"PWD={pw};"
+        
+        # Add SSL/TLS encryption settings
+        if encrypt:
+            conn_str += f"Encrypt=yes;"
+            # Don't set TLSVersion - let OpenSSL negotiate based on MinProtocol in openssl.cnf
+            # This avoids conflicts between connection string TLSVersion and OpenSSL config
+            if trust_cert:
+                conn_str += f"TrustServerCertificate=yes;"
+            else:
+                conn_str += f"TrustServerCertificate=no;"
+        else:
+            conn_str += f"Encrypt=no;"
 
         # Validate connection before switching permanently
         test_conn = None
         try:
-            test_conn = pyodbc.connect(conn_str)
+            test_conn = pyodbc.connect(conn_str, timeout=5)
             test_conn.autocommit = True  # Use autocommit for test connection to avoid transaction issues
             # Test the connection with a simple query
             cursor = test_conn.cursor()
