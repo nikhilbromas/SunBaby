@@ -44,19 +44,30 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setStep('template');
       setLocalPresetId(selectedPresetId || null);
       setLocalTemplateId(selectedTemplateId || null);
       setSearchQuery('');
       setTemplateName('');
       loadPresetsAndTemplates();
+      
+      // If template and preset are already selected, go directly to parameters
+      if (selectedTemplateId && selectedPresetId) {
+        setStep('parameters');
+      } else {
+        setStep('template');
+      }
     }
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, selectedTemplateId, selectedPresetId]);
 
   useEffect(() => {
     // keep parent in sync when preset changes during create flow
     if (!localPresetId) return;
-    onPresetSelect(localPresetId);
+    // Only sync if it's different from the current selected preset to avoid unnecessary updates
+    if (localPresetId !== selectedPresetId) {
+      onPresetSelect(localPresetId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localPresetId]);
 
   const loadPresetsAndTemplates = async () => {
@@ -161,8 +172,18 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
       return;
     }
     if (step === 'parameters') {
-      // return to template list; keep selections but don't force them
-      setStep('template');
+      // If we came from an existing template selection, go back to template list
+      // Otherwise, if we created a new template, go back to createTemplate step
+      if (selectedTemplateId && localTemplateId === selectedTemplateId) {
+        // We're using an existing template, go back to template list
+        setStep('template');
+      } else if (localTemplateId && !selectedTemplateId) {
+        // We created a new template, go back to createTemplate step
+        setStep('createTemplate');
+      } else {
+        // Default: go back to template list
+        setStep('template');
+      }
     }
   };
 
@@ -222,6 +243,45 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
         <div className="setup-panel-content">
           {step === 'template' && (
             <div className="template-selection">
+              {selectedTemplateId && localTemplateId === selectedTemplateId && (
+                <div className="current-template-banner" style={{
+                  background: 'linear-gradient(135deg, rgba(11, 99, 255, 0.1) 0%, rgba(11, 99, 255, 0.05) 100%)',
+                  border: '1px solid rgba(11, 99, 255, 0.2)',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <strong style={{ color: 'var(--brand-600)' }}>Current Template Selected</strong>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+                      Template ID: {selectedTemplateId}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const template = templates.find(t => t.TemplateId === selectedTemplateId);
+                      if (template) {
+                        handleExistingTemplateSelect(template);
+                      }
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--brand-600)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    Continue to Parameters →
+                  </button>
+                </div>
+              )}
               <div className="search-container">
                 <input
                   type="text"
@@ -352,6 +412,22 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
 
           {step === 'parameters' && currentPreset && (
             <div className="parameters-section">
+              {localTemplateId && (
+                <div className="selected-template-info" style={{ 
+                  background: '#f8f9fa', 
+                  padding: '1rem', 
+                  borderRadius: '8px', 
+                  marginBottom: '1rem',
+                  borderLeft: '4px solid #007bff'
+                }}>
+                  <strong>Template ID: {localTemplateId}</strong>
+                  {localTemplateId === selectedTemplateId && (
+                    <span style={{ marginLeft: '0.5rem', color: '#6c757d', fontSize: '0.875rem' }}>
+                      (Currently Selected)
+                    </span>
+                  )}
+                </div>
+              )}
               <ParameterInput
                 preset={currentPreset}
                 onExecute={() => {}} // onExecute is called but we use onDataReceived for closing
