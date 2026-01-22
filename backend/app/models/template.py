@@ -26,6 +26,18 @@ class TextFieldConfig(BaseModel):
     fieldType: Optional[str] = Field(None, description="Special field type: 'pageNumber', 'totalPages', 'currentDate', 'currentTime'")
 
 
+class ImageFieldConfig(BaseModel):
+    """Configuration for an image field in template."""
+    type: str = Field("image", description="Field type")
+    imageId: int = Field(..., description="Reference to ReportImages.ImageId")
+    x: float = Field(0, description="X position")
+    y: float = Field(0, description="Y position")
+    width: Optional[float] = Field(None, description="Image width in pixels")
+    height: Optional[float] = Field(None, description="Image height in pixels")
+    visible: bool = Field(True, description="Visibility flag")
+    watermark: Optional[bool] = Field(False, description="Render as watermark (behind content, with opacity)")
+
+
 class TableColumnConfig(BaseModel):
     """Configuration for a table column."""
     bind: str = Field(..., description="Data binding path (e.g., 'ItemName')")
@@ -61,9 +73,15 @@ class TemplateJsonModel(BaseModel):
     """Model for template JSON structure."""
     page: PageConfig = Field(default_factory=lambda: PageConfig())
     pageHeader: Optional[List[TextFieldConfig]] = Field(None, description="Page header fields (appear on every page)")
+    pageHeaderImages: Optional[List[ImageFieldConfig]] = Field(None, description="Page header images (appear on every page)")
     pageFooter: Optional[List[TextFieldConfig]] = Field(None, description="Page footer fields (appear on every page)")
+    pageFooterImages: Optional[List[ImageFieldConfig]] = Field(None, description="Page footer images (appear on every page)")
     header: List[TextFieldConfig] = Field(default_factory=list, description="Bill header text fields")
+    headerImages: Optional[List[ImageFieldConfig]] = Field(None, description="Bill header images")
+    billContent: Optional[List[TextFieldConfig]] = Field(None, description="Bill content text fields")
+    billContentImages: Optional[List[ImageFieldConfig]] = Field(None, description="Bill content images")
     billFooter: Optional[List[TextFieldConfig]] = Field(None, description="Bill footer fields")
+    billFooterImages: Optional[List[ImageFieldConfig]] = Field(None, description="Bill footer images")
     itemsTable: Optional[ItemsTableConfig] = Field(None, description="Items table configuration")
     pagination: Optional[PaginationConfig] = Field(None, description="Pagination configuration")
     

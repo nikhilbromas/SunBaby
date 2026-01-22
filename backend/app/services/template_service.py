@@ -5,6 +5,7 @@ Handles CRUD operations for bill templates.
 from typing import List, Optional
 from app.database import db
 from app.models.template import TemplateCreate, TemplateUpdate, TemplateResponse
+from app.utils.cache import template_cache, make_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,9 +27,17 @@ class TemplateService:
         Raises:
             ValueError: If preset doesn't exist or template name already exists
         """
-        # Verify preset exists
+        # Verify preset exists (sync call for now - create is typically not in hot path)
         from app.services.preset_service import preset_service
-        preset = preset_service.get_preset(template_data.presetId)
+        # For create operations, we can use sync version temporarily
+        # TODO: Make create_template async if needed
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            preset = loop.run_until_complete(preset_service.get_preset(template_data.presetId))
+        except RuntimeError:
+            # No event loop, create one
+            preset = asyncio.run(preset_service.get_preset(template_data.presetId))
         if not preset:
             raise ValueError(f"Preset with ID {template_data.presetId} not found")
         
@@ -60,15 +69,19 @@ class TemplateService:
                 conn.commit()
                 
                 if row:
-                    return self._row_to_template_response(row)
+                    template = self._row_to_template_response(row)
+                    # Cache the new template
+                    cache_key = make_cache_key("template", template.TemplateId)
+                    template_cache.set(cache_key, template)
+                    return template
                 else:
                     raise Exception("Failed to create template")
             finally:
                 cursor.close()
     
-    def get_template(self, template_id: int) -> Optional[TemplateResponse]:
+    async def get_template(self, template_id: int) -> Optional[TemplateResponse]:
         """
-        Get template by ID.
+        Get template by ID (async).
         
         Args:
             template_id: Template ID
@@ -76,19 +89,33 @@ class TemplateService:
         Returns:
             Template or None if not found
         """
-        query = "SELECT * FROM ReportTemplates WHERE TemplateId = ? AND IsActive = 1"
+        # Check cache first
+        cache_key = make_cache_key("template", template_id)
+        cached = template_cache.get(cache_key)
+        if cached is not None:
+            return cached
         
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(query, (template_id,))
-                row = cursor.fetchone()
-                
-                if row:
-                    return self._row_to_template_response(row)
-                return None
-            finally:
-                cursor.close()
+        # Use async query execution with @ParamName format
+        query = "SELECT * FROM ReportTemplates WHERE TemplateId = @template_id AND IsActive = 1"
+        results = await db.execute_query_async(query, {"template_id": template_id})
+        
+        if results and len(results) > 0:
+            # Convert dict result to TemplateResponse
+            row_dict = results[0]
+            template = TemplateResponse(
+                TemplateId=row_dict.get('TemplateId'),
+                PresetId=row_dict.get('PresetId'),
+                TemplateName=row_dict.get('TemplateName'),
+                TemplateJson=row_dict.get('TemplateJson'),
+                CreatedBy=row_dict.get('CreatedBy'),
+                CreatedOn=row_dict.get('CreatedOn'),
+                UpdatedOn=row_dict.get('UpdatedOn'),
+                IsActive=bool(row_dict.get('IsActive', True))
+            )
+            # Cache the result
+            template_cache.set(cache_key, template)
+            return template
+        return None
     
     def get_template_by_name(self, template_name: str, preset_id: Optional[int] = None) -> Optional[TemplateResponse]:
         """
@@ -218,7 +245,11 @@ class TemplateService:
                 conn.commit()
                 
                 if row:
-                    return self._row_to_template_response(row)
+                    template = self._row_to_template_response(row)
+                    # Update cache
+                    cache_key = make_cache_key("template", template_id)
+                    template_cache.set(cache_key, template)
+                    return template
                 return None
             finally:
                 cursor.close()
@@ -244,7 +275,12 @@ class TemplateService:
             try:
                 cursor.execute(update_query, (template_id,))
                 conn.commit()
-                return cursor.rowcount > 0
+                deleted = cursor.rowcount > 0
+                if deleted:
+                    # Invalidate cache
+                    cache_key = make_cache_key("template", template_id)
+                    template_cache.delete(cache_key)
+                return deleted
             finally:
                 cursor.close()
     

@@ -1,0 +1,70 @@
+.image-editor {
+  position: absolute;
+  border: 2px solid transparent;
+  cursor: move;
+  user-select: none;
+  transition: border-color 120ms ease;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.image-editor:hover {
+  border-color: rgba(11, 99, 255, 0.3);
+}
+
+.image-editor.selected {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 2px rgba(11, 99, 255, 0.2);
+}
+
+.image-editor.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+.image-editor-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--muted);
+  font-size: 0.75rem;
+  background: var(--bg);
+}
+
+.image-editor-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.image-editor-delete:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+.image-editor.watermark {
+  border-style: dashed;
+  border-color: rgba(11, 99, 255, 0.5);
+}
+
+.image-editor.watermark.selected {
+  border-color: var(--brand-600);
+  border-style: solid;
+}
+

@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDrop } from 'react-dnd';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig } from '../../services/types';
 import FieldEditor from './FieldEditor';
+import ImageEditor from './ImageEditor';
 import TableEditor from './TableEditor';
 import SidePanel from './SidePanel';
 import PropertyPanel from './PropertyPanel';
@@ -113,7 +114,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     billContent: undefined,
   });
   const [selectedElement, setSelectedElement] = useState<{
-    type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable';
+    type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable' | 'image';
     index: number;
     section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
   } | null>(null);
@@ -1055,12 +1056,79 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     [template.header.length, template.sectionHeights]
   );
 
+  const handleImageDrop = useCallback(
+    (item: { type: 'image'; imageId: number; base64Data: string; width: number; height: number }, monitor: any) => {
+      const clientOffset = monitor?.getClientOffset();
+      const canvasElement = document.querySelector('.canvas');
+      
+      // Determine target section based on drop position
+      let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header';
+      
+      if (clientOffset && canvasElement) {
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const y = clientOffset.y - canvasRect.top;
+        const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
+        
+        const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+        const billHeaderHeight = template.sectionHeights?.billHeader || 200;
+        const billContentHeight = template.sectionHeights?.billContent || 100;
+        const billFooterHeight = template.sectionHeights?.billFooter || 100;
+        const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+        
+        const pageHeaderTop = 40;
+        const billHeaderTop = pageHeaderTop + pageHeaderHeight + 10;
+        const billContentTop = billHeaderTop + billHeaderHeight + 10;
+        const billContentBottom = billContentTop + billContentHeight;
+        const billFooterBottom = canvasHeight - pageFooterHeight - 10;
+        const billFooterTop = billFooterBottom - billFooterHeight;
+        
+        if (y < pageHeaderTop + pageHeaderHeight) {
+          section = 'pageHeader';
+        } else if (y >= billHeaderTop && y < billContentTop) {
+          section = 'header';
+        } else if (y >= billContentTop && y < billContentBottom) {
+          section = 'billContent';
+        } else if (y >= billFooterTop && y < billFooterBottom) {
+          section = 'billFooter';
+        } else if (y > canvasHeight - pageFooterHeight) {
+          section = 'pageFooter';
+        }
+      }
+      
+      const newImage: ImageFieldConfig = {
+        type: 'image',
+        imageId: item.imageId,
+        x: clientOffset && canvasElement ? clientOffset.x - canvasElement.getBoundingClientRect().left - 20 : 20,
+        y: clientOffset && canvasElement ? clientOffset.y - canvasElement.getBoundingClientRect().top - 20 : 20,
+        width: Math.min(item.width, 200), // Default max width
+        height: undefined, // Let it maintain aspect ratio
+        visible: true,
+      };
+      
+      setTemplate((prev) => {
+        const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                          section === 'pageFooter' ? 'pageFooterImages' :
+                          section === 'header' ? 'headerImages' :
+                          section === 'billContent' ? 'billContentImages' :
+                          'billFooterImages';
+        return {
+          ...prev,
+          [sectionKey]: [...(prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[] || []), newImage],
+        };
+      });
+    },
+    [template.page.orientation, template.sectionHeights]
+  );
+
   const [{ isOver }, drop] = useDrop({
-    accept: ['text', 'table', 'data-field'],
+    accept: ['text', 'table', 'data-field', 'image'],
     drop: (item: any, monitor) => {
       if (item.type === 'data-field' || item.fieldType) {
         // Handle data field drop - targetSection is already in item
         handleDataFieldDrop(item, monitor.getClientOffset());
+      } else if (item.type === 'image') {
+        // Handle image drop
+        handleImageDrop(item, monitor);
       } else {
         // Handle regular toolbar drop
         handleDrop(item, monitor);
@@ -1117,6 +1185,39 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
       }
     });
     if (selectedElement?.type === 'field' && selectedElement.index === index && selectedElement.section === section) {
+      setSelectedElement(null);
+    }
+  };
+
+  const updateImage = (index: number, image: Partial<ImageFieldConfig>, section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header') => {
+    setTemplate((prev) => {
+      const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                        section === 'pageFooter' ? 'pageFooterImages' :
+                        section === 'header' ? 'headerImages' :
+                        section === 'billContent' ? 'billContentImages' :
+                        'billFooterImages';
+      const images = (prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+      return {
+        ...prev,
+        [sectionKey]: images.map((img, i) => (i === index ? { ...img, ...image } : img)),
+      };
+    });
+  };
+
+  const deleteImage = (index: number, section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header') => {
+    setTemplate((prev) => {
+      const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                        section === 'pageFooter' ? 'pageFooterImages' :
+                        section === 'header' ? 'headerImages' :
+                        section === 'billContent' ? 'billContentImages' :
+                        'billFooterImages';
+      const images = (prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+      return {
+        ...prev,
+        [sectionKey]: images.filter((_, i) => i !== index),
+      };
+    });
+    if (selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === section) {
       setSelectedElement(null);
     }
   };
@@ -1253,6 +1354,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             selectedElement={selectedElement}
             template={template}
             onUpdateField={(index, updates, section) => updateField(index, updates, section || 'header')}
+            onUpdateImage={(index, updates, section) => updateImage(index, updates, section || 'header')}
             onUpdateTable={updateTable}
             onUpdateContentDetailTable={updateContentDetailTable}
             onUpdateBillContentTable={updateBillContentTable}
@@ -1325,6 +1427,18 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   section="pageHeader"
                 />
               ))}
+              {(template.pageHeaderImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`pageHeaderImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'pageHeader'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'pageHeader' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'pageHeader')}
+                  onDelete={() => deleteImage(index, 'pageHeader')}
+                  section="pageHeader"
+                />
+              ))}
             </ResizableSectionZone>
             
             {/* Bill Header Section */}
@@ -1354,6 +1468,18 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   section="header"
                 />
               ))}
+              {(template.headerImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`headerImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'header'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'header' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'header')}
+                  onDelete={() => deleteImage(index, 'header')}
+                  section="header"
+                />
+              ))}
             </ResizableSectionZone>
             
             {/* Bill Content Section */}
@@ -1380,6 +1506,18 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   onDelete={() => deleteField(index, 'billContent')}
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
+                  section="billContent"
+                />
+              ))}
+              {(template.billContentImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`billContentImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'billContent'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'billContent' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'billContent')}
+                  onDelete={() => deleteImage(index, 'billContent')}
                   section="billContent"
                 />
               ))}
@@ -1466,6 +1604,18 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     section="billFooter"
                   />
                 ))}
+                {(template.billFooterImages || []).map((imageField, index) => (
+                  <ImageEditor
+                    key={`billFooterImage-${index}`}
+                    imageField={imageField}
+                    index={index}
+                    isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'billFooter'}
+                    onSelect={() => setSelectedElement({ type: 'image', index, section: 'billFooter' })}
+                    onUpdate={(updates) => updateImage(index, updates, 'billFooter')}
+                    onDelete={() => deleteImage(index, 'billFooter')}
+                    section="billFooter"
+                  />
+                ))}
               </ResizableSectionZone>
             )}
             
@@ -1494,6 +1644,18 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   onDelete={() => deleteField(index, 'pageFooter')}
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
+                  section="pageFooter"
+                />
+              ))}
+              {(template.pageFooterImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`pageFooterImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'pageFooter'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'pageFooter' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'pageFooter')}
+                  onDelete={() => deleteImage(index, 'pageFooter')}
                   section="pageFooter"
                 />
               ))}

@@ -21,14 +21,20 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
   const [parameters, setParameters] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastPresetId, setLastPresetId] = useState<number | null>(null);
 
   useEffect(() => {
     if (preset) {
-      extractParameters();
+      // Only reset parameters if preset actually changed
+      if (preset.PresetId !== lastPresetId) {
+        extractParameters();
+        setLastPresetId(preset.PresetId);
+      }
     } else {
       setParameters({});
+      setLastPresetId(null);
     }
-  }, [preset]);
+  }, [preset, lastPresetId]);
 
   const extractParameters = () => {
     if (!preset) return;
@@ -64,11 +70,23 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
         });
       }
 
-      const initialParams: Record<string, any> = {};
-      Array.from(paramNames).forEach((param) => {
-        initialParams[param] = '';
+      // Preserve existing parameter values, only initialize new ones
+      setParameters((prevParams) => {
+        const newParams: Record<string, any> = { ...prevParams };
+        Array.from(paramNames).forEach((param) => {
+          // Only set to empty if parameter doesn't exist yet
+          if (!(param in newParams)) {
+            newParams[param] = '';
+          }
+        });
+        // Remove parameters that are no longer needed
+        Object.keys(newParams).forEach((key) => {
+          if (!paramNames.has(key)) {
+            delete newParams[key];
+          }
+        });
+        return newParams;
       });
-      setParameters(initialParams);
     } catch (e) {
       setError('Invalid SQL JSON format');
     }
@@ -89,10 +107,18 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
 
     setError(null);
 
-    // Validate required parameters
-    const missingParams = Object.keys(parameters).filter(
-      (key) => !parameters[key] || parameters[key].toString().trim() === ''
-    );
+    // Validate required parameters - only check non-empty values
+    const filledParams: Record<string, any> = {};
+    const missingParams: string[] = [];
+
+    Object.keys(parameters).forEach((key) => {
+      const value = parameters[key];
+      if (value !== null && value !== undefined && value.toString().trim() !== '') {
+        filledParams[key] = value;
+      } else {
+        missingParams.push(key);
+      }
+    });
 
     if (missingParams.length > 0) {
       setError(`Please fill in all required parameters: ${missingParams.join(', ')}`);
@@ -101,9 +127,17 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
 
     setLoading(true);
     try {
-      const data = await apiClient.testPresetQueries(preset.PresetId, parameters);
+      // Use filledParams (with trimmed values) for the API call
+      const trimmedParams: Record<string, any> = {};
+      Object.keys(filledParams).forEach((key) => {
+        const value = filledParams[key];
+        trimmedParams[key] = typeof value === 'string' ? value.trim() : value;
+      });
+
+      const data = await apiClient.testPresetQueries(preset.PresetId, trimmedParams);
       onDataReceived(data);
-      onExecute(parameters);
+      onExecute(trimmedParams);
+      // Parameters are preserved in state, so fields remain filled
     } catch (err: any) {
       setError(err.message || 'Failed to execute query');
     } finally {

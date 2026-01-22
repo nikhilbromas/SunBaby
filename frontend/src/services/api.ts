@@ -16,12 +16,15 @@ import type {
   LoginResponse,
   CompanySelectResponse,
   MeResponse,
+  Image,
+  ImageListResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 class ApiClient {
   private client: AxiosInstance;
+  private cachedCompanyId: number | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -58,6 +61,7 @@ class ApiClient {
             localStorage.removeItem('auth_email');
             localStorage.removeItem('auth_user_id');
             localStorage.removeItem('auth_company_id');
+            this.invalidateCompanyIdCache();
           }
           const message = (error.response.data as any)?.detail || error.message;
           console.error('API Error:', message);
@@ -75,31 +79,63 @@ class ApiClient {
     );
   }
 
+  private getCompanyId(): number | undefined {
+    if (this.cachedCompanyId !== null) {
+      return this.cachedCompanyId;
+    }
+    const companyIdFromStorage = localStorage.getItem('auth_company_id');
+    const companyId = companyIdFromStorage ? parseInt(companyIdFromStorage, 10) : undefined;
+    if (companyId !== undefined) {
+      this.cachedCompanyId = companyId;
+    }
+    return companyId;
+  }
+
+  private invalidateCompanyIdCache(): void {
+    this.cachedCompanyId = null;
+  }
+
   // Preset endpoints
   async getPresets(skip = 0, limit = 100): Promise<PresetListResponse> {
+    const companyId = this.getCompanyId();
     const response = await this.client.get<PresetListResponse>('/presets', {
-      params: { skip, limit },
+      params: { company_id: companyId, skip, limit },
     });
     return response.data;
   }
 
   async getPreset(presetId: number): Promise<Preset> {
-    const response = await this.client.get<Preset>(`/presets/${presetId}`);
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<Preset>(`/presets/${presetId}`, {
+      params: { company_id: companyId },
+    });
     return response.data;
   }
 
   async createPreset(data: PresetCreate): Promise<Preset> {
-    const response = await this.client.post<Preset>('/presets', data);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    const response = await this.client.post<Preset>('/presets', data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
     return response.data;
   }
 
   async updatePreset(presetId: number, data: PresetUpdate): Promise<Preset> {
-    const response = await this.client.put<Preset>(`/presets/${presetId}`, data);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    const response = await this.client.put<Preset>(`/presets/${presetId}`, data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
     return response.data;
   }
 
   async deletePreset(presetId: number): Promise<void> {
-    await this.client.delete(`/presets/${presetId}`);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    await this.client.delete(`/presets/${presetId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
   }
 
   async testPresetQueries(presetId: number, parameters: Record<string, any>): Promise<{
@@ -107,35 +143,57 @@ class ApiClient {
     items: { data: Record<string, any>[]; fields: string[]; sampleCount: number };
     contentDetails?: Record<string, { data: Record<string, any>[]; fields: string[]; sampleCount: number }>;
   }> {
-    const response = await this.client.post(`/presets/${presetId}/test`, { parameters });
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    const response = await this.client.post(`/presets/${presetId}/test`, { parameters }, {
+      params: companyId ? { company_id: companyId } : {},
+    });
     return response.data;
   }
 
   // Template endpoints
   async getTemplates(presetId?: number, skip = 0, limit = 100): Promise<TemplateListResponse> {
+    const companyId = this.getCompanyId();
+
     const response = await this.client.get<TemplateListResponse>('/templates', {
-      params: { presetId, skip, limit },
+      params: { presetId, company_id: companyId, skip, limit },
     });
     return response.data;
   }
 
   async getTemplate(templateId: number): Promise<Template> {
-    const response = await this.client.get<Template>(`/templates/${templateId}`);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<Template>(`/templates/${templateId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
     return response.data;
   }
 
   async createTemplate(data: TemplateCreate): Promise<Template> {
-    const response = await this.client.post<Template>('/templates', data);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    const response = await this.client.post<Template>('/templates', data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
     return response.data;
   }
 
   async updateTemplate(templateId: number, data: TemplateUpdate): Promise<Template> {
-    const response = await this.client.put<Template>(`/templates/${templateId}`, data);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    const response = await this.client.put<Template>(`/templates/${templateId}`, data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
     return response.data;
   }
 
   async deleteTemplate(templateId: number): Promise<void> {
-    await this.client.delete(`/templates/${templateId}`);
+    // Auto-include company_id from cache if available
+    const companyId = this.getCompanyId();
+    await this.client.delete(`/templates/${templateId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
   }
 
   // Preview endpoints
@@ -147,7 +205,14 @@ class ApiClient {
   }
 
   async generatePreviewPdf(request: PreviewRequest): Promise<string> {
-    const response = await this.client.post<{ pdf: string }>('/preview/pdf', request);
+    // If the caller didn't provide companyId, try using the selected company from cache.
+    // This is required when backend needs to switch to the correct company DB to find templates/presets.
+    const cachedCompanyId = this.getCompanyId();
+    const companyId = request.companyId ?? cachedCompanyId;
+
+    const payload = companyId ? { ...request, companyId } : request;
+
+    const response = await this.client.post<{ pdf: string }>('/preview/pdf', payload);
     return response.data.pdf;
   }
 
@@ -164,6 +229,8 @@ class ApiClient {
 
   async selectCompany(companyId: number): Promise<CompanySelectResponse> {
     const response = await this.client.post<CompanySelectResponse>('/auth/select-company', { company_id: companyId });
+    // Update cache when company is selected
+    this.cachedCompanyId = companyId;
     return response.data;
   }
 
@@ -175,6 +242,44 @@ class ApiClient {
   async logout(): Promise<{ success: boolean }> {
     const response = await this.client.post<{ success: boolean }>('/auth/logout');
     return response.data;
+  }
+
+  // Image endpoints
+  async uploadImage(file: File): Promise<Image> {
+    const companyId = this.getCompanyId();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await this.client.post<Image>('/images/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async getImages(skip = 0, limit = 100): Promise<ImageListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<ImageListResponse>('/images', {
+      params: { company_id: companyId, skip, limit },
+    });
+    return response.data;
+  }
+
+  async getImage(imageId: number): Promise<Image> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<Image>(`/images/${imageId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async deleteImage(imageId: number): Promise<void> {
+    const companyId = this.getCompanyId();
+    await this.client.delete(`/images/${imageId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
   }
 }
 

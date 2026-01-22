@@ -192,4 +192,83 @@ def ensure_company_schema() -> None:
         autocommit=True
     )
 
+    # Create ReportImages if missing
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportImages', 'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.ReportImages (
+                ImageId INT IDENTITY(1,1) PRIMARY KEY,
+                ImageName VARCHAR(255) NOT NULL,
+                FilePath NVARCHAR(500) NOT NULL,
+                Base64Data NVARCHAR(MAX) NOT NULL,
+                FileSize INT NOT NULL,
+                Width INT NOT NULL,
+                Height INT NOT NULL,
+                MimeType VARCHAR(50) NOT NULL,
+                CreatedBy VARCHAR(50) NULL,
+                CreatedOn DATETIME DEFAULT GETDATE(),
+                IsActive BIT DEFAULT 1
+            );
+        END
+        """,
+        autocommit=True
+    )
+
+    # Patch missing columns in dbo.ReportImages (if table exists but schema differs)
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportImages', 'U') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('dbo.ReportImages','ImageId') IS NULL
+                ALTER TABLE dbo.ReportImages ADD ImageId INT IDENTITY(1,1) NOT NULL;
+            IF COL_LENGTH('dbo.ReportImages','ImageName') IS NULL
+                ALTER TABLE dbo.ReportImages ADD ImageName VARCHAR(255) NULL;
+            IF COL_LENGTH('dbo.ReportImages','FilePath') IS NULL
+                ALTER TABLE dbo.ReportImages ADD FilePath NVARCHAR(500) NULL;
+            IF COL_LENGTH('dbo.ReportImages','Base64Data') IS NULL
+                ALTER TABLE dbo.ReportImages ADD Base64Data NVARCHAR(MAX) NULL;
+            IF COL_LENGTH('dbo.ReportImages','FileSize') IS NULL
+                ALTER TABLE dbo.ReportImages ADD FileSize INT NULL;
+            IF COL_LENGTH('dbo.ReportImages','Width') IS NULL
+                ALTER TABLE dbo.ReportImages ADD Width INT NULL;
+            IF COL_LENGTH('dbo.ReportImages','Height') IS NULL
+                ALTER TABLE dbo.ReportImages ADD Height INT NULL;
+            IF COL_LENGTH('dbo.ReportImages','MimeType') IS NULL
+                ALTER TABLE dbo.ReportImages ADD MimeType VARCHAR(50) NULL;
+            IF COL_LENGTH('dbo.ReportImages','CreatedBy') IS NULL
+                ALTER TABLE dbo.ReportImages ADD CreatedBy VARCHAR(50) NULL;
+            IF COL_LENGTH('dbo.ReportImages','CreatedOn') IS NULL
+                ALTER TABLE dbo.ReportImages ADD CreatedOn DATETIME NULL;
+            IF COL_LENGTH('dbo.ReportImages','IsActive') IS NULL
+                ALTER TABLE dbo.ReportImages ADD IsActive BIT NULL;
+        END
+        """,
+        autocommit=True
+    )
+
+    # Create indexes if missing
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportImages', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportImages','IsActive') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportImages_IsActive' AND object_id = OBJECT_ID('dbo.ReportImages'))
+        BEGIN
+            CREATE INDEX IX_ReportImages_IsActive ON dbo.ReportImages(IsActive);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportImages', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportImages','CreatedOn') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportImages_CreatedOn' AND object_id = OBJECT_ID('dbo.ReportImages'))
+        BEGIN
+            CREATE INDEX IX_ReportImages_CreatedOn ON dbo.ReportImages(CreatedOn);
+        END
+        """,
+        autocommit=True
+    )
+
 

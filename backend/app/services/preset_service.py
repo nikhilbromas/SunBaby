@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.database import db
 from app.models.preset import PresetCreate, PresetUpdate, PresetResponse
 from app.utils.sql_validator import validator, SQLValidationError
+from app.utils.cache import preset_cache, make_cache_key
 import logging
 
 logger = logging.getLogger(__name__)
@@ -64,15 +65,19 @@ class PresetService:
                 conn.commit()
                 
                 if row:
-                    return self._row_to_preset_response(row)
+                    preset = self._row_to_preset_response(row)
+                    # Cache the new preset
+                    cache_key = make_cache_key("preset", preset.PresetId)
+                    preset_cache.set(cache_key, preset)
+                    return preset
                 else:
                     raise Exception("Failed to create preset")
             finally:
                 cursor.close()
     
-    def get_preset(self, preset_id: int) -> Optional[PresetResponse]:
+    async def get_preset(self, preset_id: int) -> Optional[PresetResponse]:
         """
-        Get preset by ID.
+        Get preset by ID (async).
         
         Args:
             preset_id: Preset ID
@@ -80,19 +85,32 @@ class PresetService:
         Returns:
             Preset or None if not found
         """
-        query = "SELECT * FROM ReportSqlPresets WHERE PresetId = ? AND IsActive = 1"
+        # Check cache first
+        cache_key = make_cache_key("preset", preset_id)
+        cached = preset_cache.get(cache_key)
+        if cached is not None:
+            return cached
         
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(query, (preset_id,))
-                row = cursor.fetchone()
-                
-                if row:
-                    return self._row_to_preset_response(row)
-                return None
-            finally:
-                cursor.close()
+        # Use async query execution with @ParamName format
+        query = "SELECT * FROM ReportSqlPresets WHERE PresetId = @preset_id AND IsActive = 1"
+        results = await db.execute_query_async(query, {"preset_id": preset_id})
+        
+        if results and len(results) > 0:
+            row_dict = results[0]
+            preset = PresetResponse(
+                PresetId=row_dict.get('PresetId'),
+                PresetName=row_dict.get('PresetName'),
+                SqlJson=row_dict.get('SqlJson'),
+                ExpectedParams=row_dict.get('ExpectedParams'),
+                CreatedBy=row_dict.get('CreatedBy'),
+                CreatedOn=row_dict.get('CreatedOn'),
+                UpdatedOn=row_dict.get('UpdatedOn'),
+                IsActive=bool(row_dict.get('IsActive', True))
+            )
+            # Cache the result
+            preset_cache.set(cache_key, preset)
+            return preset
+        return None
     
     def get_preset_by_name(self, preset_name: str) -> Optional[PresetResponse]:
         """
@@ -217,7 +235,11 @@ class PresetService:
                 conn.commit()
                 
                 if row:
-                    return self._row_to_preset_response(row)
+                    preset = self._row_to_preset_response(row)
+                    # Update cache
+                    cache_key = make_cache_key("preset", preset_id)
+                    preset_cache.set(cache_key, preset)
+                    return preset
                 return None
             finally:
                 cursor.close()
@@ -243,7 +265,12 @@ class PresetService:
             try:
                 cursor.execute(update_query, (preset_id,))
                 conn.commit()
-                return cursor.rowcount > 0
+                deleted = cursor.rowcount > 0
+                if deleted:
+                    # Invalidate cache
+                    cache_key = make_cache_key("preset", preset_id)
+                    preset_cache.delete(cache_key)
+                return deleted
             finally:
                 cursor.close()
     

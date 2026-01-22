@@ -13,7 +13,7 @@ from reportlab.pdfgen import canvas
 from typing import Dict, Any, List
 import logging
 
-from .pdf_field_renderer import render_field, get_field_value
+from .pdf_field_renderer import render_field, get_field_value, render_image
 from .pdf_table_renderer import (
     render_table,
     create_cell_paragraph,
@@ -414,6 +414,16 @@ class DynamicContentRenderEngine:
                     'y': field.get('y', 0)
                 })
         
+        # Bill content images (non-watermark images flow with content)
+        bill_content_images = template_config.get('billContentImages', [])
+        for image_field in bill_content_images:
+            if image_field.get('visible', True) and not image_field.get('watermark', False):
+                elements.append({
+                    'type': 'image',
+                    'config': image_field,
+                    'y': image_field.get('y', 0)
+                })
+        
         # Bill content tables
         bill_content_tables = template_config.get('billContentTables', [])
         items = data.get('items', [])
@@ -478,6 +488,22 @@ class DynamicContentRenderEngine:
             element_height = font_size * 1.5
             return {
                 'bottom_y': element_y ,
+                'rows_rendered': 0,
+                'cursor_updated': False,
+                'all_rows_rendered': True
+            }
+        
+        elif element_type == 'image':
+            # Render billContent image
+            image_field = element['config']
+            x = image_field.get('x', 0)
+            image_field_copy = {**image_field, 'y': element_y}
+            company_id = template_config.get('_company_id')  # Passed from pdf_engine
+            render_image(c, image_field_copy, company_id)
+            # Estimate height based on image dimensions
+            height = image_field.get('height') or 100
+            return {
+                'bottom_y': element_y - height,
                 'rows_rendered': 0,
                 'cursor_updated': False,
                 'all_rows_rendered': True

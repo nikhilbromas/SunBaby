@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     # Export Configuration
     PDF_EXPORT_ENABLED: bool = os.getenv("PDF_EXPORT_ENABLED", "True").lower() == "true"
     
+    # Performance Configuration
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "10"))
+    DB_POOL_MAX_OVERFLOW: int = int(os.getenv("DB_POOL_MAX_OVERFLOW", "5"))
+    CACHE_TTL_TEMPLATE: int = int(os.getenv("CACHE_TTL_TEMPLATE", "300"))
+    CACHE_TTL_PRESET: int = int(os.getenv("CACHE_TTL_PRESET", "300"))
+    CACHE_TTL_QUERY: int = int(os.getenv("CACHE_TTL_QUERY", "60"))
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

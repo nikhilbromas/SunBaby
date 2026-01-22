@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig, ImageFieldConfig } from '../../services/types';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
-  selectedElement: { type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable'; index: number; section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' } | null;
+  selectedElement: { type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable' | 'image'; index: number; section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' } | null;
   template: TemplateJson;
   onUpdateField: (index: number, updates: Partial<TextFieldConfig>, section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter') => void;
+  onUpdateImage?: (index: number, updates: Partial<ImageFieldConfig>, section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter') => void;
   onUpdateTable: (table: ItemsTableConfig) => void;
   onUpdateContentDetailTable?: (index: number, table: ContentDetailsTableConfig) => void;
   onUpdateBillContentTable?: (index: number, table: ItemsTableConfig) => void;
@@ -20,6 +21,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   selectedElement,
   template,
   onUpdateField,
+  onUpdateImage,
   onUpdateTable,
   onUpdateContentDetailTable,
   onUpdateBillContentTable,
@@ -37,6 +39,18 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     if (section === 'billFooter') return template.billFooter?.[selectedElement.index] || null;
     if (section === 'billContent') return template.billContent?.[selectedElement.index] || null;
     return template.header[selectedElement.index] || null;
+  };
+
+  const getImageForSelected = (): ImageFieldConfig | null => {
+    if (!selectedElement || selectedElement.type !== 'image' || !onUpdateImage) return null;
+    const section = selectedElement.section || 'header';
+    const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                      section === 'pageFooter' ? 'pageFooterImages' :
+                      section === 'header' ? 'headerImages' :
+                      section === 'billContent' ? 'billContentImages' :
+                      'billFooterImages';
+    const images = (template[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+    return images[selectedElement.index] || null;
   };
   if (!selectedElement) {
     return (
@@ -87,6 +101,105 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 disabled={isSaving}
               >
                 {isSaving ? 'Saving...' : 'Save '}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (selectedElement.type === 'image' && onUpdateImage) {
+    const image = getImageForSelected();
+    if (!image) return null;
+    const section = selectedElement.section || 'header';
+
+    return (
+      <div className="property-panel">
+        <div className="property-group">
+          <h4>Info</h4>
+          <label>
+            Section: <strong>{section === 'pageHeader' ? 'Page Header' : section === 'pageFooter' ? 'Page Footer' : section === 'billFooter' ? 'Bill Footer' : section === 'billContent' ? 'Bill Content' : 'Bill Header'}</strong>
+          </label>
+        </div>
+        <div className="property-group">
+          <h4>Position</h4>
+          <label>
+            X:
+            <input
+              type="number"
+              value={image.x}
+              onChange={(e) => onUpdateImage(selectedElement.index, { x: parseFloat(e.target.value) || 0 }, section)}
+            />
+          </label>
+          <label>
+            Y:
+            <input
+              type="number"
+              value={image.y}
+              onChange={(e) => onUpdateImage(selectedElement.index, { y: parseFloat(e.target.value) || 0 }, section)}
+            />
+          </label>
+        </div>
+        <div className="property-group">
+          <h4>Size</h4>
+          <label>
+            Width:
+            <input
+              type="number"
+              value={image.width || ''}
+              onChange={(e) => onUpdateImage(selectedElement.index, { width: e.target.value ? parseFloat(e.target.value) : undefined }, section)}
+              placeholder="Auto"
+            />
+          </label>
+          <label>
+            Height:
+            <input
+              type="number"
+              value={image.height || ''}
+              onChange={(e) => onUpdateImage(selectedElement.index, { height: e.target.value ? parseFloat(e.target.value) : undefined }, section)}
+              placeholder="Auto"
+            />
+          </label>
+        </div>
+        <div className="property-group">
+          <h4>Options</h4>
+          <label>
+            <input
+              type="checkbox"
+              checked={image.visible}
+              onChange={(e) => onUpdateImage(selectedElement.index, { visible: e.target.checked }, section)}
+            />
+            Visible
+          </label>
+          {section === 'billContent' && (
+            <label>
+              <input
+                type="checkbox"
+                checked={image.watermark || false}
+                onChange={(e) => onUpdateImage(selectedElement.index, { watermark: e.target.checked }, section)}
+              />
+              Watermark (render behind content with opacity)
+            </label>
+          )}
+        </div>
+        {(onSave || onSetup) && (
+          <div className="property-panel-actions">
+            {onSetup && (
+              <button 
+                className="setup-button"
+                onClick={onSetup}
+              >
+                ⚙️ Setup
+              </button>
+            )}
+            {onSave && (
+              <button 
+                className="save-button" 
+                onClick={onSave} 
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save Template'}
               </button>
             )}
           </div>

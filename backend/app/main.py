@@ -4,8 +4,9 @@ Dynamic Bill Preview System - Backend API
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
-from app.api import presets, templates, preview, auth
+from app.api import presets, templates, preview, auth, generate_pdf, images
 import logging
 
 # Configure logging
@@ -34,11 +35,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add GZip compression for all responses
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 # Include routers
 app.include_router(presets.router, prefix=settings.API_PREFIX)
 app.include_router(templates.router, prefix=settings.API_PREFIX)
 app.include_router(preview.router, prefix=settings.API_PREFIX)
 app.include_router(auth.router, prefix=settings.API_PREFIX)
+app.include_router(generate_pdf.router, prefix=settings.API_PREFIX)
+app.include_router(images.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

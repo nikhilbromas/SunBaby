@@ -62,6 +62,17 @@ export interface TextFieldConfig {
   fieldType?: 'text' | 'pageNumber' | 'totalPages' | 'currentDate' | 'currentTime';
 }
 
+export interface ImageFieldConfig {
+  type: 'image';
+  imageId: number;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  visible: boolean;
+  watermark?: boolean;
+}
+
 export interface TableColumnConfig {
   bind: string;
   label: string;
@@ -159,11 +170,16 @@ export interface SectionHeights {
 export interface TemplateJson {
   page: PageConfig;
   pageHeader?: TextFieldConfig[];
+  pageHeaderImages?: ImageFieldConfig[];
   pageFooter?: TextFieldConfig[];
+  pageFooterImages?: ImageFieldConfig[];
   header: TextFieldConfig[];
+  headerImages?: ImageFieldConfig[];
   billContent?: TextFieldConfig[];
+  billContentImages?: ImageFieldConfig[];
   billContentTables?: ItemsTableConfig[];
   billFooter?: TextFieldConfig[];
+  billFooterImages?: ImageFieldConfig[];
   itemsTable?: ItemsTableConfig;
   contentDetailsTables?: ContentDetailsTableConfig[];
   pagination?: PaginationConfig;
@@ -200,6 +216,7 @@ export interface TemplateListResponse {
 }
 
 export interface PreviewRequest {
+  companyId?: number;
   templateId: number;
   parameters: Record<string, any>;
 }
@@ -257,5 +274,26 @@ export interface MeResponse {
   company_id?: number | null;
   company_name?: string | null;
   permissions?: UserPermissions | null;
+}
+
+// ---- Image Management ----
+
+export interface Image {
+  ImageId: number;
+  ImageName: string;
+  FilePath: string;
+  Base64Data: string;
+  FileSize: number;
+  Width: number;
+  Height: number;
+  MimeType: string;
+  CreatedBy?: string | null;
+  CreatedOn: string;
+  IsActive: boolean;
+}
+
+export interface ImageListResponse {
+  images: Image[];
+  total: number;
 }
 

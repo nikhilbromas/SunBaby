@@ -14,7 +14,7 @@ from reportlab.pdfgen import canvas
 from typing import Dict, Any, List
 import logging
 
-from .pdf_field_renderer import render_field
+from .pdf_field_renderer import render_field, render_image
 from .pdf_table_renderer import calculate_bill_footer_height
 
 logger = logging.getLogger(__name__)
@@ -102,12 +102,11 @@ class FixedContentRenderEngine:
     
     def render_page_header(
         self, c: canvas.Canvas, template_config: Dict[str, Any], data: Dict[str, Any],
-        page_context: Dict[str, Any], header_top_y: float, header_height: float
+        page_context: Dict[str, Any], header_top_y: float, header_height: float, company_id: int = None
     ) -> None:
         """Render page header at fixed position."""
         page_header_fields = template_config.get('pageHeader', [])
-        if not page_header_fields:
-            return
+        page_header_images = template_config.get('pageHeaderImages', [])
         
         for field in page_header_fields:
             if field.get('visible', True):
@@ -115,15 +114,23 @@ class FixedContentRenderEngine:
                 # Field Y is relative to header top
                 y = header_top_y - field.get('y', 0)
                 render_field(c, field, data, x, y, page_context)
+        
+        for image_field in page_header_images:
+            if image_field.get('visible', True):
+                x = image_field.get('x', 0)
+                # Image Y is relative to header top
+                y = header_top_y - image_field.get('y', 0)
+                # Temporarily update y for rendering
+                image_field_copy = {**image_field, 'y': y}
+                render_image(c, image_field_copy, company_id)
     
     def render_page_footer(
         self, c: canvas.Canvas, template_config: Dict[str, Any], data: Dict[str, Any],
-        page_context: Dict[str, Any], footer_top_y: float, footer_height: float
+        page_context: Dict[str, Any], footer_top_y: float, footer_height: float, company_id: int = None
     ) -> None:
         """Render page footer at fixed position (every page)."""
         page_footer_fields = template_config.get('pageFooter', [])
-        if not page_footer_fields:
-            return
+        page_footer_images = template_config.get('pageFooterImages', [])
         
         for field in page_footer_fields:
             if field.get('visible', True):
@@ -131,15 +138,22 @@ class FixedContentRenderEngine:
                 # Field Y is relative to footer top
                 y = footer_top_y - field.get('y', 0)
                 render_field(c, field, data, x, y, page_context)
+        
+        for image_field in page_footer_images:
+            if image_field.get('visible', True):
+                x = image_field.get('x', 0)
+                # Image Y is relative to footer top
+                y = footer_top_y - image_field.get('y', 0)
+                image_field_copy = {**image_field, 'y': y}
+                render_image(c, image_field_copy, company_id)
     
     def render_bill_header(
         self, c: canvas.Canvas, template_config: Dict[str, Any], data: Dict[str, Any],
-        page_context: Dict[str, Any], header_top_y: float, header_height: float
+        page_context: Dict[str, Any], header_top_y: float, header_height: float, company_id: int = None
     ) -> None:
         """Render bill header at fixed position (first page only)."""
         bill_header_fields = template_config.get('header', [])
-        if not bill_header_fields:
-            return
+        bill_header_images = template_config.get('headerImages', [])
         
         for field in bill_header_fields:
             if field.get('visible', True):
@@ -147,15 +161,22 @@ class FixedContentRenderEngine:
                 # Field Y is relative to header top
                 y = header_top_y - field.get('y', 0)
                 render_field(c, field, data, x, y, page_context)
+        
+        for image_field in bill_header_images:
+            if image_field.get('visible', True):
+                x = image_field.get('x', 0)
+                # Image Y is relative to header top
+                y = header_top_y - image_field.get('y', 0)
+                image_field_copy = {**image_field, 'y': y}
+                render_image(c, image_field_copy, company_id)
     
     def render_bill_footer(
         self, c: canvas.Canvas, template_config: Dict[str, Any], data: Dict[str, Any],
-        page_context: Dict[str, Any], footer_top_y: float, footer_height: float
+        page_context: Dict[str, Any], footer_top_y: float, footer_height: float, company_id: int = None
     ) -> None:
         """Render bill footer below content (last page only)."""
         bill_footer_fields = template_config.get('billFooter', [])
-        if not bill_footer_fields:
-            return
+        bill_footer_images = template_config.get('billFooterImages', [])
         
         for field in bill_footer_fields:
             if field.get('visible', True):
@@ -163,4 +184,12 @@ class FixedContentRenderEngine:
                 # Field Y is relative to footer top
                 y = footer_top_y - field.get('y', 0)
                 render_field(c, field, data, x, y, page_context)
+        
+        for image_field in bill_footer_images:
+            if image_field.get('visible', True):
+                x = image_field.get('x', 0)
+                # Image Y is relative to footer top
+                y = footer_top_y - image_field.get('y', 0)
+                image_field_copy = {**image_field, 'y': y}
+                render_image(c, image_field_copy, company_id)
 

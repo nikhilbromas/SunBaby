@@ -3,10 +3,12 @@ Service for generating bill previews.
 Executes SQL presets and prepares data for template rendering.
 """
 import json
+import asyncio
 from typing import Dict, List, Optional, Any
 from app.database import db
 from app.services.preset_service import preset_service
 from app.services.template_service import template_service
+from app.utils.cache import query_cache, make_cache_key
 from app.config import settings
 import logging
 
@@ -16,9 +18,9 @@ logger = logging.getLogger(__name__)
 class PreviewService:
     """Service for generating bill previews."""
     
-    def generate_preview_data(self, template_id: int, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def generate_preview_data(self, template_id: int, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate preview data by executing SQL presets with given parameters.
+        Generate preview data by executing SQL presets with given parameters (async).
         
         Args:
             template_id: Template ID
@@ -35,13 +37,13 @@ class PreviewService:
         Raises:
             ValueError: If template not found or parameters missing
         """
-        # Get template
-        template = template_service.get_template(template_id)
+        # Get template (we need it first to get preset_id)
+        template = await template_service.get_template(template_id)
         if not template:
             raise ValueError(f"Template with ID {template_id} not found")
         
         # Get linked preset
-        preset = preset_service.get_preset(template.PresetId)
+        preset = await preset_service.get_preset(template.PresetId)
         if not preset:
             raise ValueError(f"Preset with ID {template.PresetId} not found")
         
@@ -54,34 +56,32 @@ class PreviewService:
         if missing_params:
             raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
         
-        # Execute queries
-        header_data = None
-        items_data = None
-        content_details = {}
+        # Check cache for query results
+        cache_key = make_cache_key("preview_data", template_id, **parameters)
+        cached_result = query_cache.get(cache_key)
+        if cached_result is not None:
+            logger.debug(f"Cache hit for preview data: template_id={template_id}")
+            return cached_result
+        
+        # Execute queries in parallel
+        tasks = []
+        query_types = []
+        queries_for_cache = []
         
         if 'headerQuery' in sql_json:
-            try:
-                header_data = db.execute_query(sql_json['headerQuery'], parameters)
-                # Limit rows for preview
-                if len(header_data) > settings.MAX_QUERY_ROWS:
-                    header_data = header_data[:settings.MAX_QUERY_ROWS]
-                    logger.warning(f"Header query returned more than {settings.MAX_QUERY_ROWS} rows, truncated")
-            except Exception as e:
-                logger.error(f"Error executing header query: {str(e)}")
-                raise ValueError(f"Error executing header query: {str(e)}")
+            query = sql_json['headerQuery']
+            queries_for_cache.append(('header', query))
+            tasks.append(db.execute_query_async(query, parameters))
+            query_types.append('header')
         
         if 'itemQuery' in sql_json:
-            try:
-                items_data = db.execute_query(sql_json['itemQuery'], parameters)
-                # Limit rows for preview
-                if len(items_data) > settings.MAX_QUERY_ROWS:
-                    items_data = items_data[:settings.MAX_QUERY_ROWS]
-                    logger.warning(f"Item query returned more than {settings.MAX_QUERY_ROWS} rows, truncated")
-            except Exception as e:
-                logger.error(f"Error executing item query: {str(e)}")
-                raise ValueError(f"Error executing item query: {str(e)}")
+            query = sql_json['itemQuery']
+            queries_for_cache.append(('items', query))
+            tasks.append(db.execute_query_async(query, parameters))
+            query_types.append('items')
         
-        # Execute contentDetails queries
+        # Execute contentDetails queries in parallel
+        content_detail_queries = {}
         if 'contentDetails' in sql_json and isinstance(sql_json['contentDetails'], list):
             for content_detail in sql_json['contentDetails']:
                 if not isinstance(content_detail, dict) or 'name' not in content_detail or 'query' not in content_detail:
@@ -89,24 +89,56 @@ class PreviewService:
                 
                 name = content_detail['name']
                 query = content_detail['query']
-                
-                try:
-                    cd_data = db.execute_query(query, parameters)
-                    # Limit rows for preview
-                    if len(cd_data) > settings.MAX_QUERY_ROWS:
-                        cd_data = cd_data[:settings.MAX_QUERY_ROWS]
-                        logger.warning(f"Content detail '{name}' query returned more than {settings.MAX_QUERY_ROWS} rows, truncated")
-                    content_details[name] = cd_data if cd_data else []
-                except Exception as e:
-                    logger.error(f"Error executing content detail '{name}' query: {str(e)}")
-                    raise ValueError(f"Error executing content detail '{name}' query: {str(e)}")
+                content_detail_queries[name] = query
+                queries_for_cache.append((f'contentDetail:{name}', query))
+                tasks.append(db.execute_query_async(query, parameters))
+                query_types.append(f'contentDetail:{name}')
         
-        return {
+        # Execute all queries in parallel
+        results = []
+        if tasks:
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+            except Exception as e:
+                logger.error(f"Error executing queries in parallel: {str(e)}")
+                raise ValueError(f"Error executing queries: {str(e)}")
+        
+        # Process results
+        header_data = None
+        items_data = None
+        content_details = {}
+        
+        for i, result in enumerate(results):
+            query_type = query_types[i]
+            
+            if isinstance(result, Exception):
+                logger.error(f"Error executing {query_type} query: {str(result)}")
+                raise ValueError(f"Error executing {query_type} query: {str(result)}")
+            
+            # Limit rows for preview
+            if len(result) > settings.MAX_QUERY_ROWS:
+                result = result[:settings.MAX_QUERY_ROWS]
+                logger.warning(f"{query_type} query returned more than {settings.MAX_QUERY_ROWS} rows, truncated")
+            
+            if query_type == 'header':
+                header_data = result
+            elif query_type == 'items':
+                items_data = result
+            elif query_type.startswith('contentDetail:'):
+                name = query_type.split(':', 1)[1]
+                content_details[name] = result if result else []
+        
+        result_data = {
             'header': header_data[0] if header_data and len(header_data) > 0 else None,
             'items': items_data if items_data else [],
             'contentDetails': content_details,
             'template': template
         }
+        
+        # Cache the result
+        query_cache.set(cache_key, result_data)
+        
+        return result_data
     
     def _extract_required_parameters(self, sql_json: Dict[str, Any]) -> List[str]:
         """

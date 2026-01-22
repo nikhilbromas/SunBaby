@@ -2,11 +2,14 @@
 FastAPI endpoints for SQL Preset management.
 """
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from app.models.preset import PresetCreate, PresetUpdate, PresetResponse, PresetListResponse
 from app.services.preset_service import preset_service
 from app.utils.sql_validator import SQLValidationError
+from app.services.auth_service import auth_service
+from app.database import db
+from app.utils.company_schema import ensure_company_schema
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,10 @@ class TestPresetRequest(BaseModel):
 
 
 @router.post("", response_model=PresetResponse, status_code=201)
-async def create_preset(preset_data: PresetCreate):
+async def create_preset(
+    preset_data: PresetCreate,
+    company_id: Optional[int] = Query(None, description="Optional company ID to select company DB"),
+):
     """
     Create a new SQL preset.
     
@@ -30,68 +36,216 @@ async def create_preset(preset_data: PresetCreate):
     - **CreatedBy**: User who created the preset
     """
     try:
+        if company_id is not None:
+            details = auth_service.get_company_details(company_id)
+            if not details:
+                raise HTTPException(status_code=404, detail="Company not found")
+            db.switch_to_company_db(details)
+            ensure_company_schema()
+        else:
+            exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportSqlPresets','U')") is not None
+            if not exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="company_id is required (or select company via /auth/select-company) to create presets",
+                )
+
         preset = preset_service.create_preset(preset_data)
         return preset
+    except HTTPException:
+        raise
     except SQLValidationError as e:
         raise HTTPException(status_code=400, detail=f"SQL validation failed: {str(e)}")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating preset: {str(e)}")
+        msg = str(e)
+        if company_id is None and "Invalid object name" in msg and "ReportSqlPresets" in msg:
+            raise HTTPException(
+                status_code=400,
+                detail="company_id is required (or select company via /auth/select-company) to create presets",
+            )
+        logger.error(f"Error creating preset: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        if company_id is not None:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                logger.exception("Failed to switch back to auth DB")
 
 
 @router.get("/{preset_id}", response_model=PresetResponse)
-async def get_preset(preset_id: int):
+async def get_preset(
+    preset_id: int,
+    company_id: Optional[int] = Query(None, description="Optional company ID to select company DB"),
+):
     """Get a preset by ID."""
-    preset = preset_service.get_preset(preset_id)
-    if not preset:
-        raise HTTPException(status_code=404, detail="Preset not found")
-    return preset
+    try:
+        if company_id is not None:
+            details = auth_service.get_company_details(company_id)
+            if not details:
+                raise HTTPException(status_code=404, detail="Company not found")
+            db.switch_to_company_db(details)
+            ensure_company_schema()
+        else:
+            exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportSqlPresets','U')") is not None
+            if not exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="company_id is required (or select company via /auth/select-company) to access presets",
+                )
+
+        preset = await preset_service.get_preset(preset_id)
+        if not preset:
+            raise HTTPException(status_code=404, detail="Preset not found")
+        return preset
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting preset: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        if company_id is not None:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                logger.exception("Failed to switch back to auth DB")
 
 
 @router.get("", response_model=PresetListResponse)
 async def list_presets(
+    company_id: Optional[int] = Query(None, description="Optional company ID to select company DB"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return")
 ):
     """List all active presets."""
     try:
+        if company_id is not None:
+            details = auth_service.get_company_details(company_id)
+            if not details:
+                raise HTTPException(status_code=404, detail="Company not found")
+            db.switch_to_company_db(details)
+            ensure_company_schema()
+        else:
+            exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportSqlPresets','U')") is not None
+            if not exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="company_id is required (or select company via /auth/select-company) to list presets",
+                )
+
         presets, total = preset_service.list_presets(skip=skip, limit=limit)
         return PresetListResponse(presets=presets, total=total)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error listing presets: {str(e)}")
+        logger.error(f"Error listing presets: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        if company_id is not None:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                logger.exception("Failed to switch back to auth DB")
 
 
 @router.put("/{preset_id}", response_model=PresetResponse)
-async def update_preset(preset_id: int, preset_data: PresetUpdate):
+async def update_preset(
+    preset_id: int,
+    preset_data: PresetUpdate,
+    company_id: Optional[int] = Query(None, description="Optional company ID to select company DB"),
+):
     """Update an existing preset."""
     try:
+        if company_id is not None:
+            details = auth_service.get_company_details(company_id)
+            if not details:
+                raise HTTPException(status_code=404, detail="Company not found")
+            db.switch_to_company_db(details)
+            ensure_company_schema()
+        else:
+            exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportSqlPresets','U')") is not None
+            if not exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="company_id is required (or select company via /auth/select-company) to update presets",
+                )
+
         preset = preset_service.update_preset(preset_id, preset_data)
         if not preset:
             raise HTTPException(status_code=404, detail="Preset not found")
         return preset
+    except HTTPException:
+        raise
     except SQLValidationError as e:
         raise HTTPException(status_code=400, detail=f"SQL validation failed: {str(e)}")
     except Exception as e:
-        logger.error(f"Error updating preset: {str(e)}")
+        msg = str(e)
+        if company_id is None and "Invalid object name" in msg and "ReportSqlPresets" in msg:
+            raise HTTPException(
+                status_code=400,
+                detail="company_id is required (or select company via /auth/select-company) to update presets",
+            )
+        logger.error(f"Error updating preset: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        if company_id is not None:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                logger.exception("Failed to switch back to auth DB")
 
 
 @router.delete("/{preset_id}", status_code=204)
-async def delete_preset(preset_id: int):
+async def delete_preset(
+    preset_id: int,
+    company_id: Optional[int] = Query(None, description="Optional company ID to select company DB"),
+):
     """Delete a preset (soft delete)."""
-    success = preset_service.delete_preset(preset_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Preset not found")
-    return None
+    try:
+        if company_id is not None:
+            details = auth_service.get_company_details(company_id)
+            if not details:
+                raise HTTPException(status_code=404, detail="Company not found")
+            db.switch_to_company_db(details)
+            ensure_company_schema()
+        else:
+            exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportSqlPresets','U')") is not None
+            if not exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="company_id is required (or select company via /auth/select-company) to delete presets",
+                )
+
+        success = preset_service.delete_preset(preset_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Preset not found")
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        if company_id is None and "Invalid object name" in msg and "ReportSqlPresets" in msg:
+            raise HTTPException(
+                status_code=400,
+                detail="company_id is required (or select company via /auth/select-company) to delete presets",
+            )
+        logger.error(f"Error deleting preset: {msg}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        if company_id is not None:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                logger.exception("Failed to switch back to auth DB")
 
 
 @router.post("/{preset_id}/test")
 async def test_preset_queries(
     preset_id: int,
-    request: TestPresetRequest
+    request: TestPresetRequest,
+    company_id: Optional[int] = Query(None, description="Optional company ID to select company DB"),
 ):
     """
     Test preset queries with parameters and return sample data.
@@ -100,13 +254,26 @@ async def test_preset_queries(
     - **preset_id**: Preset ID to test
     - **parameters**: Dictionary of parameter values for SQL queries
     """
-    from app.database import db
     import json
     import re
     
     try:
+        if company_id is not None:
+            details = auth_service.get_company_details(company_id)
+            if not details:
+                raise HTTPException(status_code=404, detail="Company not found")
+            db.switch_to_company_db(details)
+            ensure_company_schema()
+        else:
+            exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportSqlPresets','U')") is not None
+            if not exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="company_id is required (or select company via /auth/select-company) to test presets",
+                )
+
         # Get preset
-        preset = preset_service.get_preset(preset_id)
+        preset = await preset_service.get_preset(preset_id)
         if not preset:
             raise HTTPException(status_code=404, detail="Preset not found")
         
@@ -239,4 +406,10 @@ async def test_preset_queries(
     except Exception as e:
         logger.error(f"Error testing preset: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    finally:
+        if company_id is not None:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                logger.exception("Failed to switch back to auth DB")
 

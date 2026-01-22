@@ -3,11 +3,179 @@ Database connection and session management for MSSQL Server.
 """
 import pyodbc
 from typing import Optional
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
+from queue import Queue, Empty, Full
+from threading import Lock, RLock
+import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Global thread pool executor for async database operations
+_db_executor: Optional[ThreadPoolExecutor] = None
+
+def get_db_executor() -> ThreadPoolExecutor:
+    """Get or create the database thread pool executor."""
+    global _db_executor
+    if _db_executor is None:
+        _db_executor = ThreadPoolExecutor(max_workers=settings.DB_POOL_SIZE + settings.DB_POOL_MAX_OVERFLOW, thread_name_prefix="db_worker")
+    return _db_executor
+
+
+class ConnectionPool:
+    """Thread-safe connection pool for database connections."""
+    
+    def __init__(self, connection_string: str, pool_size: int = 10, max_overflow: int = 5):
+        """
+        Initialize connection pool.
+        
+        Args:
+            connection_string: Database connection string
+            pool_size: Number of connections to maintain in pool
+            max_overflow: Maximum additional connections beyond pool_size
+        """
+        self.connection_string = connection_string
+        self.pool_size = pool_size
+        self.max_overflow = max_overflow
+        self._pool: Queue = Queue(maxsize=pool_size)
+        self._overflow_count = 0
+        self._lock = RLock()
+        self._created_connections = 0
+        
+        # Pre-populate pool with initial connections
+        for _ in range(min(2, pool_size)):  # Start with 2 connections
+            try:
+                conn = self._create_connection()
+                self._pool.put(conn)
+                self._created_connections += 1
+            except Exception as e:
+                logger.warning(f"Failed to pre-create connection: {e}")
+    
+    def _create_connection(self) -> pyodbc.Connection:
+        """Create a new database connection."""
+        conn = pyodbc.connect(self.connection_string, timeout=5)
+        conn.autocommit = False
+        return conn
+    
+    def _is_connection_alive(self, conn: pyodbc.Connection) -> bool:
+        """Check if connection is still alive (optimized - minimal check)."""
+        try:
+            # Fast check - just verify connection object is valid
+            # Actual validity will be checked when query is executed
+            # This avoids the overhead of SELECT 1 on every connection check
+            return conn is not None and hasattr(conn, 'cursor')
+        except Exception:
+            return False
+    
+    def get_connection(self, timeout: float = 5.0) -> pyodbc.Connection:
+        """
+        Get a connection from the pool.
+        
+        Args:
+            timeout: Maximum time to wait for a connection
+            
+        Returns:
+            Database connection
+        """
+        with self._lock:
+            # Try to get from pool
+            try:
+                conn = self._pool.get(timeout=min(timeout, 1.0))
+                # Check if connection is still alive
+                if self._is_connection_alive(conn):
+                    return conn
+                else:
+                    # Connection is dead, create a new one
+                    logger.debug("Connection from pool was dead, creating new one")
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                    self._created_connections -= 1
+            except Empty:
+                pass
+            
+            # Pool is empty, check if we can create overflow connection
+            if self._overflow_count < self.max_overflow:
+                self._overflow_count += 1
+                self._created_connections += 1
+                logger.debug(f"Creating overflow connection ({self._overflow_count}/{self.max_overflow})")
+                return self._create_connection()
+            
+            # Wait a bit more for a connection from pool
+            try:
+                conn = self._pool.get(timeout=timeout - 1.0)
+                if self._is_connection_alive(conn):
+                    return conn
+                else:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                    self._created_connections -= 1
+                    # Create replacement
+                    return self._create_connection()
+            except Empty:
+                # Timeout - create a temporary connection
+                logger.warning("Connection pool exhausted, creating temporary connection")
+                return self._create_connection()
+    
+    def return_connection(self, conn: pyodbc.Connection) -> None:
+        """
+        Return a connection to the pool.
+        
+        Args:
+            conn: Connection to return
+        """
+        if conn is None:
+            return
+        
+        with self._lock:
+            # Check if this is an overflow connection
+            if self._overflow_count > 0:
+                self._overflow_count -= 1
+                self._created_connections -= 1
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                return
+            
+            # Try to return to pool
+            if self._is_connection_alive(conn):
+                try:
+                    # Reset connection state
+                    conn.rollback()
+                    self._pool.put_nowait(conn)
+                except Full:
+                    # Pool is full, close the connection
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                    self._created_connections -= 1
+            else:
+                # Connection is dead, don't return it
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                self._created_connections -= 1
+    
+    def close_all(self) -> None:
+        """Close all connections in the pool."""
+        with self._lock:
+            while not self._pool.empty():
+                try:
+                    conn = self._pool.get_nowait()
+                    conn.close()
+                    self._created_connections -= 1
+                except Exception:
+                    pass
+            self._overflow_count = 0
 
 
 class Database:
@@ -17,6 +185,15 @@ class Database:
         self._auth_connection_string = self._build_connection_string()
         self.connection_string = self._auth_connection_string
         self._current_db_context = "auth"
+        
+        # Initialize connection pools
+        self._auth_pool = ConnectionPool(
+            self._auth_connection_string,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_POOL_MAX_OVERFLOW
+        )
+        self._company_pool: Optional[ConnectionPool] = None
+        self._pool_lock = Lock()
     
     def _build_connection_string(self) -> str:
         """Build MSSQL connection string from settings."""
@@ -60,6 +237,12 @@ class Database:
 
     def switch_to_auth_db(self) -> None:
         """Revert the active connection string back to the configured auth DB."""
+        with self._pool_lock:
+            # Close company pool when switching back
+            if self._company_pool:
+                self._company_pool.close_all()
+                self._company_pool = None
+        
         self.connection_string = self._auth_connection_string
         self._current_db_context = "auth"
 
@@ -124,24 +307,72 @@ class Database:
                 except Exception:
                     pass
 
+        # Close old company pool if exists
+        with self._pool_lock:
+            if self._company_pool:
+                self._company_pool.close_all()
+            
+            # Create new pool for company DB
+            self._company_pool = ConnectionPool(
+                conn_str,
+                pool_size=settings.DB_POOL_SIZE,
+                max_overflow=settings.DB_POOL_MAX_OVERFLOW
+            )
+
         self.connection_string = conn_str
         self._current_db_context = "company"
+    
+    @asynccontextmanager
+    async def get_connection_async(self, use_auth_db: bool = False):
+        """
+        Get a database connection context manager from pool (async version).
+        
+        Args:
+            use_auth_db: If True, always use auth DB connection regardless of current context
+        """
+        loop = asyncio.get_event_loop()
+        executor = get_db_executor()
+        
+        # Run the synchronous context manager in executor
+        conn_context = self.get_connection(use_auth_db=use_auth_db)
+        conn = await loop.run_in_executor(executor, lambda: conn_context.__enter__())
+        
+        try:
+            yield conn
+            # Commit in executor
+            await loop.run_in_executor(executor, lambda: conn_context.__exit__(None, None, None))
+        except Exception as e:
+            # Rollback in executor
+            try:
+                await loop.run_in_executor(executor, lambda: conn_context.__exit__(type(e), e, None))
+            except Exception:
+                pass
+            raise
     
     @contextmanager
     def get_connection(self, use_auth_db: bool = False):
         """
-        Get a database connection context manager.
+        Get a database connection context manager from pool.
         
         Args:
             use_auth_db: If True, always use auth DB connection regardless of current context
         """
         conn = None
+        pool = None
+        
         try:
-            # Use auth DB connection if requested
-            conn_str = self._auth_connection_string if use_auth_db else self.connection_string
-            conn = pyodbc.connect(conn_str)
+            # Select appropriate pool
+            with self._pool_lock:
+                if use_auth_db or self._current_db_context == "auth":
+                    pool = self._auth_pool
+                else:
+                    pool = self._company_pool if self._company_pool else self._auth_pool
+            
+            # Get connection from pool
+            conn = pool.get_connection()
             conn.autocommit = False
             yield conn
+            
             # Only commit if connection is still valid and no error occurred
             try:
                 if conn:
@@ -165,12 +396,31 @@ class Database:
             logger.error(f"Database error: {str(e)}")
             raise
         finally:
-            if conn:
+            if conn and pool:
                 try:
-                    conn.close()
+                    pool.return_connection(conn)
                 except Exception:
-                    # Ignore errors when closing connection
-                    pass
+                    # If return fails, try to close
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+    
+    async def execute_query_async(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> list[dict]:
+        """
+        Execute a SELECT query asynchronously and return results as list of dictionaries.
+        
+        Args:
+            query: SQL SELECT query with parameter placeholders (@ParamName)
+            params: Dictionary of parameter values
+            use_auth_db: If True, always execute against auth DB regardless of current context
+            
+        Returns:
+            List of dictionaries representing rows
+        """
+        loop = asyncio.get_event_loop()
+        executor = get_db_executor()
+        return await loop.run_in_executor(executor, self.execute_query, query, params, use_auth_db)
     
     def execute_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> list[dict]:
         """
@@ -234,6 +484,22 @@ class Database:
             finally:
                 cursor.close()
     
+    async def execute_scalar_async(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> Optional[any]:
+        """
+        Execute a query asynchronously that returns a single scalar value.
+        
+        Args:
+            query: SQL query
+            params: Dictionary of parameter values
+            use_auth_db: If True, always execute against auth DB regardless of current context
+            
+        Returns:
+            Single scalar value or None
+        """
+        loop = asyncio.get_event_loop()
+        executor = get_db_executor()
+        return await loop.run_in_executor(executor, self.execute_scalar, query, params, use_auth_db)
+    
     def execute_scalar(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> Optional[any]:
         """
         Execute a query that returns a single scalar value.
@@ -288,6 +554,20 @@ class Database:
             finally:
                 cursor.close()
 
+    async def execute_non_query_async(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False, autocommit: bool = False) -> None:
+        """
+        Execute a non-SELECT query asynchronously (DDL/DML). Supports @ParamName placeholders.
+        
+        Args:
+            query: SQL query
+            params: Dictionary of parameter values
+            use_auth_db: If True, always execute against auth DB regardless of current context
+            autocommit: If True, use autocommit mode (recommended for DDL statements)
+        """
+        loop = asyncio.get_event_loop()
+        executor = get_db_executor()
+        return await loop.run_in_executor(executor, self.execute_non_query, query, params, use_auth_db, autocommit)
+    
     def execute_non_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False, autocommit: bool = False) -> None:
         """
         Execute a non-SELECT query (DDL/DML). Supports @ParamName placeholders.

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Toolbar from './Toolbar';
+import ImageGallery from './ImageGallery';
 import DataPreview from './DataPreview';
 import './SidePanel.css';
 
@@ -38,7 +39,12 @@ const SidePanel: React.FC<SidePanelProps> = ({
         </button>
       </div>
       <div className="side-panel-content">
-        {activeTab === 'elements' && <Toolbar />}
+        {activeTab === 'elements' && (
+          <>
+            <ImageGallery />
+            <Toolbar />
+          </>
+        )}
         {activeTab === 'data' && sampleData && (
           <DataPreview
             headerData={sampleData.header.data}

@@ -180,18 +180,22 @@ class PDFEngine:
         self.dynamic_engine = DynamicContentRenderEngine(default_gap)
         self.balance_engine = PageBalanceFitEngine()
     
-    def generate_pdf(self, template_json: str, data: Dict[str, Any]) -> bytes:
+    def generate_pdf(self, template_json: str, data: Dict[str, Any], company_id: int = None) -> bytes:
         """
         Generate PDF from template JSON and data following PDF_ENGINE_RULES.md
         
         Args:
             template_json: Template JSON string
             data: Data dictionary with 'header', 'items', and 'contentDetails'
+            company_id: Optional company ID for image access
             
         Returns:
             PDF bytes
         """
         template_config = json.loads(template_json)
+        # Store company_id in template_config for image rendering
+        if company_id:
+            template_config['_company_id'] = company_id
         
         # Create PDF buffer
         buffer = BytesIO()
@@ -1035,18 +1039,25 @@ class PDFEngine:
         # Render Page Header using Fixed Engine
         page_header_height = section_heights['pageHeader']
         header_top_y = page_height - self.balance_engine.container_padding_top
-        self.fixed_engine.render_page_header(c, template_config, data, page_context, header_top_y, page_header_height)
+        company_id = template_config.get('_company_id')
+        self.fixed_engine.render_page_header(c, template_config, data, page_context, header_top_y, page_header_height, company_id)
         
         # Render Bill Header (first page only) using Fixed Engine
         bill_header_top_y = header_top_y - page_header_height
         if page_num == 1:
             bill_header_height = section_heights['billHeader']
-            self.fixed_engine.render_bill_header(c, template_config, data, page_context, bill_header_top_y, bill_header_height)
+            self.fixed_engine.render_bill_header(c, template_config, data, page_context, bill_header_top_y, bill_header_height, company_id)
             # Content starts after bill header on first page
             content_start_y = bill_header_top_y - bill_header_height
         else:
             # Content starts after page header on subsequent pages
             content_start_y = bill_header_top_y
+        
+        # Render Watermarks (billContentImages with watermark=true) - render behind all content
+        # Watermarks are rendered at fixed position on each page, before bill content
+        self._render_watermarks(
+            c, template_config, company_id, content_start_y, min_content_y_from_top, page_height
+        )
         
         # Render Bill Content (dynamic, flow-based)
         # Content area starts at content_start_y and ends at min_content_y_from_top (calculated by Balance Engine above)
@@ -1067,12 +1078,12 @@ class PDFEngine:
                 bill_content_bottom, bill_footer_height, page_height,
                 section_heights['pageFooter'], self.balance_engine.container_padding_bottom
             )
-            self.fixed_engine.render_bill_footer(c, template_config, data, page_context, bill_footer_top_y, bill_footer_height)
+            self.fixed_engine.render_bill_footer(c, template_config, data, page_context, bill_footer_top_y, bill_footer_height, company_id)
         
         # Render Page Footer using Fixed Engine
         page_footer_height = section_heights['pageFooter']
         footer_top_y = self.balance_engine.container_padding_bottom + page_footer_height
-        self.fixed_engine.render_page_footer(c, template_config, data, page_context, footer_top_y, page_footer_height)
+        self.fixed_engine.render_page_footer(c, template_config, data, page_context, footer_top_y, page_footer_height, company_id)
     
     def _render_page_header(
         self, c: canvas.Canvas, template_config: Dict[str, Any], data: Dict[str, Any],
@@ -1105,6 +1116,81 @@ class PDFEngine:
                 # Field Y is relative to header top
                 y = header_top_y - field.get('y', 0)
                 render_field(c, field, data, x, y, page_context)
+    
+    def _render_watermarks(
+        self, c: canvas.Canvas, template_config: Dict[str, Any], company_id: int,
+        content_start_y: float, content_bottom_y: float, page_height: float
+    ) -> None:
+        """
+        Render watermarks (billContentImages with watermark=true) at fixed positions.
+        Watermarks are rendered behind all content on each page.
+        Uses full dynamic content area height (from content_start_y to content_bottom_y).
+        """
+        from .pdf_field_renderer import render_image
+        
+        if not company_id:
+            logger.warning("Cannot render watermarks: company_id is None")
+            return
+        
+        bill_content_images = template_config.get('billContentImages', [])
+        if not bill_content_images:
+            logger.debug("No billContentImages found in template")
+            return
+        
+        watermark_images = [img for img in bill_content_images 
+                           if img.get('visible', True) and img.get('watermark', False)]
+        
+        if not watermark_images:
+            logger.debug(f"No watermark images found (total billContentImages: {len(bill_content_images)}, checked watermark flag)")
+            # Log all images for debugging
+            for img in bill_content_images:
+                logger.debug(f"  Image imageId={img.get('imageId')}, visible={img.get('visible', True)}, watermark={img.get('watermark', False)}")
+            return
+        
+        # Calculate full content area height (full dynamic content area, not just billContent section)
+        # content_start_y is top of content area, content_bottom_y is bottom of content area
+        # Both are in ReportLab coordinates (from bottom of page)
+        content_area_height = content_start_y - content_bottom_y
+        
+        logger.info(f"Rendering {len(watermark_images)} watermark(s) - content_start_y={content_start_y:.1f}, content_bottom_y={content_bottom_y:.1f}, content_area_height={content_area_height:.1f}, page_height={page_height:.1f}")
+        
+        # Get page width for watermark scaling
+        page_width = c._pagesize[0]
+        
+        # Render each watermark at its fixed position
+        # Position is relative to content area (content_start_y is top of content area in ReportLab coords)
+        
+        for image_field in watermark_images:
+            image_id = image_field.get('imageId')
+            if not image_id:
+                logger.warning("Watermark image missing imageId, skipping")
+                continue
+                
+            # For watermarks, use the exact position and size from template (like preview)
+            # Get position and size from template (relative to content area)
+            x = image_field.get('x', 0)
+            y_from_content_top = image_field.get('y', 0)
+            width = image_field.get('width')
+            height = image_field.get('height')
+            
+            # Convert template Y (from top) to ReportLab Y (from bottom)
+            # content_start_y is already in ReportLab coordinates (top of content area)
+            y = content_start_y - y_from_content_top
+            
+            logger.debug(f"Watermark position calculation: x={x}, y_from_content_top={y_from_content_top}, content_start_y={content_start_y:.1f}, calculated y={y:.1f}, width={width}, height={height}")
+            
+            # Create a copy with updated Y position, but keep width/height from template
+            image_field_copy = {**image_field, 'x': x, 'y': y}
+            # Keep width and height from template (don't remove them)
+            
+            logger.info(f"Watermark imageId={image_id}, x={x}, y_from_content_top={y_from_content_top}, y={y:.1f}, width={width}, height={height}, content_start_y={content_start_y:.1f}")
+            
+            try:
+                # Pass None for content_area_height and page_width so template dimensions are used
+                render_image(c, image_field_copy, company_id, None, None)
+                logger.info(f"Successfully rendered watermark imageId={image_id} with template dimensions")
+            except Exception as e:
+                logger.error(f"Error rendering watermark image {image_id}: {str(e)}", exc_info=True)
     
     def _render_bill_content(
         self, c: canvas.Canvas, page_num: int, template_config: Dict[str, Any],

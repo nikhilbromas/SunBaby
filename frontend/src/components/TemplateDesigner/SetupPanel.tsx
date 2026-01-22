@@ -73,15 +73,16 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
   const loadPresetsAndTemplates = async () => {
     try {
       setLoading(true);
-      const [presetResp, templateResp] = await Promise.all([
-        apiClient.getPresets(),
-        apiClient.getTemplates(undefined),
-      ]);
-      setPresets(presetResp.presets);
+      // Load templates first to show them immediately
+      const templateResp = await apiClient.getTemplates(undefined);
       setTemplates(templateResp.templates);
+      setLoading(false); // Show templates immediately, don't wait for presets
+      
+      // Load presets in background (they're not critical for initial display)
+      const presetResp = await apiClient.getPresets();
+      setPresets(presetResp.presets);
     } catch (error) {
       console.error('Error loading presets/templates:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -233,12 +234,14 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
           </button>
         </div>
         <div className="setup-panel-lottie">
-          <Lottie 
-            animationData={lottieAnimation} 
-            loop={true}
-            autoplay={true}
-            style={{ width: 200, height: 200 }}
-          />
+          {templates.length > 0 && (
+            <Lottie 
+              animationData={lottieAnimation} 
+              loop={true}
+              autoplay={true}
+              style={{ width: 200, height: 200 }}
+            />
+          )}
         </div>
         <div className="setup-panel-content">
           {step === 'template' && (
@@ -293,7 +296,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
                 <span className="search-icon">🔍</span>
               </div>
 
-              {loading ? (
+              {loading && templates.length === 0 ? (
                 <div className="loading-state">Loading templates...</div>
               ) : (
                 <div className="template-cards">
@@ -307,7 +310,7 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
                     <div className="loading-state">Refreshing templates...</div>
                   )}
 
-                  {filteredTemplates.length === 0 ? (
+                  {filteredTemplates.length === 0 && !loading ? (
                     <div className="no-results">No templates found matching "{searchQuery}"</div>
                   ) : (
                     filteredTemplates.map((template) => {
