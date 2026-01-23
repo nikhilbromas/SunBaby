@@ -234,6 +234,7 @@ export interface UserPermissions {
   AllowPreset: boolean;
   AllowTemplate: boolean;
   AllowPreview: boolean;
+  AllowTemplateConfig: boolean;
 }
 
 export interface Company {
@@ -295,5 +296,71 @@ export interface Image {
 export interface ImageListResponse {
   images: Image[];
   total: number;
+}
+
+// ---- Template Config ----
+
+export interface TemplateConfig {
+  ConfigId: number;
+  TemplateId: number;
+  PresetId: number;
+  InterfaceId: number;
+  DepartmentId?: number | null;
+  ShopId?: number | null;
+  Type: string;
+  Description?: string | null;
+  CreatedBy?: string | null;
+  CreatedOn: string;
+  UpdatedOn?: string | null;
+  IsActive: boolean;
+}
+
+export interface TemplateConfigCreate {
+  templateId: number;
+  presetId: number;
+  interfaceId: number;
+  departmentId?: number | null;
+  shopId?: number | null;
+  type: string;
+  description?: string | null;
+  createdBy?: string | null;
+}
+
+export interface TemplateConfigUpdate {
+  templateId?: number;
+  presetId?: number;
+  interfaceId?: number;
+  departmentId?: number | null;
+  shopId?: number | null;
+  type?: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+export interface TemplateConfigListResponse {
+  configs: TemplateConfig[];
+  total: number;
+}
+
+// ---- Lookup Types ----
+
+export interface Department {
+  DepartmentID: number;
+  DepartmentName: string;
+  CompanyID?: number | null;
+}
+
+export interface Shop {
+  ShopID: number;
+  ShopName: string;
+  DepartmentID?: number | null;
+  ShopLocation?: string | null;
+}
+
+export interface Interface {
+  InterfaceID: number;
+  InterfaceName: string;
+  ModuleCode?: string | null;
+  CompanyID?: number | null;
 }
 

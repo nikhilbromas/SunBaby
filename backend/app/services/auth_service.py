@@ -3,7 +3,7 @@ Authentication and company access service.
 
 Auth DB tables (expected):
 - dbo.UserAuthentication (EmailId/emailid, Password/password, UserId/userid)
-- dbo.UserPrintCompany (UserId, CompanyId, AllowPreset, AllowTemplate, AllowPreview, IsActive)
+- dbo.UserPrintCompany (UserId, CompanyId, AllowPreset, AllowTemplate, AllowPreview, AllowTemplateConfig, IsActive)
 - dbo.CompanyProfile (CompanyID, CompanyName, DBname, DBserver, DBuserName, DBpassword)
 """
 
@@ -109,7 +109,8 @@ class AuthService:
                 cp.PhoneNo,
                 upc.AllowPreset,
                 upc.AllowTemplate,
-                upc.AllowPreview
+                upc.AllowPreview,
+                upc.AllowTemplateConfig
             FROM dbo.UserPrintCompany upc
             LEFT JOIN dbo.CompanyProfile cp ON cp.CompanyID = upc.CompanyId
             WHERE upc.UserId = @user_id

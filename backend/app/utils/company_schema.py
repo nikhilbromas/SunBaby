@@ -9,6 +9,13 @@ from app.database import db
 
 
 def ensure_company_schema() -> None:
+    """
+    Ensure company schema exists. Only runs on company databases, not auth DB.
+    """
+    # Check if we're on auth DB - if so, skip schema creation
+    # Auth DB has different tables and shouldn't have company-specific tables
+    if db._current_db_context == "auth":
+        return
     # If objects exist but are missing columns (older schema), patch them.
     # We use COL_LENGTH checks to avoid failing on CREATE INDEX / FK.
     # Use autocommit=True for DDL operations to avoid transaction issues
@@ -266,6 +273,143 @@ def ensure_company_schema() -> None:
            AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportImages_CreatedOn' AND object_id = OBJECT_ID('dbo.ReportImages'))
         BEGIN
             CREATE INDEX IX_ReportImages_CreatedOn ON dbo.ReportImages(CreatedOn);
+        END
+        """,
+        autocommit=True
+    )
+
+    # Create TemplateConfig if missing
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.TemplateConfig (
+                ConfigId INT IDENTITY(1,1) PRIMARY KEY,
+                TemplateId INT NOT NULL,
+                PresetId INT NOT NULL,
+                InterfaceId INT NOT NULL,
+                DepartmentId INT NULL,
+                ShopId INT NULL,
+                Type NVARCHAR(100) NOT NULL,
+                Description NVARCHAR(500) NULL,
+                CreatedBy VARCHAR(50) NULL,
+                CreatedOn DATETIME DEFAULT GETDATE(),
+                UpdatedOn DATETIME NULL,
+                IsActive BIT DEFAULT 1
+            );
+        END
+        """,
+        autocommit=True
+    )
+
+    # Patch missing columns in dbo.TemplateConfig (if table exists but schema differs)
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('dbo.TemplateConfig','ConfigId') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD ConfigId INT IDENTITY(1,1) NOT NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','TemplateId') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD TemplateId INT NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','PresetId') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD PresetId INT NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','InterfaceId') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD InterfaceId INT NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','DepartmentId') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD DepartmentId INT NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','ShopId') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD ShopId INT NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','Type') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD Type NVARCHAR(100) NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','Description') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD Description NVARCHAR(500) NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','CreatedBy') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD CreatedBy VARCHAR(50) NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','CreatedOn') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD CreatedOn DATETIME NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','UpdatedOn') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD UpdatedOn DATETIME NULL;
+            IF COL_LENGTH('dbo.TemplateConfig','IsActive') IS NULL
+                ALTER TABLE dbo.TemplateConfig ADD IsActive BIT NULL;
+        END
+        """,
+        autocommit=True
+    )
+
+    # Create indexes if missing
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','TemplateId') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_TemplateId' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_TemplateId ON dbo.TemplateConfig(TemplateId);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','PresetId') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_PresetId' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_PresetId ON dbo.TemplateConfig(PresetId);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','InterfaceId') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_InterfaceId' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_InterfaceId ON dbo.TemplateConfig(InterfaceId);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','DepartmentId') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_DepartmentId' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_DepartmentId ON dbo.TemplateConfig(DepartmentId);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','ShopId') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_ShopId' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_ShopId ON dbo.TemplateConfig(ShopId);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','IsActive') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_IsActive' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_IsActive ON dbo.TemplateConfig(IsActive);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.TemplateConfig', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.TemplateConfig','Type') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TemplateConfig_Type' AND object_id = OBJECT_ID('dbo.TemplateConfig'))
+        BEGIN
+            CREATE INDEX IX_TemplateConfig_Type ON dbo.TemplateConfig(Type);
         END
         """,
         autocommit=True

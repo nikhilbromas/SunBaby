@@ -4,11 +4,12 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import TemplateDesigner from './components/TemplateDesigner/Canvas';
 import PresetManager from './components/PresetManager/PresetList';
 import Preview from './components/Preview/BillPreview';
+import TemplateConfigList from './components/TemplateConfig/TemplateConfigList';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import './styles/App.css';
 
-type View = 'designer' | 'presets' | 'preview';
+type View = 'designer' | 'presets' | 'preview' | 'templateConfig';
 
 function AppInner() {
   const { permissions, companyName, email, logout } = useAuth();
@@ -19,6 +20,7 @@ function AppInner() {
   const canPreset = permissions?.AllowPreset ?? false;
   const canTemplate = permissions?.AllowTemplate ?? false;
   const canPreview = permissions?.AllowPreview ?? false;
+  const canTemplateConfig = permissions?.AllowTemplateConfig ?? false;
 
   // If current view becomes disallowed, move to first allowed
   React.useEffect(() => {
@@ -26,10 +28,11 @@ function AppInner() {
     if (canTemplate) allowed.push('designer');
     if (canPreset) allowed.push('presets');
     if (canPreview) allowed.push('preview');
+    if (canTemplateConfig) allowed.push('templateConfig');
     if (allowed.length && !allowed.includes(currentView)) {
       setCurrentView(allowed[0]);
     }
-  }, [canTemplate, canPreset, canPreview, currentView]);
+  }, [canTemplate, canPreset, canPreview, canTemplateConfig, currentView]);
 
   // Close user menu when clicking outside
   React.useEffect(() => {
@@ -78,6 +81,14 @@ function AppInner() {
                   onClick={() => setCurrentView('preview')}
                 >
                   Preview
+                </button>
+              )}
+              {canTemplateConfig && (
+                <button
+                  className={currentView === 'templateConfig' ? 'active' : ''}
+                  onClick={() => setCurrentView('templateConfig')}
+                >
+                  Template Config
                 </button>
               )}
             </nav>
@@ -145,6 +156,7 @@ function AppInner() {
           {currentView === 'presets' && canPreset && <PresetManager />}
           {currentView === 'designer' && canTemplate && <TemplateDesigner />}
           {currentView === 'preview' && canPreview && <Preview />}
+          {currentView === 'templateConfig' && canTemplateConfig && <TemplateConfigList />}
         </main>
       </div>
     </DndProvider>

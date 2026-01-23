@@ -40,6 +40,7 @@ async def login(payload: LoginRequest):
             AllowPreset=bool(r.get("AllowPreset", False)),
             AllowTemplate=bool(r.get("AllowTemplate", False)),
             AllowPreview=bool(r.get("AllowPreview", False)),
+            AllowTemplateConfig=bool(r.get("AllowTemplateConfig", False)),
         )
         companies.append(
             Company(
@@ -71,6 +72,7 @@ async def select_company(payload: CompanySelectRequest, session=Depends(require_
         "AllowPreset": bool(match.get("AllowPreset", False)),
         "AllowTemplate": bool(match.get("AllowTemplate", False)),
         "AllowPreview": bool(match.get("AllowPreview", False)),
+        "AllowTemplateConfig": bool(match.get("AllowTemplateConfig", False)),
     }
 
     # Switch global db connection to company DB (per your selected approach)
@@ -104,7 +106,7 @@ async def me(session=Depends(require_session)):
         email=session.email,
         company_id=session.company_id,
         company_name=session.company_name,
-        permissions=UserPermissions(**(session.permissions or {"AllowPreset": False, "AllowTemplate": False, "AllowPreview": False}))
+        permissions=UserPermissions(**(session.permissions or {"AllowPreset": False, "AllowTemplate": False, "AllowPreview": False, "AllowTemplateConfig": False}))
         if session.company_id
         else None,
     )

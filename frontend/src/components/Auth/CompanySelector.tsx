@@ -9,6 +9,7 @@ function permSummary(c: Company): string {
   if (p.AllowPreset) parts.push('Presets');
   if (p.AllowTemplate) parts.push('Templates');
   if (p.AllowPreview) parts.push('Preview');
+  if (p.AllowTemplateConfig) parts.push('Template Config');
   return parts.length ? parts.join(', ') : 'No permissions';
 }
 

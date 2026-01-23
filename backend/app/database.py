@@ -61,13 +61,17 @@ class ConnectionPool:
         return conn
     
     def _is_connection_alive(self, conn: pyodbc.Connection) -> bool:
-        """Check if connection is still alive (optimized - minimal check)."""
+        """Check if connection is still alive by executing a simple query."""
         try:
-            # Fast check - just verify connection object is valid
-            # Actual validity will be checked when query is executed
-            # This avoids the overhead of SELECT 1 on every connection check
-            return conn is not None and hasattr(conn, 'cursor')
-        except Exception:
+            if conn is None or not hasattr(conn, 'cursor'):
+                return False
+            # Quick test query to verify connection is actually working
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            return True
+        except (pyodbc.OperationalError, pyodbc.InterfaceError, pyodbc.DatabaseError, Exception):
             return False
     
     def get_connection(self, timeout: float = 5.0) -> pyodbc.Connection:
@@ -422,67 +426,112 @@ class Database:
         executor = get_db_executor()
         return await loop.run_in_executor(executor, self.execute_query, query, params, use_auth_db)
     
-    def execute_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> list[dict]:
+    def execute_query(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False, max_retries: int = 3) -> list[dict]:
         """
         Execute a SELECT query and return results as list of dictionaries.
+        Includes retry logic for connection failures.
         
         Args:
             query: SQL SELECT query with parameter placeholders (@ParamName)
             params: Dictionary of parameter values
             use_auth_db: If True, always execute against auth DB regardless of current context
+            max_retries: Maximum number of retry attempts for connection failures
             
         Returns:
             List of dictionaries representing rows
         """
         params = params or {}
-        with self.get_connection(use_auth_db=use_auth_db) as conn:
-            cursor = conn.cursor()
+        last_exception = None
+        
+        for attempt in range(max_retries):
             try:
-                import re
+                with self.get_connection(use_auth_db=use_auth_db) as conn:
+                    cursor = conn.cursor()
+                    try:
+                        import re
+                        
+                        # Extract all parameter names from query (including duplicates)
+                        param_pattern = r'@(\w+)'
+                        all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+                        
+                        if not all_param_matches:
+                            # No parameters, execute directly
+                            cursor.execute(query)
+                        else:
+                            # Get unique parameter names for validation
+                            param_names = list(set(match.group(1) for match in all_param_matches))
+                            
+                            # Validate all required parameters are provided
+                            missing_params = [p for p in param_names if p not in params]
+                            if missing_params:
+                                raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+                            
+                            # Build parameterized query and values list
+                            # Replace each @paramName with ? and add corresponding value
+                            formatted_query = query
+                            param_values = []
+                            
+                            # Process matches in reverse order to preserve positions
+                            for match in reversed(all_param_matches):
+                                param_name = match.group(1)
+                                start, end = match.span()
+                                # Replace this occurrence with ? 
+                                formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
+                                # Add the parameter value (will be used in reverse order, so prepend)
+                                param_values.insert(0, params[param_name])
+                            
+                            # Execute the parameterized query
+                            cursor.execute(formatted_query, param_values)
+                        
+                        # Get column names
+                        columns = [column[0] for column in cursor.description]
+                        
+                        # Fetch all rows and convert to dictionaries
+                        rows = cursor.fetchall()
+                        results = [dict(zip(columns, row)) for row in rows]
+                        
+                        return results
+                    finally:
+                        cursor.close()
+            
+            except (pyodbc.OperationalError, pyodbc.InterfaceError, pyodbc.DatabaseError) as e:
+                last_exception = e
+                error_code = getattr(e, 'args', [None])[0] if hasattr(e, 'args') and e.args else None
+                error_msg = str(e)
                 
-                # Extract all parameter names from query (including duplicates)
-                param_pattern = r'@(\w+)'
-                all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+                # Check if this is a connection-related error that we should retry
+                is_connection_error = (
+                    error_code in ('08S01', '08003', 'HY000') or  # Communication link failure, Connection not open, General error
+                    'Communication link failure' in error_msg or
+                    'link failure' in error_msg.lower() or
+                    ('connection' in error_msg.lower() and ('closed' in error_msg.lower() or 'lost' in error_msg.lower() or 'broken' in error_msg.lower()))
+                )
                 
-                if not all_param_matches:
-                    # No parameters, execute directly
-                    cursor.execute(query)
+                if is_connection_error and attempt < max_retries - 1:
+                    # Log the retry attempt
+                    wait_time = 0.5 * (2 ** attempt)  # Exponential backoff: 0.5s, 1s, 2s
+                    logger.warning(
+                        f"Database connection error (attempt {attempt + 1}/{max_retries}): {error_msg}. "
+                        f"Retrying in {wait_time:.1f}s..."
+                    )
+                    time.sleep(wait_time)
+                    
+                    # Force connection pool to refresh by clearing dead connections
+                    # This will be handled by get_connection's connection validation
+                    continue
                 else:
-                    # Get unique parameter names for validation
-                    param_names = list(set(match.group(1) for match in all_param_matches))
-                    
-                    # Validate all required parameters are provided
-                    missing_params = [p for p in param_names if p not in params]
-                    if missing_params:
-                        raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
-                    
-                    # Build parameterized query and values list
-                    # Replace each @paramName with ? and add corresponding value
-                    formatted_query = query
-                    param_values = []
-                    
-                    # Process matches in reverse order to preserve positions
-                    for match in reversed(all_param_matches):
-                        param_name = match.group(1)
-                        start, end = match.span()
-                        # Replace this occurrence with ?
-                        formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
-                        # Add the parameter value (will be used in reverse order, so prepend)
-                        param_values.insert(0, params[param_name])
-                    
-                    # Execute the parameterized query
-                    cursor.execute(formatted_query, param_values)
-                
-                # Get column names
-                columns = [column[0] for column in cursor.description]
-                
-                # Fetch all rows and convert to dictionaries
-                rows = cursor.fetchall()
-                results = [dict(zip(columns, row)) for row in rows]
-                
-                return results
-            finally:
-                cursor.close()
+                    # Not a retryable error or max retries reached
+                    logger.error(f"Database error: {error_msg}")
+                    raise
+            except Exception as e:
+                # Non-connection errors should not be retried
+                logger.error(f"Database error: {str(e)}")
+                raise
+        
+        # If we exhausted all retries, raise the last exception
+        if last_exception:
+            raise last_exception
+        raise Exception("Failed to execute query after retries")
     
     async def execute_scalar_async(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> Optional[any]:
         """
@@ -500,59 +549,101 @@ class Database:
         executor = get_db_executor()
         return await loop.run_in_executor(executor, self.execute_scalar, query, params, use_auth_db)
     
-    def execute_scalar(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False) -> Optional[any]:
+    def execute_scalar(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False, max_retries: int = 3) -> Optional[any]:
         """
         Execute a query that returns a single scalar value.
+        Includes retry logic for connection failures.
         
         Args:
             query: SQL query
             params: Dictionary of parameter values
             use_auth_db: If True, always execute against auth DB regardless of current context
+            max_retries: Maximum number of retry attempts for connection failures
             
         Returns:
             Single scalar value or None
         """
         params = params or {}
-        with self.get_connection(use_auth_db=use_auth_db) as conn:
-            cursor = conn.cursor()
+        last_exception = None
+        
+        for attempt in range(max_retries):
             try:
-                import re
-                param_pattern = r'@(\w+)'
+                with self.get_connection(use_auth_db=use_auth_db) as conn:
+                    cursor = conn.cursor()
+                    try:
+                        import re
+                        param_pattern = r'@(\w+)'
+                        
+                        # Extract all parameter matches
+                        all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+                        
+                        if not all_param_matches:
+                            # No parameters, execute directly
+                            cursor.execute(query)
+                        else:
+                            # Get unique parameter names for validation
+                            param_names = list(set(match.group(1) for match in all_param_matches))
+                            
+                            # Validate all required parameters are provided
+                            missing_params = [p for p in param_names if p not in params]
+                            if missing_params:
+                                raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
+                            
+                            # Build parameterized query and values list
+                            formatted_query = query
+                            param_values = []
+                            
+                            # Process matches in reverse order to preserve positions
+                            for match in reversed(all_param_matches):
+                                param_name = match.group(1)
+                                start, end = match.span()
+                                # Replace this occurrence with ?
+                                formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
+                                # Add the parameter value (will be used in reverse order, so prepend)
+                                param_values.insert(0, params[param_name])
+                            
+                            cursor.execute(formatted_query, param_values)
+                        
+                        result = cursor.fetchone()
+                        return result[0] if result else None
+                    finally:
+                        cursor.close()
+            
+            except (pyodbc.OperationalError, pyodbc.InterfaceError, pyodbc.DatabaseError) as e:
+                last_exception = e
+                error_code = getattr(e, 'args', [None])[0] if hasattr(e, 'args') and e.args else None
+                error_msg = str(e)
                 
-                # Extract all parameter matches
-                all_param_matches = list(re.finditer(param_pattern, query, re.IGNORECASE))
+                # Check if this is a connection-related error that we should retry
+                is_connection_error = (
+                    error_code in ('08S01', '08003', 'HY000') or  # Communication link failure, Connection not open, General error
+                    'Communication link failure' in error_msg or
+                    'link failure' in error_msg.lower() or
+                    ('connection' in error_msg.lower() and ('closed' in error_msg.lower() or 'lost' in error_msg.lower() or 'broken' in error_msg.lower()))
+                )
                 
-                if not all_param_matches:
-                    # No parameters, execute directly
-                    cursor.execute(query)
+                if is_connection_error and attempt < max_retries - 1:
+                    # Log the retry attempt
+                    wait_time = 0.5 * (2 ** attempt)  # Exponential backoff: 0.5s, 1s, 2s
+                    logger.warning(
+                        f"Database connection error in execute_scalar (attempt {attempt + 1}/{max_retries}): {error_msg}. "
+                        f"Retrying in {wait_time:.1f}s..."
+                    )
+                    time.sleep(wait_time)
+                    continue
                 else:
-                    # Get unique parameter names for validation
-                    param_names = list(set(match.group(1) for match in all_param_matches))
-                    
-                    # Validate all required parameters are provided
-                    missing_params = [p for p in param_names if p not in params]
-                    if missing_params:
-                        raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
-                    
-                    # Build parameterized query and values list
-                    formatted_query = query
-                    param_values = []
-                    
-                    # Process matches in reverse order to preserve positions
-                    for match in reversed(all_param_matches):
-                        param_name = match.group(1)
-                        start, end = match.span()
-                        # Replace this occurrence with ?
-                        formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
-                        # Add the parameter value (will be used in reverse order, so prepend)
-                        param_values.insert(0, params[param_name])
-                    
-                    cursor.execute(formatted_query, param_values)
-                
-                result = cursor.fetchone()
-                return result[0] if result else None
-            finally:
-                cursor.close()
+                    # Not a retryable error or max retries reached
+                    logger.error(f"Database error in execute_scalar: {error_msg}")
+                    raise
+            except Exception as e:
+                # Non-connection errors should not be retried
+                logger.error(f"Database error in execute_scalar: {str(e)}")
+                raise
+        
+        # If we exhausted all retries, raise the last exception
+        if last_exception:
+            raise last_exception
+        raise Exception("Failed to execute scalar query after retries")
 
     async def execute_non_query_async(self, query: str, params: Optional[dict] = None, use_auth_db: bool = False, autocommit: bool = False) -> None:
         """

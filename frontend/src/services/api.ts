@@ -18,6 +18,13 @@ import type {
   MeResponse,
   Image,
   ImageListResponse,
+  TemplateConfig,
+  TemplateConfigCreate,
+  TemplateConfigUpdate,
+  TemplateConfigListResponse,
+  Department,
+  Shop,
+  Interface,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -280,6 +287,96 @@ class ApiClient {
     await this.client.delete(`/images/${imageId}`, {
       params: companyId ? { company_id: companyId } : {},
     });
+  }
+
+  // Template Config endpoints
+  async getTemplateConfigs(
+    templateId?: number,
+    presetId?: number,
+    interfaceId?: number,
+    departmentId?: number,
+    shopId?: number,
+    skip = 0,
+    limit = 100
+  ): Promise<TemplateConfigListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<TemplateConfigListResponse>('/template-configs', {
+      params: {
+        company_id: companyId,
+        template_id: templateId,
+        preset_id: presetId,
+        interface_id: interfaceId,
+        department_id: departmentId,
+        shop_id: shopId,
+        skip,
+        limit,
+      },
+    });
+    return response.data;
+  }
+
+  async getTemplateConfig(configId: number): Promise<TemplateConfig> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<TemplateConfig>(`/template-configs/${configId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async createTemplateConfig(data: TemplateConfigCreate): Promise<TemplateConfig> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.post<TemplateConfig>('/template-configs', data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async updateTemplateConfig(configId: number, data: TemplateConfigUpdate): Promise<TemplateConfig> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.put<TemplateConfig>(`/template-configs/${configId}`, data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async deleteTemplateConfig(configId: number): Promise<void> {
+    const companyId = this.getCompanyId();
+    await this.client.delete(`/template-configs/${configId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+  }
+
+  // Lookup endpoints
+  async getDepartments(): Promise<Department[]> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<Department[]>('/lookups/departments', {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async getShops(departmentId?: number): Promise<Shop[]> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<Shop[]>('/lookups/shops', {
+      params: {
+        company_id: companyId,
+        department_id: departmentId,
+      },
+    });
+    return response.data;
+  }
+
+  async getInterfaces(skip = 0, limit = 100, search?: string): Promise<Interface[]> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<Interface[]>('/lookups/interfaces', {
+      params: {
+        company_id: companyId,
+        skip,
+        limit,
+        search,
+      },
+    });
+    return response.data;
   }
 }
 
