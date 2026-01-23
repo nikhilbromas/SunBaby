@@ -82,28 +82,39 @@ const DraggableContentDetailField: React.FC<{
   contentName: string;
   field: string;
   sampleValue: any;
-}> = ({ contentName, field, sampleValue }) => {
+  bind?: string;
+  label?: string;
+  dataType?: 'array' | 'object';
+}> = ({ contentName, field, sampleValue, bind, label, dataType }) => {
+  const displayLabel = label || field;
+  const bindPath = bind || field;
+  const isObjectType = dataType === 'object';
+  
   const [{ isDragging }, drag] = useDrag({
     type: 'data-field',
     item: {
       fieldType: 'contentDetail',
       contentName,
       fieldName: field,
-      bind: field,
-      label: field,
+      bind: bindPath,
+      label: displayLabel,
     },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
+  const tooltipText = isObjectType 
+    ? `Drag to canvas to add field (Object type: ${contentName})`
+    : "Drag to content detail table to add column (Array type)";
+
   return (
     <div
       ref={drag}
       className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
-      title="Drag to content detail table to add column"
+      title={tooltipText}
     >
-      <code>{field}</code>
+      <code>{displayLabel}</code>
       {sampleValue !== null && sampleValue !== undefined && (
         <span className="field-value">
           Sample: {String(sampleValue)}
@@ -133,7 +144,8 @@ interface DraggableSelectionZoneProps {
   contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
   DraggableHeaderFieldComponent: React.FC<{ field: string; sampleValue: any; targetSection?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' }>;
   DraggableItemFieldComponent: React.FC<{ field: string; sampleValue: any }>;
-  DraggableContentDetailFieldComponent: React.FC<{ contentName: string; field: string; sampleValue: any }>;
+  DraggableContentDetailFieldComponent: React.FC<{ contentName: string; field: string; sampleValue: any; bind?: string; label?: string; dataType?: 'array' | 'object' }>;
+  searchTerm?: string;
 }
 
 const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
@@ -148,6 +160,7 @@ const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
   DraggableHeaderFieldComponent,
   DraggableItemFieldComponent,
   DraggableContentDetailFieldComponent,
+  searchTerm = '',
 }) => {
   const [canDragZone, setCanDragZone] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed by default
@@ -257,7 +270,22 @@ const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
     }
   }, [drag]);
 
-  const hasFields = zoneFields.length > 0;
+  // Filter fields based on search term
+  const filteredFields = React.useMemo(() => {
+    if (!searchTerm.trim()) {
+      return zoneFields;
+    }
+    const searchLower = searchTerm.toLowerCase().trim();
+    return zoneFields.filter((field) => {
+      const fieldName = field.fieldName.toLowerCase();
+      const label = field.label.toLowerCase();
+      const bind = field.bind.toLowerCase();
+      return fieldName.includes(searchLower) || label.includes(searchLower) || bind.includes(searchLower);
+    });
+  }, [zoneFields, searchTerm]);
+
+  const hasFields = filteredFields.length > 0;
+  const hasAllFields = zoneFields.length > 0;
 
   return (
     <div
@@ -286,9 +314,14 @@ const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
       {!isCollapsed && (
         <>
           <p className="section-hint">{hint}</p>
+          {searchTerm.trim() && hasAllFields && (
+            <p className="filter-info">
+              Showing {filteredFields.length} of {zoneFields.length} fields
+            </p>
+          )}
           {hasFields ? (
             <div className="fields-list">
-              {zoneFields.map((zoneField, index) => {
+              {filteredFields.map((zoneField, index) => {
                 if (zoneField.fieldType === 'header') {
                   return (
                     <DraggableHeaderFieldComponent
@@ -307,12 +340,17 @@ const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
                     />
                   );
                 } else if (zoneField.fieldType === 'contentDetail' && zoneField.contentName) {
+                  // Determine dataType from contentDetails
+                  const dataType = contentDetails?.[zoneField.contentName]?.dataType;
                   return (
                     <DraggableContentDetailFieldComponent
                       key={`${targetSection}-contentDetail-${zoneField.contentName}-${zoneField.fieldName}-${index}`}
                       contentName={zoneField.contentName}
                       field={zoneField.fieldName}
                       sampleValue={zoneField.sampleValue}
+                      bind={zoneField.bind}
+                      label={zoneField.label}
+                      dataType={dataType}
                     />
                   );
                 }
@@ -320,7 +358,11 @@ const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
               })}
             </div>
           ) : (
-            <p className="no-fields-hint">No fields available for this zone</p>
+            <p className="no-fields-hint">
+              {searchTerm.trim() 
+                ? `No fields match "${searchTerm}" in this zone` 
+                : 'No fields available for this zone'}
+            </p>
           )}
         </>
       )}
@@ -335,6 +377,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
   itemsFields,
   contentDetails,
 }) => {
+  const [searchTerm, setSearchTerm] = useState('');
   const hasData = headerFields.length > 0 || itemsFields.length > 0 || (contentDetails && Object.keys(contentDetails).length > 0);
 
   return (
@@ -343,6 +386,25 @@ const DataPreview: React.FC<DataPreviewProps> = ({
       
       {hasData && (
         <>
+          <div className="search-container">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="🔍 Search fields by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm.trim() && (
+              <button
+                className="search-clear"
+                onClick={() => setSearchTerm('')}
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <DraggableSelectionZone
             targetSection="pageHeader"
             label="Page Header Fields"
@@ -355,6 +417,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
             DraggableHeaderFieldComponent={DraggableHeaderField}
             DraggableItemFieldComponent={DraggableItemField}
             DraggableContentDetailFieldComponent={DraggableContentDetailField}
+            searchTerm={searchTerm}
           />
           <DraggableSelectionZone
             targetSection="header"
@@ -368,6 +431,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
             DraggableHeaderFieldComponent={DraggableHeaderField}
             DraggableItemFieldComponent={DraggableItemField}
             DraggableContentDetailFieldComponent={DraggableContentDetailField}
+            searchTerm={searchTerm}
           />
           <DraggableSelectionZone
             targetSection="billContent"
@@ -381,6 +445,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
             DraggableHeaderFieldComponent={DraggableHeaderField}
             DraggableItemFieldComponent={DraggableItemField}
             DraggableContentDetailFieldComponent={DraggableContentDetailField}
+            searchTerm={searchTerm}
           />
           <DraggableSelectionZone
             targetSection="billFooter"
@@ -394,6 +459,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
             DraggableHeaderFieldComponent={DraggableHeaderField}
             DraggableItemFieldComponent={DraggableItemField}
             DraggableContentDetailFieldComponent={DraggableContentDetailField}
+            searchTerm={searchTerm}
           />
           <DraggableSelectionZone
             targetSection="pageFooter"
@@ -407,6 +473,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({
             DraggableHeaderFieldComponent={DraggableHeaderField}
             DraggableItemFieldComponent={DraggableItemField}
             DraggableContentDetailFieldComponent={DraggableContentDetailField}
+            searchTerm={searchTerm}
           />
         </>
       )}

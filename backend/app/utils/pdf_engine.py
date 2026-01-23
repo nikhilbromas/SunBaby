@@ -278,6 +278,33 @@ class PDFEngine:
                             logger.debug(f"Added table to page {page_num} for continuation (at beginning): "
                                        f"{table_element.get('type')}, content_name={table_element.get('content_name')}")
             
+            # Check if any content will be rendered on this page (not all duplicates)
+            # Skip page creation entirely if no content will render
+            page_elements = pagination_info['pages'].get(page_num, [])
+            will_render_content = False
+            if page_elements:
+                # Check if any element is not a duplicate field
+                for element_info in page_elements:
+                    element = element_info.get('element')
+                    if element is None:
+                        continue
+                    # For fields, check if already rendered on previous pages
+                    if element.get('type') == 'field':
+                        if not self._field_already_rendered_on_previous_page(element, page_num, pagination_info):
+                            will_render_content = True
+                            break
+                    else:
+                        # Tables and other elements will render
+                        will_render_content = True
+                        break
+            
+            # If no content will be rendered, skip creating this page entirely
+            if not will_render_content:
+                logger.debug(f"Page {page_num}: Skipping page creation - no content will be rendered (all elements are duplicates)")
+                # Don't create the page, just move to next iteration
+                page_num += 1
+                continue
+            
             self._render_page(
                 c, page_num, max_pages, template_config, data,
                 section_heights, page_width, page_height,
@@ -461,6 +488,52 @@ class PDFEngine:
         
         # All tables are complete
         return True
+    
+    def _field_already_rendered_on_previous_page(
+        self, element: Dict[str, Any], current_page_num: int, pagination_info: Dict[str, Any]
+    ) -> bool:
+        """
+        Check if a field was already rendered on a previous page.
+        
+        Args:
+            element: The field element to check
+            current_page_num: Current page number
+            pagination_info: Pagination information with pages dict
+            
+        Returns:
+            True if field was already rendered on a previous page
+        """
+        if element.get('type') != 'field':
+            return False
+        
+        element_config = element.get('config', {})
+        element_x = element_config.get('x')
+        element_y = element.get('y', 0)
+        element_bind = element_config.get('bind')
+        element_label = element_config.get('label')
+        
+        # Check all previous pages
+        for page_num in range(1, current_page_num):
+            if page_num not in pagination_info.get('pages', {}):
+                continue
+            
+            for page_element_info in pagination_info['pages'][page_num]:
+                existing_element = page_element_info.get('element')
+                if existing_element is None:
+                    continue
+                
+                if existing_element.get('type') != 'field':
+                    continue
+                
+                existing_config = existing_element.get('config', {})
+                # Compare key fields that uniquely identify a field
+                if (existing_config.get('x') == element_x and
+                    existing_element.get('y', 0) == element_y and
+                    existing_config.get('bind') == element_bind and
+                    existing_config.get('label') == element_label):
+                    return True
+        
+        return False
     
     def _filter_elements_by_sequential_order(
         self, page_elements: List[Dict[str, Any]], table_rendering_state: Dict[str, Any],
@@ -1055,14 +1128,14 @@ class PDFEngine:
         
         # Render Watermarks (billContentImages with watermark=true) - render behind all content
         # Watermarks are rendered at fixed position on each page, before bill content
+        # Note: Content check is done before calling _render_page, so we know content will render here
         self._render_watermarks(
             c, template_config, company_id, content_start_y, min_content_y_from_top, page_height
         )
         
         # Render Bill Content (dynamic, flow-based)
         # Content area starts at content_start_y and ends at min_content_y_from_top (calculated by Balance Engine above)
-        
-        bill_content_bottom = self._render_bill_content(
+        bill_content_bottom, content_rendered = self._render_bill_content(
             c, page_num, template_config, data, page_context,
             content_start_y, min_content_y_from_top, pagination_info,
             table_rendering_state, bill_content_elements,
@@ -1199,16 +1272,20 @@ class PDFEngine:
         pagination_info: Dict[str, Any], table_rendering_state: Dict[str, Any],
         bill_content_elements: List[Dict[str, Any]],
         page_height: float = None, section_heights: Dict[str, float] = None
-    ) -> float:
+    ) -> tuple[float, bool]:
         """
         Render bill content using flow-based positioning.
         
-        Returns the bottom Y position of rendered content.
+        Returns:
+            tuple: (bottom Y position of rendered content, whether any content was rendered)
         """
         page_elements = pagination_info['pages'].get(page_num, [])
         
         if not page_elements:
-            return content_start_y
+            return content_start_y, False
+        
+        # Track if any content was actually rendered (not just skipped)
+        content_rendered = False
         
         # Calculate reference position from page header (not content_start_y which includes bill header)
         # CRITICAL: Position reference taken from page header as requested
@@ -1251,6 +1328,19 @@ class PDFEngine:
             
             element_info = current_elements_to_render[rendered_count]
             element = element_info['element']
+            
+            # CRITICAL: For fields, check if already rendered on previous pages
+            if element.get('type') == 'field':
+                if self._field_already_rendered_on_previous_page(element, page_num, pagination_info):
+                    logger.debug(f"[DUPLICATE] Page {page_num}: Skipping field already rendered on previous page: "
+                               f"bind={element.get('config', {}).get('bind')}, "
+                               f"y={element.get('y', 0)}")
+                    rendered_count += 1
+                    continue  # Skip this element, don't mark as rendered
+            
+            # Mark that we're about to render content
+            content_rendered = True
+            
             # CRITICAL: Get configured Y from the element itself (template config), not from element_info
             # element_info['y'] is the flow-based Y from pagination, not the configured Y from template
             configured_y = element.get('y', 0)
@@ -1599,7 +1689,7 @@ class PDFEngine:
             # Increment rendered count
             rendered_count += 1
         
-        return content_bottom
+        return content_bottom, content_rendered
     
     def _render_content_element(
         self, c: canvas.Canvas, element: Dict[str, Any], element_info: Dict[str, Any],
