@@ -170,7 +170,7 @@ def render_table(c: canvas.Canvas, table_config: Dict[str, Any],
     border_color = table_config.get('borderColor', '#dddddd')
     header_bg = table_config.get('headerBackgroundColor', '#f0f0f0')
     header_text = table_config.get('headerTextColor', '#000000')
-    alternate_color = table_config.get('alternateRowColor', '#f9f9f9')
+    alternate_color = table_config.get('alternateRowColor', None)  # Optional: None means no alternate row color
     table_width = table_config.get('tableWidth', None)
     
     # Calculate column widths - handle tableWidth if provided
@@ -445,10 +445,12 @@ def render_table(c: canvas.Canvas, table_config: Dict[str, Any],
         # Calculate total table width for alternate row color
         total_width = sum(col.get('_calculated_width', 100) for col in visible_columns)
         
-        # Alternate row color
+        # Alternate row color (only apply if alternateRowColor is set and not None/empty)
         if actual_idx % 2 == 1 and alternate_color:
-            c.setFillColorRGB(*hex_to_rgb(alternate_color))
-            c.rect(col_x, row_y, total_width, row_height, fill=1, stroke=0)
+            # Check if alternate_color is a valid non-empty string
+            if isinstance(alternate_color, str) and alternate_color.strip():
+                c.setFillColorRGB(*hex_to_rgb(alternate_color))
+                c.rect(col_x, row_y, total_width, row_height, fill=1, stroke=0)
         
         # Render each cell using Paragraph (handle colspan)
         for cell_idx, cell_config in enumerate(cell_configs):

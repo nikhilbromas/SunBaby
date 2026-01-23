@@ -485,13 +485,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
           <label>
-            Alt Row:
             <input
-              type="color"
-              value={table.alternateRowColor || '#f9f9f9'}
-              onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              type="checkbox"
+              checked={!!table.alternateRowColor}
+              onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, alternateRowColor: e.target.checked ? '#f9f9f9' : undefined })}
             />
+            Alt Row Color
           </label>
+          {table.alternateRowColor && (
+            <label>
+              Alt Row Color:
+              <input
+                type="color"
+                value={table.alternateRowColor}
+                onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Width:
             <input
@@ -1160,13 +1170,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
           <label>
-            Alt Row:
             <input
-              type="color"
-              value={table.alternateRowColor || '#f9f9f9'}
-              onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              type="checkbox"
+              checked={!!table.alternateRowColor}
+              onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, alternateRowColor: e.target.checked ? '#f9f9f9' : undefined })}
             />
+            Alt Row Color
           </label>
+          {table.alternateRowColor && (
+            <label>
+              Alt Row Color:
+              <input
+                type="color"
+                value={table.alternateRowColor}
+                onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Width:
             <input
@@ -1819,13 +1839,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
           <label>
-            Alt Row:
             <input
-              type="color"
-              value={table.alternateRowColor || '#f9f9f9'}
-              onChange={(e) => onUpdateTable({ ...table, alternateRowColor: e.target.value })}
+              type="checkbox"
+              checked={!!table.alternateRowColor}
+              onChange={(e) => onUpdateTable({ ...table, alternateRowColor: e.target.checked ? '#f9f9f9' : undefined })}
             />
+            Alt Row Color
           </label>
+          {table.alternateRowColor && (
+            <label>
+              Alt Row Color:
+              <input
+                type="color"
+                value={table.alternateRowColor}
+                onChange={(e) => onUpdateTable({ ...table, alternateRowColor: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Width:
             <input
