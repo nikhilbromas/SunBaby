@@ -1101,15 +1101,86 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
   );
 
   const handleDrop = useCallback(
-    (item: { type: 'text' | 'table' }, monitor: any) => {
+    (
+      item: {
+        type: 'text' | 'table' | 'pageNumber' | 'totalPages';
+        targetSection?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' | 'itemsTable';
+      },
+      monitor: any
+    ) => {
       const clientOffset = monitor?.getClientOffset();
       const canvasElement = document.querySelector('.canvas');
       
-      if (item.type === 'text') {
-        // Determine target section based on drop position
-        let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header';
+      if (item.type === 'pageNumber' || item.type === 'totalPages') {
+        // Page number fields can only be dropped in pageHeader or pageFooter
+        let section: 'pageHeader' | 'pageFooter' =
+          item.targetSection === 'pageFooter' ? 'pageFooter' : 'pageHeader';
         
         if (clientOffset && canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const y = clientOffset.y - canvasRect.top;
+          const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
+          
+          const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+          const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+          const pageHeaderTop = 40;
+          const pageHeaderBottom = pageHeaderTop + pageHeaderHeight;
+          const pageFooterTop = canvasHeight - pageFooterHeight - 10;
+          
+          // Determine if dropped in pageHeader or pageFooter (unless explicitly targeted)
+          if (!item.targetSection) {
+            if (y < pageHeaderBottom) {
+              section = 'pageHeader';
+            } else if (y > pageFooterTop) {
+              section = 'pageFooter';
+            } else {
+              section = 'pageHeader';
+            }
+          }
+        }
+        
+        // Calculate position relative to section
+        let relativeY = 20;
+        let x = 20;
+        if (clientOffset && canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const absoluteY = clientOffset.y - canvasRect.top;
+          x = clientOffset.x - canvasRect.left - 20;
+          
+          if (section === 'pageHeader') {
+            relativeY = absoluteY - 40 - 10;
+          } else {
+            const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+            relativeY = absoluteY - (canvasRect.height - pageFooterHeight);
+          }
+          relativeY = Math.max(0, relativeY);
+        }
+        
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: item.type === 'pageNumber' ? 'Page' : 'Total Pages',
+          bind: '',
+          x,
+          y: relativeY,
+          visible: true,
+          fieldType: item.type,
+        };
+        
+        setTemplate((prev) => {
+          if (section === 'pageHeader') {
+            return { ...prev, pageHeader: [...(prev.pageHeader || []), newField] };
+          } else {
+            return { ...prev, pageFooter: [...(prev.pageFooter || []), newField] };
+          }
+        });
+      } else if (item.type === 'text') {
+        // Determine target section based on drop position
+        let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' =
+          (item.targetSection && item.targetSection !== 'itemsTable'
+            ? item.targetSection
+            : 'header') as any;
+        
+        if (!item.targetSection && clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
           const y = clientOffset.y - canvasRect.top;
           const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
@@ -1164,9 +1235,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         });
       } else if (item.type === 'table') {
         // Determine if dropping into bill-content or creating items table
-        let section: 'billContent' | 'itemsTable' = 'itemsTable';
+        let section: 'billContent' | 'itemsTable' =
+          item.targetSection === 'billContent' ? 'billContent' : 'itemsTable';
         
-        if (clientOffset && canvasElement) {
+        if (!item.targetSection && clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
           const y = clientOffset.y - canvasRect.top;
           
@@ -1279,7 +1351,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
   );
 
   const [{ isOver }, drop] = useDrop({
-    accept: ['text', 'table', 'data-field', 'image'],
+    accept: ['text', 'table', 'pageNumber', 'totalPages', 'data-field', 'image'],
     drop: (item: any, monitor) => {
       if (item.type === 'data-field' || item.fieldType) {
         // Handle data field drop - targetSection is already in item

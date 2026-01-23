@@ -20,6 +20,14 @@
   flex-wrap: wrap;
 }
 
+.toolbar-section {
+  margin-bottom: 1.25rem;
+}
+
+.toolbar-section:last-child {
+  margin-bottom: 0;
+}
+
 .toolbar-item {
   display: flex;
   align-items: center;

@@ -236,6 +236,41 @@ class PDFEngine:
         page_num = 1
         max_iterations = 100  # Safety limit to prevent infinite loops
         
+        # Track which pages are actually rendered (not skipped)
+        rendered_pages = []
+        
+        # Pre-pass: Determine which pages will actually be rendered (to calculate correct totalPages)
+        # This allows us to pass the correct totalPages to each page's page_context
+        pages_that_will_render = []
+        pre_check_page_num = 1
+        pre_check_max_pages = max_pages
+        pre_check_iteration = 0
+        while pre_check_page_num <= pre_check_max_pages and pre_check_iteration < max_iterations:
+            pre_check_iteration += 1
+            page_elements = pagination_info['pages'].get(pre_check_page_num, [])
+            will_render_content = False
+            if page_elements:
+                for element_info in page_elements:
+                    element = element_info.get('element')
+                    if element is None:
+                        continue
+                    if element.get('type') == 'field':
+                        if not self._field_already_rendered_on_previous_page(element, pre_check_page_num, pagination_info):
+                            will_render_content = True
+                            break
+                    else:
+                        will_render_content = True
+                        break
+            
+            if will_render_content:
+                pages_that_will_render.append(pre_check_page_num)
+            
+            pre_check_page_num += 1
+        
+        # Calculate actual total pages from pre-pass
+        actual_total_pages = len(pages_that_will_render) if pages_that_will_render else 1
+        logger.debug(f"Pre-pass: pages_that_will_render={pages_that_will_render}, actual_total_pages={actual_total_pages}")
+        
         # PHASE 1: Rendering Phase - Render all pages, track last_index monotonically
         # RULE 2: last_index Must Be Monotonic Per Table - starts at -1, only increases, never resets
         iteration = 0
@@ -305,8 +340,17 @@ class PDFEngine:
                 page_num += 1
                 continue
             
+            # Track that this page is being rendered
+            rendered_pages.append(page_num)
+            
+            # Use the actual total pages from pre-pass for page_context
+            # This ensures all pages show the correct totalPages value
+            # Note: If we extend pages due to continuation, we'll need to update this
+            # For now, use the pre-pass total, which will be updated if we extend
+            actual_total_for_context = actual_total_pages
+            
             self._render_page(
-                c, page_num, max_pages, template_config, data,
+                c, page_num, actual_total_for_context, template_config, data,
                 section_heights, page_width, page_height,
                 bill_content_elements, pagination_info, table_rendering_state
             )
@@ -324,8 +368,10 @@ class PDFEngine:
                 if tables_still_needing_continuation:
                     # Need more pages - extend pagination
                     max_pages += 1
+                    actual_total_pages += 1  # Update actual total since we're adding a page
                     logger.debug(f"Extended pagination to {max_pages} pages for table continuation. "
-                               f"Tables needing continuation: {len(tables_still_needing_continuation)}")
+                               f"Tables needing continuation: {len(tables_still_needing_continuation)}, "
+                               f"updated actual_total_pages={actual_total_pages}")
             
             # Don't call showPage() on the last page - canvas.save() handles it
             if page_num < max_pages:
@@ -337,6 +383,10 @@ class PDFEngine:
             logger.error(f"CRITICAL: Rendering loop reached max_iterations ({max_iterations}). "
                         f"This may indicate an infinite continuation loop. "
                         f"Tables needing continuation: {self._get_tables_needing_continuation_with_order(bill_content_elements, table_rendering_state, page_num)}")
+        
+        # Calculate actual total pages based on rendered pages (not skipped pages)
+        actual_total_pages = len(rendered_pages) if rendered_pages else 1
+        logger.debug(f"Total pages calculation: rendered_pages={rendered_pages}, actual_total_pages={actual_total_pages}, estimated_total_pages={total_pages}")
         
         c.save()
         buffer.seek(0)

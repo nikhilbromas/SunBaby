@@ -199,10 +199,10 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
       return new Date().toLocaleTimeString();
     }
     if (field.fieldType === 'pageNumber') {
-      return '1';
+      return 'Page 1';
     }
     if (field.fieldType === 'totalPages') {
-      return '1';
+      return 'Total: 1';
     }
     
     // Handle bound fields - sampleData is already the header data object (flat)
@@ -248,7 +248,8 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
     return '[Value]';
   };
 
-  if (!field.visible) {
+  // Treat undefined as visible (default). Only hide when explicitly set to false.
+  if (field.visible === false) {
     return null;
   }
 
