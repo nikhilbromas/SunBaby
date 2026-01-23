@@ -70,6 +70,52 @@ const TemplateConfigList: React.FC = () => {
       setLoading(true);
       const response = await apiClient.getTemplateConfigs();
       setConfigs(response.configs);
+      
+      // After loading configs, load shops for all departments referenced in configs
+      const uniqueDeptIds = [...new Set(response.configs
+        .map(c => c.DepartmentId)
+        .filter(id => id !== null && id !== undefined))] as number[];
+      
+      // Also get all shop IDs from configs to ensure we load them
+      const uniqueShopIds = [...new Set(response.configs
+        .map(c => c.ShopId)
+        .filter(id => id !== null && id !== undefined))] as number[];
+      
+      // Load shops for all departments
+      const allShops: Shop[] = [];
+      if (uniqueDeptIds.length > 0) {
+        for (const deptId of uniqueDeptIds) {
+          try {
+            const shopsRes = await apiClient.getShops(deptId);
+            allShops.push(...shopsRes);
+          } catch (err) {
+            console.error(`Failed to load shops for department ${deptId}:`, err);
+          }
+        }
+      }
+      
+      // Also load shops without department filter to catch any shops that might not have DepartmentID set
+      // or shops that are referenced but their department isn't in the list
+      if (uniqueShopIds.length > 0) {
+        try {
+          // Load all shops (without department filter) to find any missing ones
+          const allShopsRes = await apiClient.getShops();
+          // Filter to only shops we need
+          const neededShops = allShopsRes.filter(s => uniqueShopIds.includes(s.ShopID));
+          allShops.push(...neededShops);
+        } catch (err) {
+          console.error('Failed to load all shops:', err);
+        }
+      }
+      
+      // Merge with existing shops, avoiding duplicates
+      if (allShops.length > 0) {
+        setShops(prev => {
+          const existingIds = new Set(prev.map(s => s.ShopID));
+          const newShops = allShops.filter(s => !existingIds.has(s.ShopID));
+          return [...prev, ...newShops];
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load template configs');
     } finally {
@@ -80,16 +126,38 @@ const TemplateConfigList: React.FC = () => {
   const loadLookupData = async () => {
     try {
       setLoadingLookups(true);
-      const [templatesRes, presetsRes, deptsRes, interfacesRes] = await Promise.all([
+      // Load all interfaces (increase limit to handle 647+ records)
+      // Load in batches if needed
+      const [templatesRes, presetsRes, deptsRes] = await Promise.all([
         apiClient.getTemplates(),
         apiClient.getPresets(),
         apiClient.getDepartments(),
-        apiClient.getInterfaces(0, 100),
       ]);
       setTemplates(templatesRes.templates);
       setPresets(presetsRes.presets);
       setDepartments(deptsRes);
-      setInterfaces(interfacesRes);
+      
+      // Load all interfaces in batches
+      let allInterfaces: Interface[] = [];
+      let skip = 0;
+      const limit = 1000; // Large limit to get all interfaces
+      let hasMore = true;
+      
+      while (hasMore) {
+        try {
+          const interfacesRes = await apiClient.getInterfaces(skip, limit);
+          allInterfaces.push(...interfacesRes);
+          if (interfacesRes.length < limit) {
+            hasMore = false;
+          } else {
+            skip += limit;
+          }
+        } catch (err) {
+          console.error('Failed to load interfaces:', err);
+          hasMore = false;
+        }
+      }
+      setInterfaces(allInterfaces);
     } catch (err: any) {
       setError(err.message || 'Failed to load lookup data');
     } finally {
@@ -408,16 +476,15 @@ const TemplateConfigList: React.FC = () => {
                 const preset = presets.find((p) => p.PresetId === config.PresetId);
                 const interfaceItem = interfaces.find((i) => i.InterfaceID === config.InterfaceId);
                 const department = departments.find((d) => d.DepartmentID === config.DepartmentId);
-                const shop = shops.find((s) => s.ShopID === config.ShopId) || 
-                            (config.ShopId ? { ShopName: `Shop ${config.ShopId}` } : null);
+                const shop = shops.find((s) => s.ShopID === config.ShopId);
 
                 return (
                   <tr key={config.ConfigId}>
                     <td>{template?.TemplateName || `Template ${config.TemplateId}`}</td>
                     <td>{preset?.PresetName || `Preset ${config.PresetId}`}</td>
-                    <td>{interfaceItem?.InterfaceName || `Interface ${config.InterfaceId}`}</td>
+                    <td>{interfaceItem ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}` : `Interface ${config.InterfaceId}`}</td>
                     <td>{department?.DepartmentName || (config.DepartmentId ? `Dept ${config.DepartmentId}` : '-')}</td>
-                    <td>{shop?.ShopName || (config.ShopId ? `Shop ${config.ShopId}` : '-')}</td>
+                    <td>{shop ? `${shop.ShopName}${shop.ShopLocation ? ` (${shop.ShopLocation})` : ''}` : (config.ShopId ? `Shop ${config.ShopId}` : '-')}</td>
                     <td>{config.Type}</td>
                     <td>{config.Description || '-'}</td>
                     <td>
