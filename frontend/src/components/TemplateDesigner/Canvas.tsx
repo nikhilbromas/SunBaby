@@ -498,16 +498,46 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
               });
             }
           } else if (zoneField.fieldType === 'contentDetail' && zoneField.contentName) {
-            // For content detail fields, add to content detail table
-            const contentName = zoneField.contentName;
-            if (!contentDetailTables.has(contentName)) {
-              contentDetailTables.set(contentName, []);
+            // Detect object-type contentDetails: bind path starts with "contentDetails."
+            const isObjectType = bind.startsWith('contentDetails.');
+            
+            if (isObjectType) {
+              // Object-type: Add to newFields array as a field in target section
+              // Check if field already exists in target section
+              const sectionFields = 
+                targetSection === 'pageHeader' ? template.pageHeader || [] :
+                targetSection === 'pageFooter' ? template.pageFooter || [] :
+                targetSection === 'billFooter' ? template.billFooter || [] :
+                targetSection === 'billContent' ? template.billContent || [] :
+                template.header || [];
+              
+              const fieldExists = sectionFields.some(f => f.bind === bind);
+              if (!fieldExists) {
+                newFields.push({
+                  field: {
+                    type: 'text',
+                    label: label,
+                    bind: bind,
+                    x: baseX,
+                    y: baseY + yOffset,
+                    visible: true,
+                  },
+                  section: targetSection, // Use targetSection from zone
+                });
+                yOffset += fieldSpacing;
+              }
+            } else {
+              // Array-type: For content detail fields, add to content detail table (existing behavior)
+              const contentName = zoneField.contentName;
+              if (!contentDetailTables.has(contentName)) {
+                contentDetailTables.set(contentName, []);
+              }
+              contentDetailTables.get(contentName)!.push({
+                bind: bind,
+                label: label,
+                visible: true,
+              });
             }
-            contentDetailTables.get(contentName)!.push({
-              bind: bind,
-              label: label,
-              visible: true,
-            });
           }
         });
         
@@ -874,69 +904,197 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         const labelValue = item.label;
         const contentName = item.contentName;
         
-        // Add content detail field to content detail table
-        setTemplate((prev) => {
-          const contentDetailsTables = prev.contentDetailsTables || [];
-          const existingTableIndex = contentDetailsTables.findIndex(
-            (t) => t.contentName === contentName
-          );
+        // Detect object-type contentDetails: bind path starts with "contentDetails."
+        // Object types use: contentDetails.${contentName}.${field}
+        // Array types use: just the field name
+        const isObjectType = bindValue.startsWith('contentDetails.');
+        
+        if (isObjectType) {
+          // Object-type: Create field in billContent section (or target section)
+          const canvasElement = document.querySelector('.canvas');
+          let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'billContent';
           
-          if (existingTableIndex >= 0) {
-            // Add column to existing content detail table
-            const existingTable = contentDetailsTables[existingTableIndex];
-            const columnExists = existingTable.columns?.some(
-              (col) => col.bind === bindValue
-            );
-            if (!columnExists) {
-              const updatedTables = [...contentDetailsTables];
-              updatedTables[existingTableIndex] = {
-                ...existingTable,
-                columns: [
-                  ...(existingTable.columns || []),
-                  { bind: bindValue, label: labelValue, visible: true },
-                ],
-              };
-              return {
-                ...prev,
-                contentDetailsTables: updatedTables,
-              };
-            }
-            return prev;
-          } else {
-            // Create new content detail table in bill-content zone
-            const canvasElement = document.querySelector('.canvas');
-            let x = 20;
-            let y = 20;
+          // Determine target section based on drop position or explicit target
+          if (clientOffset && canvasElement) {
+            const canvasRect = canvasElement.getBoundingClientRect();
+            const y = clientOffset.y - canvasRect.top;
+            const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
             
-            if (clientOffset && canvasElement) {
-              const canvasRect = canvasElement.getBoundingClientRect();
-              // Calculate position relative to bill-content section
+            // Calculate section boundaries
+            const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+            const billHeaderHeight = template.sectionHeights?.billHeader || 200;
+            const billContentHeight = template.sectionHeights?.billContent || 100;
+            const billFooterHeight = template.sectionHeights?.billFooter || 100;
+            const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+            
+            const pageHeaderTop = 40;
+            const billHeaderTop = pageHeaderTop + pageHeaderHeight + 10;
+            const billContentTop = billHeaderTop + billHeaderHeight + 10;
+            const billContentBottom = billContentTop + billContentHeight;
+            const billFooterBottom = canvasHeight - pageFooterHeight - 10;
+            
+            // Determine section based on targetSection from item (priority) or Y position
+            if (item.targetSection) {
+              section = item.targetSection;
+            } else if (y < pageHeaderTop + pageHeaderHeight) {
+              section = 'pageHeader';
+            } else if (y >= billHeaderTop && y < billContentTop) {
+              section = 'header';
+            } else if (y >= billContentTop && y < billContentBottom) {
+              section = 'billContent';
+            } else if (y >= billFooterBottom - billFooterHeight && y < billFooterBottom) {
+              section = 'billFooter';
+            } else if (y > canvasHeight - pageFooterHeight) {
+              section = 'pageFooter';
+            } else {
+              section = 'billContent'; // Default to billContent for object-type
+            }
+          }
+          
+          // Calculate Y position relative to section
+          let relativeY = 20;
+          if (clientOffset && canvasElement) {
+            const canvasRect = canvasElement.getBoundingClientRect();
+            const absoluteY = clientOffset.y - canvasRect.top;
+            
+            if (section === 'pageHeader') {
+              relativeY = absoluteY - 40 - 10;
+            } else if (section === 'header') {
+              const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+              relativeY = absoluteY - 40 - pageHeaderHeight - 10 - 10;
+            } else if (section === 'billContent') {
               const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
               const billHeaderHeight = template.sectionHeights?.billHeader || 200;
-              const absoluteY = clientOffset.y - canvasRect.top;
-              const billContentTop = 40 + pageHeaderHeight + 10 + billHeaderHeight + 10;
-              
-              x = clientOffset.x - canvasRect.left - 20;
-              y = absoluteY - billContentTop - 10; // Position relative to bill-content zone
-              y = Math.max(0, y); // Ensure non-negative
+              relativeY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
+            } else if (section === 'billFooter') {
+              const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+              relativeY = absoluteY - (canvasRect.height - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+            } else if (section === 'pageFooter') {
+              const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+              relativeY = absoluteY - (canvasRect.height - pageFooterHeight);
             }
+            relativeY = Math.max(0, relativeY);
+          }
+          
+          // Check if field with same bind already exists in target section
+          const fieldExists = (() => {
+            const sectionFields = 
+              section === 'pageHeader' ? template.pageHeader || [] :
+              section === 'pageFooter' ? template.pageFooter || [] :
+              section === 'billFooter' ? template.billFooter || [] :
+              section === 'billContent' ? template.billContent || [] :
+              template.header || [];
             
-            return {
-              ...prev,
-              contentDetailsTables: [
-                ...contentDetailsTables,
-                {
-                  contentName,
+            return sectionFields.some(f => f.bind === bindValue);
+          })();
+          
+          // Don't add duplicate fields in the same section
+          if (fieldExists) {
+            return;
+          }
+          
+          const newField: TextFieldConfig = {
+            type: 'text',
+            label: labelValue,
+            bind: bindValue,
+            x: clientOffset && canvasElement ? clientOffset.x - canvasElement.getBoundingClientRect().left - 20 : 20,
+            y: relativeY,
+            visible: true,
+          };
+          
+          setTemplate((prev) => {
+            if (section === 'pageHeader') {
+              return {
+                ...prev,
+                pageHeader: [...(prev.pageHeader || []), newField],
+              };
+            } else if (section === 'pageFooter') {
+              return {
+                ...prev,
+                pageFooter: [...(prev.pageFooter || []), newField],
+              };
+            } else if (section === 'billFooter') {
+              return {
+                ...prev,
+                billFooter: [...(prev.billFooter || []), newField],
+              };
+            } else if (section === 'billContent') {
+              return {
+                ...prev,
+                billContent: [...(prev.billContent || []), newField],
+              };
+            } else {
+              return {
+                ...prev,
+                header: [...prev.header, newField],
+              };
+            }
+          });
+        } else {
+          // Array-type: Add content detail field to content detail table (existing behavior)
+          setTemplate((prev) => {
+            const contentDetailsTables = prev.contentDetailsTables || [];
+            const existingTableIndex = contentDetailsTables.findIndex(
+              (t) => t.contentName === contentName
+            );
+            
+            if (existingTableIndex >= 0) {
+              // Add column to existing content detail table
+              const existingTable = contentDetailsTables[existingTableIndex];
+              const columnExists = existingTable.columns?.some(
+                (col) => col.bind === bindValue
+              );
+              if (!columnExists) {
+                const updatedTables = [...contentDetailsTables];
+                updatedTables[existingTableIndex] = {
+                  ...existingTable,
                   columns: [
+                    ...(existingTable.columns || []),
                     { bind: bindValue, label: labelValue, visible: true },
                   ],
-                  x,
-                  y,
-                },
-              ],
-            };
-          }
-        });
+                };
+                return {
+                  ...prev,
+                  contentDetailsTables: updatedTables,
+                };
+              }
+              return prev;
+            } else {
+              // Create new content detail table in bill-content zone
+              const canvasElement = document.querySelector('.canvas');
+              let x = 20;
+              let y = 20;
+              
+              if (clientOffset && canvasElement) {
+                const canvasRect = canvasElement.getBoundingClientRect();
+                // Calculate position relative to bill-content section
+                const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+                const billHeaderHeight = template.sectionHeights?.billHeader || 200;
+                const absoluteY = clientOffset.y - canvasRect.top;
+                const billContentTop = 40 + pageHeaderHeight + 10 + billHeaderHeight + 10;
+                
+                x = clientOffset.x - canvasRect.left - 20;
+                y = absoluteY - billContentTop - 10; // Position relative to bill-content zone
+                y = Math.max(0, y); // Ensure non-negative
+              }
+              
+              return {
+                ...prev,
+                contentDetailsTables: [
+                  ...contentDetailsTables,
+                  {
+                    contentName,
+                    columns: [
+                      { bind: bindValue, label: labelValue, visible: true },
+                    ],
+                    x,
+                    y,
+                  },
+                ],
+              };
+            }
+          });
+        }
       }
     },
     [template.header.length, template.itemsTable]
