@@ -1,6 +1,12 @@
 """
 SQL Security Validator
 Ensures only safe SELECT queries are executed with proper parameterization.
+
+Supports complex queries with multiple JOINs:
+- LEFT JOIN, RIGHT JOIN, INNER JOIN, FULL OUTER JOIN, CROSS JOIN
+- Multiple JOINs in sequence
+- Table aliases (e.g., FROM LOsPosHeader h)
+- Schema-qualified tables (e.g., schema.table)
 """
 import re
 from typing import List, Set, Optional
@@ -90,6 +96,10 @@ class SQLValidator:
         # Extract table/view names (simplified - looks for FROM/JOIN clauses)
         tables = self._extract_tables(sql_upper)
         
+        # Validate JOIN clauses (ensure they have ON conditions, except CROSS JOIN)
+        join_warnings = self._validate_joins(sql_upper)
+        warnings.extend(join_warnings)
+        
         # If whitelist is configured, validate tables
         if self.allowed_tables:
             invalid_tables = [t for t in tables if t.upper() not in [at.upper() for at in self.allowed_tables]]
@@ -112,28 +122,95 @@ class SQLValidator:
     def _extract_tables(self, sql_upper: str) -> List[str]:
         """
         Extract table/view names from SQL query.
-        Simplified parser - looks for FROM and JOIN clauses.
-        Handles table names with mixed case and schema prefixes.
+        Supports multiple JOINs of all types (LEFT, RIGHT, INNER, FULL OUTER, CROSS).
+        Handles table names with mixed case, schema prefixes, and aliases.
+        
+        Examples:
+        - FROM LOsPosHeader h -> extracts LOsPosHeader
+        - LEFT JOIN orderheader o ON ... -> extracts orderheader
+        - FROM schema.table -> extracts table
         """
         tables = []
         
-        # Pattern to match FROM table_name or FROM schema.table_name
+        # Pattern to match FROM table_name [alias] or FROM schema.table_name [alias]
+        # Handles: FROM LOsPosHeader, FROM LOsPosHeader h, FROM schema.table, FROM schema.table t
         # \w+ matches word characters (letters, digits, underscore)
         # This handles table names like LOsPosHeader, TableName, etc.
-        from_pattern = r'FROM\s+(\w+(?:\.\w+)?)'
+        # The alias part is optional and will be ignored
+        from_pattern = r'FROM\s+(\w+(?:\.\w+)?)(?:\s+\w+)?(?=\s|$|,|JOIN|WHERE|GROUP|ORDER|HAVING)'
         from_matches = re.findall(from_pattern, sql_upper)
         tables.extend(from_matches)
         
-        # Pattern to match JOIN table_name
-        join_pattern = r'JOIN\s+(\w+(?:\.\w+)?)'
+        # Pattern to match all JOIN types: LEFT JOIN, RIGHT JOIN, INNER JOIN, FULL OUTER JOIN, CROSS JOIN
+        # Also handles: JOIN (without type prefix, defaults to INNER)
+        # Matches: [LEFT|RIGHT|INNER|FULL\s+OUTER|CROSS]?\s+JOIN\s+table_name [alias]
+        # The (?:FULL\s+OUTER)? handles "FULL OUTER" as two words
+        join_pattern = r'(?:LEFT|RIGHT|INNER|FULL\s+OUTER|CROSS)?\s+JOIN\s+(\w+(?:\.\w+)?)(?:\s+\w+)?(?=\s|$|ON|WHERE|GROUP|ORDER|HAVING|JOIN)'
         join_matches = re.findall(join_pattern, sql_upper)
         tables.extend(join_matches)
         
         # Remove duplicates and clean up - extract just the table name part
         # If it's schema.table, get just the table part
-        tables = list(set([t.split('.')[-1] for t in tables]))
+        # Convert to uppercase for consistent comparison
+        cleaned_tables = []
+        for t in tables:
+            # Split on dot to get table name (last part if schema qualified)
+            table_name = t.split('.')[-1].strip()
+            if table_name:
+                cleaned_tables.append(table_name.upper())
         
-        return tables
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_tables = []
+        for t in cleaned_tables:
+            if t not in seen:
+                seen.add(t)
+                unique_tables.append(t)
+        
+        return unique_tables
+    
+    def _validate_joins(self, sql_upper: str) -> List[str]:
+        """
+        Validate JOIN clauses to ensure they have proper ON conditions.
+        CROSS JOINs don't require ON clauses, but other JOINs should have them.
+        
+        Args:
+            sql_upper: SQL query in uppercase
+            
+        Returns:
+            List of warning messages (empty if no issues)
+        """
+        warnings = []
+        
+        # Find all JOIN clauses (excluding CROSS JOIN)
+        # Pattern matches: [LEFT|RIGHT|INNER|FULL\s+OUTER]?\s+JOIN
+        join_pattern = r'(?:LEFT|RIGHT|INNER|FULL\s+OUTER)?\s+JOIN\s+(\w+(?:\.\w+)?)'
+        join_matches = list(re.finditer(join_pattern, sql_upper, re.IGNORECASE))
+        
+        for match in join_matches:
+            join_start = match.start()
+            join_end = match.end()
+            
+            # Check if this is a CROSS JOIN (which doesn't need ON)
+            join_text = sql_upper[max(0, join_start-20):join_start+10]
+            if 'CROSS' in join_text:
+                continue  # CROSS JOIN doesn't require ON clause
+            
+            # Look for ON clause after this JOIN
+            # ON should appear within reasonable distance (next 200 chars)
+            remaining_sql = sql_upper[join_end:join_end+200]
+            
+            # Check if ON appears (with word boundaries)
+            on_pattern = r'\bON\b'
+            if not re.search(on_pattern, remaining_sql):
+                # Try to find the table name for better error message
+                table_name = match.group(1)
+                warnings.append(
+                    f"JOIN with table '{table_name}' should have an ON condition "
+                    "(except CROSS JOIN). Please verify the JOIN clause is correct."
+                )
+        
+        return warnings
     
     def _has_injection_patterns(self, sql: str) -> bool:
         """

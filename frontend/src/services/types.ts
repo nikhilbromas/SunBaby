@@ -167,6 +167,20 @@ export interface SectionHeights {
   pageFooter?: number;
 }
 
+export interface ZoneConfig {
+  x?: number; // Horizontal position
+  y?: number; // Vertical position
+  width?: number; // Zone width
+  height?: number; // Zone height
+  marginTop?: number; // Top margin
+  marginBottom?: number; // Bottom margin
+  marginLeft?: number; // Left margin
+  marginRight?: number; // Right margin
+  padding?: number; // Internal padding
+  align?: 'left' | 'center' | 'right'; // Horizontal alignment
+  verticalAlign?: 'top' | 'middle' | 'bottom'; // Vertical alignment
+}
+
 export interface TemplateJson {
   page: PageConfig;
   pageHeader?: TextFieldConfig[];
@@ -184,6 +198,7 @@ export interface TemplateJson {
   contentDetailsTables?: ContentDetailsTableConfig[];
   pagination?: PaginationConfig;
   sectionHeights?: SectionHeights;
+  zoneConfigs?: Record<string, ZoneConfig>; // Zone configurations: 'pageHeader', 'pageFooter', 'billHeader', 'billContent', 'billFooter'
 }
 
 export interface Template {

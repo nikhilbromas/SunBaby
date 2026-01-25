@@ -15,6 +15,8 @@ interface PropertyPanelProps {
   onSave?: () => void;
   isSaving?: boolean;
   onSetup?: () => void;
+  onOpenTableModal?: (type: 'itemsTable' | 'billContentTable' | 'contentDetailTable', index?: number) => void;
+  onOpenZoneConfig?: () => void;
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -30,6 +32,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onSave,
   isSaving,
   onSetup,
+  onOpenTableModal,
+  onOpenZoneConfig,
 }) => {
   const getFieldForSelected = (): TextFieldConfig | null => {
     if (!selectedElement || selectedElement.type !== 'field') return null;
@@ -79,6 +83,41 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <option value="landscape">Landscape</option>
               </select>
             </label>
+          </div>
+        )}
+        {onOpenZoneConfig && (
+          <div className="property-group">
+            <h4>Zone Configuration</h4>
+            <button
+              className="zone-config-button"
+              onClick={onOpenZoneConfig}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 6px rgba(11, 99, 255, 0.25)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(11, 99, 255, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 6px rgba(11, 99, 255, 0.25)';
+              }}
+            >
+              🎯 Configure Zones
+            </button>
+            <small style={{ display: 'block', marginTop: '0.5rem', color: '#6c757d', fontSize: '0.8rem' }}>
+              Position and size zones (headers, footers, content areas)
+            </small>
           </div>
         )}
         <div className="no-selection-container">
@@ -388,6 +427,27 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <div className="property-panel">
         <div className="property-group">
           <h4>Content Detail Table: {table.contentName}</h4>
+          {onOpenTableModal && (
+            <button
+              className="open-modal-button"
+              onClick={() => onOpenTableModal('contentDetailTable', selectedElement.index)}
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                width: '100%',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              🎨 Open Table Editor
+            </button>
+          )}
         </div>
         <div className="property-group">
           <h4>Layout</h4>
@@ -1075,6 +1135,30 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     return (
       <div className="property-panel">
         <div className="property-group">
+          <h4>Bill Content Table</h4>
+          {onOpenTableModal && (
+            <button
+              className="open-modal-button"
+              onClick={() => onOpenTableModal('billContentTable', selectedElement.index)}
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                width: '100%',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              🎨 Open Table Editor
+            </button>
+          )}
+        </div>
+        <div className="property-group">
           <h4>Layout</h4>
           <label>
             Orientation:
@@ -1743,6 +1827,30 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
     return (
       <div className="property-panel">
+        <div className="property-group">
+          <h4>Items Table</h4>
+          {onOpenTableModal && (
+            <button
+              className="open-modal-button"
+              onClick={() => onOpenTableModal('itemsTable')}
+              style={{
+                marginTop: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                width: '100%',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              🎨 Open Table Editor
+            </button>
+          )}
+        </div>
         <div className="property-group">
           <h4>Layout</h4>
           <label>

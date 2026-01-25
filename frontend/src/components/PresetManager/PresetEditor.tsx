@@ -178,10 +178,17 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
             <textarea
               value={headerQuery}
               onChange={(e) => setHeaderQuery(e.target.value)}
-              placeholder="SELECT * FROM BillHeader WHERE BillId = @BillId"
-              rows={5}
+              placeholder={`SELECT h.*, o.*
+FROM LOsPosHeader h
+LEFT JOIN orderheader o ON o.BillID = h.poshBillID
+WHERE h.poshBillID = @BillID`}
+              rows={8}
+              style={{ fontFamily: 'monospace', fontSize: '13px' }}
             />
           </label>
+          <small style={{ display: 'block', color: '#666', marginTop: '5px' }}>
+            Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS). Use table aliases for clarity.
+          </small>
         </div>
 
         <div className="form-group">
@@ -190,10 +197,17 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
             <textarea
               value={itemQuery}
               onChange={(e) => setItemQuery(e.target.value)}
-              placeholder="SELECT * FROM BillItem WHERE BillId = @BillId"
-              rows={5}
+              placeholder={`SELECT i.*, p.ProductName
+FROM BillItem i
+LEFT JOIN Products p ON p.ProductId = i.ItemProductId
+WHERE i.BillId = @BillId`}
+              rows={8}
+              style={{ fontFamily: 'monospace', fontSize: '13px' }}
             />
           </label>
+          <small style={{ display: 'block', color: '#666', marginTop: '5px' }}>
+            Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS). Use table aliases for clarity.
+          </small>
         </div>
 
         <div className="form-group">
@@ -282,9 +296,12 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
                       updated[index].query = e.target.value;
                       setContentDetails(updated);
                     }}
-                    placeholder="SELECT * FROM Payments WHERE BillId = @BillId"
-                    rows={4}
-                    style={{ width: '100%', padding: '8px', marginTop: '5px', fontFamily: 'monospace' }}
+                    placeholder={`SELECT p.*, m.PaymentMethodName
+FROM Payments p
+LEFT JOIN PaymentMethods m ON m.MethodId = p.PaymentMethodId
+WHERE p.BillId = @BillId`}
+                    rows={6}
+                    style={{ width: '100%', padding: '8px', marginTop: '5px', fontFamily: 'monospace', fontSize: '13px' }}
                     required
                   />
                 </label>

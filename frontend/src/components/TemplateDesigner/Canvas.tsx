@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDrop } from 'react-dnd';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig, ZoneConfig } from '../../services/types';
 import FieldEditor from './FieldEditor';
 import ImageEditor from './ImageEditor';
 import TableEditor from './TableEditor';
 import SidePanel from './SidePanel';
 import PropertyPanel from './PropertyPanel';
 import SetupPanel from './SetupPanel';
+import TableEditorModal from './TableEditorModal';
+import ZoneConfigModal from './ZoneConfigModal';
 import apiClient from '../../services/api';
 import './Canvas.css';
 
@@ -92,7 +94,7 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
           zIndex: 100,
         }}
       />
-      <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto' }}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto',top: '-40px' }}>
         {children}
       </div>
     </div>
@@ -120,6 +122,12 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSetupPanelOpen, setIsSetupPanelOpen] = useState(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [editingTable, setEditingTable] = useState<{
+    type: 'itemsTable' | 'billContentTable' | 'contentDetailTable';
+    index?: number;
+  } | null>(null);
+  const [isZoneConfigModalOpen, setIsZoneConfigModalOpen] = useState(false);
   const [sampleData, setSampleData] = useState<{
     header: { data: Record<string, any> | null; fields: string[] };
     items: { data: Record<string, any>[]; fields: string[]; sampleCount: number };
@@ -1601,6 +1609,11 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             onSave={saveTemplate}
             isSaving={isSaving}
             onSetup={() => setIsSetupPanelOpen(true)}
+            onOpenTableModal={(type, index) => {
+              setEditingTable({ type, index });
+              setIsTableModalOpen(true);
+            }}
+            onOpenZoneConfig={() => setIsZoneConfigModalOpen(true)}
           />
         </div>
         <div className="designer-content-wrapper">
@@ -1920,6 +1933,71 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         onTemplateSelect={handleTemplateSelect}
         onDataReceived={handleDataReceived}
       />
+      {isTableModalOpen && editingTable && (() => {
+        let table: ItemsTableConfig | ContentDetailsTableConfig | undefined;
+        let tableLabel: string | undefined;
+        
+        if (editingTable.type === 'itemsTable' && template.itemsTable) {
+          table = template.itemsTable;
+          tableLabel = 'Items Table';
+        } else if (editingTable.type === 'billContentTable' && template.billContentTables && editingTable.index !== undefined) {
+          table = template.billContentTables[editingTable.index];
+          tableLabel = 'Bill Content Table';
+        } else if (editingTable.type === 'contentDetailTable' && template.contentDetailsTables && editingTable.index !== undefined) {
+          const contentTable = template.contentDetailsTables[editingTable.index];
+          table = contentTable;
+          tableLabel = `Content Detail Table: ${contentTable.contentName || 'Unknown'}`;
+        }
+        
+        if (!table) return null;
+        
+        return (
+          <TableEditorModal
+            isOpen={isTableModalOpen}
+            onClose={() => {
+              setIsTableModalOpen(false);
+              setEditingTable(null);
+            }}
+            table={table}
+            onSave={(updatedTable) => {
+              if (editingTable.type === 'itemsTable') {
+                updateTable(updatedTable as ItemsTableConfig);
+              } else if (editingTable.type === 'billContentTable' && editingTable.index !== undefined) {
+                updateBillContentTable(editingTable.index, updatedTable as ItemsTableConfig);
+              } else if (editingTable.type === 'contentDetailTable' && editingTable.index !== undefined) {
+                updateContentDetailTable(editingTable.index, updatedTable as ContentDetailsTableConfig);
+              }
+              setIsTableModalOpen(false);
+              setEditingTable(null);
+            }}
+            tableType={editingTable.type}
+            tableLabel={tableLabel}
+            sampleData={sampleData}
+          />
+        );
+      })()}
+      {isZoneConfigModalOpen && (
+        <ZoneConfigModal
+          isOpen={isZoneConfigModalOpen}
+          onClose={() => setIsZoneConfigModalOpen(false)}
+          template={template}
+          onSave={(zoneConfigs) => {
+            setTemplate((prev) => ({
+              ...prev,
+              zoneConfigs,
+              // Also update sectionHeights for backward compatibility
+              sectionHeights: {
+                pageHeader: zoneConfigs.pageHeader?.height,
+                billHeader: zoneConfigs.billHeader?.height,
+                billContent: zoneConfigs.billContent?.height,
+                billFooter: zoneConfigs.billFooter?.height,
+                pageFooter: zoneConfigs.pageFooter?.height,
+              },
+            }));
+            setIsZoneConfigModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };
