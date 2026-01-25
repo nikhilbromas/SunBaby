@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { TemplateJson, ZoneConfig, PageConfig } from '../../services/types';
+import type { TemplateJson, ZoneConfig } from '../../services/types';
 import './ZoneConfigModal.css';
 
 interface ZoneConfigModalProps {
@@ -139,7 +139,7 @@ const ZoneConfigModal: React.FC<ZoneConfigModalProps> = ({ isOpen, onClose, temp
         let currentY = 40;
         const spacing = 10;
 
-        Object.values(ZONE_INFO).forEach((zoneInfo, index) => {
+        Object.values(ZONE_INFO).forEach((zoneInfo) => {
           if (zoneInfo.type === 'pageFooter') {
             configs[zoneInfo.type] = {
               x: 0,

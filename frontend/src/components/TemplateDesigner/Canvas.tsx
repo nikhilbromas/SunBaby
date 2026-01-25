@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDrop } from 'react-dnd';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig, ZoneConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig } from '../../services/types';
 import FieldEditor from './FieldEditor';
 import ImageEditor from './ImageEditor';
 import TableEditor from './TableEditor';
