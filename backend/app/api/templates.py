@@ -43,7 +43,7 @@ async def create_template(
                     detail="company_id is required (or select company via /auth/select-company) to create templates",
                 )
 
-        template = template_service.create_template(template_data)
+        template = await template_service.create_template(template_data)
         return template
     except HTTPException:
         raise

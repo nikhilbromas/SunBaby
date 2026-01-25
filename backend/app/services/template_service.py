@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class TemplateService:
     """Service for template management."""
     
-    def create_template(self, template_data: TemplateCreate) -> TemplateResponse:
+    async def create_template(self, template_data: TemplateCreate) -> TemplateResponse:
         """
         Create a new template.
         
@@ -27,17 +27,9 @@ class TemplateService:
         Raises:
             ValueError: If preset doesn't exist or template name already exists
         """
-        # Verify preset exists (sync call for now - create is typically not in hot path)
+        # Verify preset exists
         from app.services.preset_service import preset_service
-        # For create operations, we can use sync version temporarily
-        # TODO: Make create_template async if needed
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            preset = loop.run_until_complete(preset_service.get_preset(template_data.presetId))
-        except RuntimeError:
-            # No event loop, create one
-            preset = asyncio.run(preset_service.get_preset(template_data.presetId))
+        preset = await preset_service.get_preset(template_data.presetId)
         if not preset:
             raise ValueError(f"Preset with ID {template_data.presetId} not found")
         
