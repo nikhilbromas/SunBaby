@@ -128,10 +128,31 @@ function removeBrackets(identifier: string): string {
 }
 
 /**
+ * Remove SQL comments
+ */
+function removeComments(sql: string): string {
+  // Remove single-line comments (-- comment)
+  return sql
+    .split('\n')
+    .map(line => {
+      const commentIndex = line.indexOf('--');
+      if (commentIndex >= 0) {
+        return line.substring(0, commentIndex);
+      }
+      return line;
+    })
+    .join('\n');
+}
+
+/**
  * Normalize SQL for easier parsing
  */
 function normalizeSQL(sql: string): string {
-  return sql
+  // First remove comments
+  let cleaned = removeComments(sql);
+  
+  // Then normalize whitespace
+  return cleaned
     .replace(/\r\n/g, '\n')
     .replace(/\s+/g, ' ')
     .trim();
@@ -307,15 +328,115 @@ function parseColumns(sql: string, warnings: string[], aliasMap: AliasMap): Colu
 }
 
 /**
+ * Extract inner expression from nested parentheses
+ */
+function extractInnerExpression(expr: string, startIndex: number): { inner: string; endIndex: number } | null {
+  if (expr[startIndex] !== '(') return null;
+  
+  let depth = 0;
+  let i = startIndex;
+  while (i < expr.length) {
+    if (expr[i] === '(') depth++;
+    if (expr[i] === ')') {
+      depth--;
+      if (depth === 0) {
+        return {
+          inner: expr.substring(startIndex + 1, i),
+          endIndex: i + 1
+        };
+      }
+    }
+    i++;
+  }
+  return null;
+}
+
+/**
+ * Parse CAST expression
+ */
+function parseCastExpression(expr: string, aliasMap: AliasMap): { innerExpr: string; dataType: string } | null {
+  // Match CAST(expression AS datatype) or TRY_CAST(expression AS datatype)
+  // Handle datatypes like DECIMAL(18,2), VARCHAR(255), etc.
+  // Use a more robust approach: find the AS keyword and split there
+  const castMatch = expr.match(/^(?:TRY_)?CAST\s*\(\s*(.+?)\s+AS\s+(.+?)\s*\)$/is);
+  if (castMatch) {
+    // The datatype might contain parentheses (e.g., DECIMAL(18,2))
+    // So we need to be more careful
+    let innerExpr = castMatch[1].trim();
+    let dataType = castMatch[2].trim();
+    
+    // If datatype ends with ), it might have captured too much
+    // Try to find the actual AS keyword position
+    const asIndex = expr.toUpperCase().indexOf(' AS ');
+    if (asIndex > 0) {
+      // Find the opening parenthesis
+      const openParen = expr.indexOf('(');
+      if (openParen >= 0 && asIndex > openParen) {
+        innerExpr = expr.substring(openParen + 1, asIndex).trim();
+        // Find the closing parenthesis from the end
+        const closeParen = expr.lastIndexOf(')');
+        if (closeParen > asIndex) {
+          dataType = expr.substring(asIndex + 4, closeParen).trim();
+        }
+      }
+    }
+    
+    return {
+      innerExpr,
+      dataType
+    };
+  }
+  return null;
+}
+
+/**
+ * Parse ISNULL expression
+ */
+function parseIsNullExpression(expr: string): { checkExpr: string; replacement: string } | null {
+  const isnullMatch = expr.match(/^ISNULL\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)$/i);
+  if (isnullMatch) {
+    return {
+      checkExpr: isnullMatch[1].trim(),
+      replacement: isnullMatch[2].trim()
+    };
+  }
+  return null;
+}
+
+/**
  * Parse individual column expression
  */
 function parseColumnExpression(expr: string, warnings: string[], aliasMap: AliasMap): ColumnConfig | null {
   expr = expr.trim();
+  if (!expr) return null;
   
   // Check for alias (AS keyword) - alias can also be bracketed
-  const aliasMatch = expr.match(/^(.*)\s+AS\s+(\[?\w+\]?)$/i);
-  const alias = aliasMatch ? removeBrackets(aliasMatch[2]) : undefined;
-  const expression = aliasMatch ? aliasMatch[1].trim() : expr;
+  // Handle AS at the end, but be careful with AS in CAST(... AS ...)
+  let alias: string | undefined = undefined;
+  let expression = expr;
+  
+  // Find the last "AS" that's not inside parentheses (this is the alias AS)
+  // We do this by finding AS from the end and checking if it's outside parentheses
+  let lastAsIndex = -1;
+  let depth = 0;
+  for (let i = expr.length - 1; i >= 0; i--) {
+    if (expr[i] === ')') depth++;
+    else if (expr[i] === '(') depth--;
+    else if (depth === 0 && i > 0 && expr.substring(i - 1, i + 2).toUpperCase() === ' AS ') {
+      lastAsIndex = i;
+      break;
+    }
+  }
+  
+  if (lastAsIndex > 0) {
+    // Check if the part after AS looks like an alias (simple identifier)
+    const afterAs = expr.substring(lastAsIndex + 3).trim();
+    const aliasMatch = afterAs.match(/^(\[?\w+\]?)$/);
+    if (aliasMatch) {
+      alias = removeBrackets(aliasMatch[1]);
+      expression = expr.substring(0, lastAsIndex).trim();
+    }
+  }
   
   // Check for window functions
   if (expression.match(/ROW_NUMBER|RANK|DENSE_RANK|NTILE|LAG|LEAD/i)) {
@@ -333,6 +454,48 @@ function parseColumnExpression(expr: string, warnings: string[], aliasMap: Alias
       function: aggMatch[1].toUpperCase() as any,
       column: colPart,
       alias: alias || expression
+    } as ColumnConfig;
+  }
+  
+  // Check for CAST expressions - these should be treated as calculated columns
+  const castInfo = parseCastExpression(expression, aliasMap);
+  if (castInfo) {
+    // Store as calculated column - the ExpressionBuilder can handle CAST expressions
+    // No warning needed since we can edit it in the visual builder
+    return {
+      type: 'calculated',
+      alias: alias,
+      expression: {
+        type: 'literal',
+        value: expression // Store the full CAST expression
+      }
+    } as ColumnConfig;
+  }
+  
+  // Check for ISNULL expressions
+  const isnullInfo = parseIsNullExpression(expression);
+  if (isnullInfo) {
+    // Store as calculated column - no warning needed
+    return {
+      type: 'calculated',
+      alias: alias,
+      expression: {
+        type: 'literal',
+        value: expression // Store the full ISNULL expression
+      }
+    } as ColumnConfig;
+  }
+  
+  // Check for any expression containing CAST (including nested, arithmetic, etc.)
+  if (expression.match(/CAST\s*\(/i) || expression.match(/TRY_CAST\s*\(/i)) {
+    // Store as calculated column - no warning needed
+    return {
+      type: 'calculated',
+      alias: alias,
+      expression: {
+        type: 'literal',
+        value: expression
+      }
     } as ColumnConfig;
   }
   
@@ -359,9 +522,16 @@ function parseColumnExpression(expr: string, warnings: string[], aliasMap: Alias
     } as ColumnConfig;
   }
   
-  // Complex expression - mark as calculated but don't try to parse
-  warnings.push(`Complex expression - use visual builder to recreate: ${expression.substring(0, 50)}...`);
-  return null;
+  // For other complex expressions, store as calculated column instead of warning
+  // This allows the user to edit them in the visual builder
+  return {
+    type: 'calculated',
+    alias: alias,
+    expression: {
+      type: 'literal',
+      value: expression
+    }
+  } as ColumnConfig;
 }
 
 /**
@@ -493,32 +663,44 @@ function parseOrderBy(sql: string, _warnings: string[], aliasMap: AliasMap): { c
 }
 
 /**
- * Split string by comma, respecting parentheses
+ * Split string by comma, respecting parentheses and brackets
  */
 function splitByComma(str: string): string[] {
   const parts: string[] = [];
   let current = '';
   let depth = 0;
+  let inBrackets = false;
   
   for (let i = 0; i < str.length; i++) {
     const char = str[i];
+    const nextChar = i < str.length - 1 ? str[i + 1] : '';
     
-    if (char === '(') {
+    if (char === '[') {
+      inBrackets = true;
+      current += char;
+    } else if (char === ']') {
+      inBrackets = false;
+      current += char;
+    } else if (char === '(' && !inBrackets) {
       depth++;
       current += char;
-    } else if (char === ')') {
+    } else if (char === ')' && !inBrackets) {
       depth--;
       current += char;
-    } else if (char === ',' && depth === 0) {
-      parts.push(current.trim());
+    } else if (char === ',' && depth === 0 && !inBrackets) {
+      const trimmed = current.trim();
+      if (trimmed) {
+        parts.push(trimmed);
+      }
       current = '';
     } else {
       current += char;
     }
   }
   
-  if (current.trim()) {
-    parts.push(current.trim());
+  const trimmed = current.trim();
+  if (trimmed) {
+    parts.push(trimmed);
   }
   
   return parts;
