@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../../services/api';
 import type { ColumnInfo, SimpleColumn } from '../../services/types';
 import './ColumnSelector.css';
@@ -20,64 +20,89 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
 }) => {
   const [tableColumns, setTableColumns] = useState<Record<string, ColumnInfo[]>>({});
   const [loading, setLoading] = useState(false);
+  const loadedTablesRef = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadColumnsForTables();
-  }, [selectedTables]);
-
-  const loadColumnsForTables = async () => {
-    if (selectedTables.length === 0) {
-      setTableColumns({});
-      return;
-    }
+  // Load columns only for newly added tables
+  const loadColumnsForTables = useCallback(async (tablesToLoad: string[]) => {
+    if (tablesToLoad.length === 0) return;
 
     setLoading(true);
     const newTableColumns: Record<string, ColumnInfo[]> = {};
 
-    for (const tableName of selectedTables) {
+    for (const tableName of tablesToLoad) {
+      if (loadedTablesRef.current.has(tableName)) continue;
+      
       try {
         const response = await apiClient.getTableColumns(tableName);
         newTableColumns[tableName] = response.columns;
+        loadedTablesRef.current.add(tableName);
       } catch (error) {
         console.error(`Failed to load fields for ${tableName}`, error);
       }
     }
 
-    setTableColumns(newTableColumns);
+    if (Object.keys(newTableColumns).length > 0) {
+      setTableColumns(prev => ({ ...prev, ...newTableColumns }));
+    }
     setLoading(false);
-  };
+  }, []);
 
-  const isColumnSelected = (table: string, column: string) => {
+  // Effect to load columns when tables change
+  useEffect(() => {
+    // Find tables that need to be loaded
+    const tablesToLoad = selectedTables.filter(t => !loadedTablesRef.current.has(t));
+    
+    // Remove columns for deselected tables
+    const currentTables = new Set(selectedTables);
+    const tablesToRemove = Array.from(loadedTablesRef.current).filter(t => !currentTables.has(t));
+    
+    if (tablesToRemove.length > 0) {
+      tablesToRemove.forEach(t => loadedTablesRef.current.delete(t));
+      setTableColumns(prev => {
+        const updated = { ...prev };
+        tablesToRemove.forEach(t => delete updated[t]);
+        return updated;
+      });
+    }
+
+    // Load new tables
+    if (tablesToLoad.length > 0) {
+      loadColumnsForTables(tablesToLoad);
+    }
+  }, [selectedTables, loadColumnsForTables]);
+
+  const isColumnSelected = useCallback((table: string, column: string) => {
     return selectedColumns.some(c => c.table === table && c.column === column);
-  };
+  }, [selectedColumns]);
 
-  const toggleColumn = (table: string, column: ColumnInfo) => {
-    if (isColumnSelected(table, column.name)) {
+  const toggleColumn = useCallback((table: string, column: ColumnInfo) => {
+    const isSelected = selectedColumns.some(c => c.table === table && c.column === column.name);
+    if (isSelected) {
       onChange(selectedColumns.filter(c => !(c.table === table && c.column === column.name)));
     } else {
       onChange([...selectedColumns, { type: 'simple', table, column: column.name }]);
     }
-  };
+  }, [selectedColumns, onChange]);
 
-  const updateAlias = (table: string, column: string, alias: string) => {
+  const updateAlias = useCallback((table: string, column: string, alias: string) => {
     onChange(selectedColumns.map(c => 
       c.table === table && c.column === column
         ? { ...c, alias: alias || undefined }
         : c
     ));
-  };
+  }, [selectedColumns, onChange]);
 
-  const selectAll = (tableName: string) => {
+  const selectAll = useCallback((tableName: string) => {
     const cols = tableColumns[tableName] || [];
     const newCols = cols
-      .filter(col => !isColumnSelected(tableName, col.name))
+      .filter(col => !selectedColumns.some(c => c.table === tableName && c.column === col.name))
       .map(col => ({ type: 'simple' as const, table: tableName, column: col.name }));
     onChange([...selectedColumns, ...newCols]);
-  };
+  }, [tableColumns, selectedColumns, onChange]);
 
-  const deselectAll = (tableName: string) => {
+  const deselectAll = useCallback((tableName: string) => {
     onChange(selectedColumns.filter(c => c.table !== tableName));
-  };
+  }, [selectedColumns, onChange]);
 
   return (
     <div className="column-selector">
@@ -132,35 +157,38 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
               </div>
               {tableColumns[tableName]?.length > 0 ? (
                 <div className="columns-list">
-                  {tableColumns[tableName].map(col => (
-                    <div key={col.name} className={`column-item ${isColumnSelected(tableName, col.name) ? 'selected' : ''}`}>
-                      <label className="column-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={isColumnSelected(tableName, col.name)}
-                          onChange={() => toggleColumn(tableName, col)}
-                        />
-                        <span className="column-name">
-                          {col.name}
-                        </span>
-                        <span className="column-type">{col.dataType}</span>
-                        {col.isPrimaryKey && <span className="pk-badge">Key</span>}
-                        {col.isForeignKey && <span className="fk-badge">Link</span>}
-                      </label>
-                      {isColumnSelected(tableName, col.name) && (
-                        <div className="alias-row">
-                          <label className="alias-label">Display Name:</label>
+                  {tableColumns[tableName].map(col => {
+                    const selected = isColumnSelected(tableName, col.name);
+                    return (
+                      <div key={col.name} className={`column-item ${selected ? 'selected' : ''}`}>
+                        <label className="column-checkbox">
                           <input
-                            type="text"
-                            className="alias-input"
-                            placeholder="Same as field name"
-                            value={selectedColumns.find(c => c.table === tableName && c.column === col.name)?.alias || ''}
-                            onChange={(e) => updateAlias(tableName, col.name, e.target.value)}
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleColumn(tableName, col)}
                           />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                          <span className="column-name">
+                            {col.name}
+                          </span>
+                          <span className="column-type">{col.dataType}</span>
+                          {col.isPrimaryKey && <span className="pk-badge">Key</span>}
+                          {col.isForeignKey && <span className="fk-badge">Link</span>}
+                        </label>
+                        {selected && (
+                          <div className="alias-row">
+                            <label className="alias-label">Display Name:</label>
+                            <input
+                              type="text"
+                              className="alias-input"
+                              placeholder="Same as field name"
+                              value={selectedColumns.find(c => c.table === tableName && c.column === col.name)?.alias || ''}
+                              onChange={(e) => updateAlias(tableName, col.name, e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="no-columns">No fields available</div>
