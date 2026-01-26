@@ -117,7 +117,7 @@ function parseJoins(sql: string, warnings: string[]): JoinConfig[] {
   while ((match = joinPattern.exec(sql)) !== null) {
     const joinType = (match[1] || 'INNER').toUpperCase().replace(/\s+/g, ' ') as any;
     const table = removeBrackets(match[2]);
-    let alias = match[3];
+    let alias: string | undefined = match[3];
     const onClause = match[4];
     
     // Don't treat ON keyword as alias
