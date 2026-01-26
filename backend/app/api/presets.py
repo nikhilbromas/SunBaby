@@ -329,22 +329,29 @@ async def test_preset_queries(
         
         if 'headerQuery' in sql_json:
             try:
-                header_data = db.execute_query(sql_json['headerQuery'], exec_params)
+                query = sql_json['headerQuery']
+                logger.debug(f"Executing header query: {query[:500]}...")  # Log first 500 chars
+                logger.debug(f"With parameters: {exec_params}")
+                header_data = db.execute_query(query, exec_params)
                 if header_data and len(header_data) > 0:
                     header_fields = list(header_data[0].keys())
                     header_data = header_data[0]  # Return first row as sample
             except Exception as e:
                 logger.error(f"Error executing header query: {str(e)}")
+                logger.error(f"Query was: {sql_json['headerQuery'][:1000]}")  # Log the failing query
                 raise HTTPException(status_code=400, detail=f"Error executing header query: {str(e)}")
         
         if 'itemQuery' in sql_json:
             try:
-                items_data = db.execute_query(sql_json['itemQuery'], exec_params)
+                query = sql_json['itemQuery']
+                logger.debug(f"Executing item query: {query[:500]}...")
+                items_data = db.execute_query(query, exec_params)
                 if items_data and len(items_data) > 0:
                     items_fields = list(items_data[0].keys())
                     items_data = items_data[:5]  # Return first 5 rows as samples
             except Exception as e:
                 logger.error(f"Error executing item query: {str(e)}")
+                logger.error(f"Query was: {sql_json['itemQuery'][:1000]}")
                 raise HTTPException(status_code=400, detail=f"Error executing item query: {str(e)}")
         
         # Execute contentDetails queries

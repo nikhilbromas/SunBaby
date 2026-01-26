@@ -80,34 +80,34 @@ export function generateSQL(state: QueryState): string {
   const selectClause = generateSelectClause(state.columns);
   parts.push(selectClause);
 
-  // FROM clause
+  // FROM clause - required for valid SQL
   if (state.tables.length > 0) {
     const fromClause = generateFromClause(state.tables[0]);
     parts.push(fromClause);
-  }
 
-  // JOIN clauses
-  if (state.joins.length > 0) {
-    const joinClauses = generateJoinClauses(state.joins);
-    parts.push(joinClauses);
-  }
+    // JOIN clauses (only valid if we have a FROM clause)
+    if (state.joins.length > 0) {
+      const joinClauses = generateJoinClauses(state.joins);
+      parts.push(joinClauses);
+    }
 
-  // WHERE clause
-  if (state.where.length > 0) {
-    const whereClause = generateWhereClause(state.where);
-    parts.push(whereClause);
-  }
+    // WHERE clause (only valid if we have a FROM clause)
+    if (state.where.length > 0) {
+      const whereClause = generateWhereClause(state.where);
+      parts.push(whereClause);
+    }
 
-  // GROUP BY clause
-  if (state.groupBy.length > 0) {
-    const groupByClause = generateGroupByClause(state.groupBy);
-    parts.push(groupByClause);
-  }
+    // GROUP BY clause (only valid if we have a FROM clause)
+    if (state.groupBy.length > 0) {
+      const groupByClause = generateGroupByClause(state.groupBy);
+      parts.push(groupByClause);
+    }
 
-  // ORDER BY clause
-  if (state.orderBy.length > 0) {
-    const orderByClause = generateOrderByClause(state.orderBy);
-    parts.push(orderByClause);
+    // ORDER BY clause (only valid if we have a FROM clause)
+    if (state.orderBy.length > 0) {
+      const orderByClause = generateOrderByClause(state.orderBy);
+      parts.push(orderByClause);
+    }
   }
 
   return parts.join('\n');
@@ -253,24 +253,36 @@ export function generateFromClause(table: { name: string; alias?: string }): str
  * Generate JOIN clauses
  */
 export function generateJoinClauses(joins: JoinConfig[]): string {
-  return joins.map(join => {
-    const tableName = escapeIdentifier(join.table);
-    const tablePart = join.alias ? `${tableName} ${escapeIdentifier(join.alias)}` : tableName;
-    let joinStr = `${join.type} JOIN ${tablePart}`;
+  return joins
+    .filter(join => join.table && join.table.trim()) // Skip joins without table
+    .map(join => {
+      const tableName = escapeIdentifier(join.table);
+      const tablePart = join.alias && join.alias.trim() 
+        ? `${tableName} ${escapeIdentifier(join.alias)}` 
+        : tableName;
+      let joinStr = `${join.type} JOIN ${tablePart}`;
 
-    if (join.conditions.length > 0 && join.type !== 'CROSS') {
-      const conditions = join.conditions.map((cond, index) => {
-        const condStr = `${escapeIdentifier(cond.leftColumn)} ${cond.operator} ${escapeIdentifier(cond.rightColumn)}`;
-        if (index === 0) {
-          return condStr;
+      if (join.type !== 'CROSS') {
+        // Filter out empty/invalid conditions
+        const validConditions = join.conditions.filter(
+          cond => cond.leftColumn && cond.leftColumn.trim() && 
+                  cond.rightColumn && cond.rightColumn.trim()
+        );
+        
+        if (validConditions.length > 0) {
+          const conditions = validConditions.map((cond, index) => {
+            const condStr = `${escapeIdentifier(cond.leftColumn)} ${cond.operator} ${escapeIdentifier(cond.rightColumn)}`;
+            if (index === 0) {
+              return condStr;
+            }
+            return `${cond.andOr || 'AND'} ${condStr}`;
+          }).join(' ');
+          joinStr += ` ON ${conditions}`;
         }
-        return `${cond.andOr || 'AND'} ${condStr}`;
-      }).join(' ');
-      joinStr += ` ON ${conditions}`;
-    }
+      }
 
-    return joinStr;
-  }).join('\n');
+      return joinStr;
+    }).join('\n');
 }
 
 /**

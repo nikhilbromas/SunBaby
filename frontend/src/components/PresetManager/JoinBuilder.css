@@ -286,3 +286,27 @@
 .add-condition-btn:hover {
   background-color: #eff6ff;
 }
+
+/* Warning state for incomplete joins */
+.join-item-warning {
+  border-color: #fbbf24;
+  background-color: #fefce8;
+}
+
+.join-warning {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background-color: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Empty select highlight */
+.join-condition .column-select:invalid,
+.join-condition .column-select[value=""] {
+  border-color: #fbbf24;
+  background-color: #fffbeb;
+}

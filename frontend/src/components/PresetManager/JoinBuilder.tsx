@@ -20,6 +20,12 @@ const JOIN_TYPE_LABELS: Record<JoinType, { label: string; description: string }>
 
 const JOIN_TYPES: JoinType[] = ['INNER', 'LEFT', 'RIGHT', 'FULL OUTER', 'CROSS'];
 
+// Check if a join has valid conditions
+const hasValidConditions = (join: JoinConfig): boolean => {
+  if (join.type === 'CROSS') return true;
+  return join.conditions.some(c => c.leftColumn && c.rightColumn);
+};
+
 const JoinBuilder: React.FC<JoinBuilderProps> = ({
   joins,
   availableTables,
@@ -27,9 +33,14 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
   onChange
 }) => {
   const addJoin = () => {
+    // Get the first table that isn't already in a join
+    const usedTables = joins.map(j => j.table);
+    const availableForJoin = availableTables.filter(t => !usedTables.includes(t));
+    const defaultTable = availableForJoin[0] || availableTables[1] || availableTables[0] || '';
+    
     const newJoin: JoinConfig = {
       type: 'INNER',
-      table: availableTables[0] || '',
+      table: defaultTable,
       alias: '',
       conditions: [{ leftColumn: '', operator: '=', rightColumn: '' }]
     };
@@ -101,8 +112,15 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
         </div>
       ) : (
         <div className="joins-list">
-          {joins.map((join, joinIndex) => (
-            <div key={joinIndex} className="join-item">
+          {joins.map((join, joinIndex) => {
+            const isValid = hasValidConditions(join);
+            return (
+            <div key={joinIndex} className={`join-item ${!isValid ? 'join-item-warning' : ''}`}>
+              {!isValid && (
+                <div className="join-warning">
+                  ⚠️ Please select fields to match on
+                </div>
+              )}
               <div className="join-header">
                 <div className="join-type-wrapper">
                   <label className="join-type-label">Link Type</label>
@@ -210,7 +228,7 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>
