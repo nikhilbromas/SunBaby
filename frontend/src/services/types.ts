@@ -414,3 +414,154 @@ export interface Interface {
   CompanyID?: number | null;
 }
 
+// ============================================================================
+// Query Builder Types
+// ============================================================================
+
+// Schema Types
+export interface TableInfo {
+  name: string;
+  type: 'table' | 'view';
+  schema?: string;
+  rowCount?: number;
+}
+
+export interface TableListResponse {
+  tables: TableInfo[];
+  total: number;
+}
+
+export interface ColumnInfo {
+  name: string;
+  dataType: string;
+  nullable: boolean;
+  isPrimaryKey: boolean;
+  isForeignKey: boolean;
+  maxLength?: number;
+  numericPrecision?: number;
+  numericScale?: number;
+}
+
+export interface ColumnListResponse {
+  columns: ColumnInfo[];
+}
+
+export interface RelationshipInfo {
+  constraintName: string;
+  parentTable: string;
+  parentColumn: string;
+  childTable: string;
+  childColumn: string;
+}
+
+export interface RelationshipListResponse {
+  relationships: RelationshipInfo[];
+}
+
+// Expression Types
+export type ExpressionNodeType = 'column' | 'literal' | 'function' | 'operator' | 'parameter';
+
+export interface ExpressionNode {
+  id?: string;
+  type: ExpressionNodeType;
+  value?: string | number;
+  operator?: '+' | '-' | '*' | '/' | '(' | ')';
+  left?: ExpressionNode;
+  right?: ExpressionNode;
+  function?: string;
+  arguments?: ExpressionNode[];
+}
+
+export interface CalculatedColumn {
+  type: 'calculated';
+  expression: ExpressionNode;
+  alias: string;
+}
+
+// Window Function Types
+export type WindowFunctionType = 'ROW_NUMBER' | 'RANK' | 'DENSE_RANK' | 'NTILE' | 'SUM' | 'AVG' | 'COUNT' | 'MIN' | 'MAX' | 'LEAD' | 'LAG' | 'FIRST_VALUE' | 'LAST_VALUE';
+
+export interface WindowFunction {
+  type: 'window';
+  function: WindowFunctionType;
+  partitionBy?: string[];
+  orderBy?: { column: string; direction: 'ASC' | 'DESC' }[];
+  frameClause?: string;
+  alias: string;
+}
+
+// Column Types
+export type ColumnType = 'simple' | 'calculated' | 'window' | 'aggregate';
+
+export interface SimpleColumn {
+  type: 'simple';
+  table: string;
+  column: string;
+  alias?: string;
+}
+
+export interface AggregateColumn {
+  type: 'aggregate';
+  function: 'SUM' | 'AVG' | 'COUNT' | 'MIN' | 'MAX';
+  column: string;
+  distinct?: boolean;
+  alias: string;
+}
+
+export type ColumnConfig = SimpleColumn | CalculatedColumn | WindowFunction | AggregateColumn;
+
+// Join Types
+export type JoinType = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL OUTER' | 'CROSS';
+
+export interface JoinConfig {
+  type: JoinType;
+  table: string;
+  alias?: string;
+  conditions: JoinCondition[];
+}
+
+export interface JoinCondition {
+  leftColumn: string;
+  operator: '=' | '!=' | '>' | '<' | '>=' | '<=';
+  rightColumn: string;
+  andOr?: 'AND' | 'OR';
+}
+
+// WHERE Types
+export type WhereOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN' | 'IS NULL' | 'IS NOT NULL';
+
+export interface WhereCondition {
+  column: string;
+  operator: WhereOperator;
+  value?: string | number | string[];
+  isParameter?: boolean;
+  andOr?: 'AND' | 'OR';
+}
+
+// Query State
+export interface QueryState {
+  tables: { name: string; alias?: string }[];
+  joins: JoinConfig[];
+  columns: ColumnConfig[];
+  where: WhereCondition[];
+  groupBy: string[];
+  orderBy: { column: string; direction: 'ASC' | 'DESC' }[];
+}
+
+// SQL Function Types
+export interface SQLFunction {
+  name: string;
+  category: string;
+  signature: string;
+  description: string;
+  example: string;
+  parameters: FunctionParameter[];
+}
+
+export interface FunctionParameter {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+}
+

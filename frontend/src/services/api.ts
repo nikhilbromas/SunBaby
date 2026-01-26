@@ -30,6 +30,12 @@ import type {
   Department,
   Shop,
   Interface,
+  TableInfo,
+  TableListResponse,
+  ColumnInfo,
+  ColumnListResponse,
+  RelationshipInfo,
+  RelationshipListResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -431,6 +437,36 @@ class ApiClient {
         limit,
         search,
       },
+    });
+    return response.data;
+  }
+
+  // Schema endpoints for query builder
+  async getTables(search?: string, skip = 0, limit = 500): Promise<TableListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<TableListResponse>('/schema/tables', {
+      params: {
+        company_id: companyId,
+        search,
+        skip,
+        limit,
+      },
+    });
+    return response.data;
+  }
+
+  async getTableColumns(tableName: string): Promise<ColumnListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<ColumnListResponse>(`/schema/tables/${tableName}/columns`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async getRelationships(): Promise<RelationshipListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<RelationshipListResponse>('/schema/relationships', {
+      params: companyId ? { company_id: companyId } : {},
     });
     return response.data;
   }

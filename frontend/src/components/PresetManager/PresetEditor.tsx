@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../services/api';
 import type { Preset, PresetCreate, PresetUpdate, ContentDetail } from '../../services/types';
+import QueryBuilder from './QueryBuilder';
 import './PresetEditor.css';
 
 interface PresetEditorProps {
@@ -18,6 +19,8 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
   const [createdBy, setCreatedBy] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVisualBuilder, setShowVisualBuilder] = useState<'header' | 'item' | 'content' | null>(null);
+  const [contentDetailIndex, setContentDetailIndex] = useState<number>(-1);
 
   useEffect(() => {
     if (preset) {
@@ -138,6 +141,39 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
     }
   };
 
+  const handleApplySQL = (sql: string) => {
+    if (showVisualBuilder === 'header') {
+      setHeaderQuery(sql);
+    } else if (showVisualBuilder === 'item') {
+      setItemQuery(sql);
+    } else if (showVisualBuilder === 'content' && contentDetailIndex >= 0) {
+      const updated = [...contentDetails];
+      updated[contentDetailIndex].query = sql;
+      setContentDetails(updated);
+    }
+    setShowVisualBuilder(null);
+    setContentDetailIndex(-1);
+  };
+
+  if (showVisualBuilder) {
+    const initialSQL = 
+      showVisualBuilder === 'header' ? headerQuery :
+      showVisualBuilder === 'item' ? itemQuery :
+      showVisualBuilder === 'content' && contentDetailIndex >= 0 ? contentDetails[contentDetailIndex].query :
+      '';
+    
+    return (
+      <QueryBuilder
+        initialSQL={initialSQL}
+        onApply={handleApplySQL}
+        onCancel={() => {
+          setShowVisualBuilder(null);
+          setContentDetailIndex(-1);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="preset-editor">
       <div className="editor-header">
@@ -173,38 +209,58 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
         </div>
 
         <div className="form-group">
-          <label>
-            Header Query (SELECT statement with @ParameterName):
-            <textarea
-              value={headerQuery}
-              onChange={(e) => setHeaderQuery(e.target.value)}
-              placeholder={`SELECT h.*, o.*
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+            <label style={{ margin: 0 }}>
+              Header Query (SELECT statement with @ParameterName):
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowVisualBuilder('header')}
+              className="visual-builder-btn"
+              style={{ padding: '5px 12px', fontSize: '13px' }}
+            >
+              🔧 Visual Builder
+            </button>
+          </div>
+          <textarea
+            value={headerQuery}
+            onChange={(e) => setHeaderQuery(e.target.value)}
+            placeholder={`SELECT h.*, o.*
 FROM LOsPosHeader h
 LEFT JOIN orderheader o ON o.BillID = h.poshBillID
 WHERE h.poshBillID = @BillID`}
-              rows={8}
-              style={{ fontFamily: 'monospace', fontSize: '13px' }}
-            />
-          </label>
+            rows={8}
+            style={{ fontFamily: 'monospace', fontSize: '13px' }}
+          />
           <small style={{ display: 'block', color: '#666', marginTop: '5px' }}>
             Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS). Use table aliases for clarity.
           </small>
         </div>
 
         <div className="form-group">
-          <label>
-            Item Query (SELECT statement with @ParameterName):
-            <textarea
-              value={itemQuery}
-              onChange={(e) => setItemQuery(e.target.value)}
-              placeholder={`SELECT i.*, p.ProductName
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+            <label style={{ margin: 0 }}>
+              Item Query (SELECT statement with @ParameterName):
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowVisualBuilder('item')}
+              className="visual-builder-btn"
+              style={{ padding: '5px 12px', fontSize: '13px' }}
+            >
+              🔧 Visual Builder
+            </button>
+          </div>
+          <textarea
+            value={itemQuery}
+            onChange={(e) => setItemQuery(e.target.value)}
+            placeholder={`SELECT i.*, p.ProductName
 FROM BillItem i
 LEFT JOIN Products p ON p.ProductId = i.ItemProductId
 WHERE i.BillId = @BillId`}
-              rows={8}
-              style={{ fontFamily: 'monospace', fontSize: '13px' }}
-            />
-          </label>
+            rows={8}
+            style={{ fontFamily: 'monospace', fontSize: '13px' }}
+          />
           <small style={{ display: 'block', color: '#666', marginTop: '5px' }}>
             Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS). Use table aliases for clarity.
           </small>
@@ -287,24 +343,37 @@ WHERE i.BillId = @BillId`}
                 </label>
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
-                  Query: *
-                  <textarea
-                    value={cd.query}
-                    onChange={(e) => {
-                      const updated = [...contentDetails];
-                      updated[index].query = e.target.value;
-                      setContentDetails(updated);
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <label style={{ margin: 0, fontSize: '14px' }}>
+                    Query: *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContentDetailIndex(index);
+                      setShowVisualBuilder('content');
                     }}
-                    placeholder={`SELECT p.*, m.PaymentMethodName
+                    className="visual-builder-btn"
+                    style={{ padding: '4px 10px', fontSize: '12px' }}
+                  >
+                    🔧 Visual
+                  </button>
+                </div>
+                <textarea
+                  value={cd.query}
+                  onChange={(e) => {
+                    const updated = [...contentDetails];
+                    updated[index].query = e.target.value;
+                    setContentDetails(updated);
+                  }}
+                  placeholder={`SELECT p.*, m.PaymentMethodName
 FROM Payments p
 LEFT JOIN PaymentMethods m ON m.MethodId = p.PaymentMethodId
 WHERE p.BillId = @BillId`}
-                    rows={6}
-                    style={{ width: '100%', padding: '8px', marginTop: '5px', fontFamily: 'monospace', fontSize: '13px' }}
-                    required
-                  />
-                </label>
+                  rows={6}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px', fontFamily: 'monospace', fontSize: '13px' }}
+                  required
+                />
               </div>
             </div>
           ))}

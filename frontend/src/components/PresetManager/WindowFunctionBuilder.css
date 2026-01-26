@@ -1,0 +1,314 @@
+/* Window Function Builder - User Friendly Design (Ranking) */
+.window-function-builder {
+  padding: 20px;
+  background: white;
+}
+
+.window-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.window-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.window-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.window-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.label-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.hint {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.name-input {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+}
+
+/* Function Grid */
+.function-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.function-category {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.category-functions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.function-option {
+  padding: 10px 16px;
+  background-color: #f8fafc;
+  color: #1e293b;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.function-option:hover {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.function-option.selected {
+  background-color: #dbeafe;
+  border-color: #1a56db;
+  color: #1a56db;
+}
+
+.fn-label {
+  font-weight: 500;
+}
+
+.function-description {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: #eff6ff;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #1e40af;
+  margin-top: 8px;
+}
+
+.desc-icon {
+  font-size: 16px;
+}
+
+/* Checkbox Groups */
+.checkbox-group {
+  padding: 16px;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #1a56db;
+}
+
+.checkbox-label span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.checkbox-hint {
+  font-size: 12px;
+  color: #64748b;
+  padding-left: 28px;
+  margin-top: 4px;
+}
+
+/* Partition Section */
+.partition-section,
+.orderby-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.empty-partition {
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.partition-item,
+.orderby-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.partition-item select,
+.orderby-item select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  background-color: white;
+}
+
+.partition-item select:focus,
+.orderby-item select:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+.order-number {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a56db 0%, #3b82f6 100%);
+  color: white;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.direction-select {
+  min-width: 180px;
+}
+
+.remove-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remove-btn:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
+.remove-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.add-field-btn {
+  padding: 8px 14px;
+  background-color: white;
+  color: #1a56db;
+  border: 1px dashed #1a56db;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.add-field-btn:hover {
+  background-color: #eff6ff;
+}
+
+/* Actions */
+.window-function-actions {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 8px;
+}
+
+.cancel-btn {
+  padding: 12px 24px;
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.add-btn.primary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #1a56db 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.4);
+}

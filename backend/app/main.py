@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
-from app.api import presets, templates, preview, auth, generate_pdf, images, template_configs, lookups, template_parameters
+from app.api import presets, templates, preview, auth, generate_pdf, images, template_configs, lookups, template_parameters, schema
 import logging
 
 # Configure logging
@@ -48,6 +48,7 @@ app.include_router(images.router, prefix=settings.API_PREFIX)
 app.include_router(template_configs.router, prefix=settings.API_PREFIX)
 app.include_router(lookups.router, prefix=settings.API_PREFIX)
 app.include_router(template_parameters.router, prefix=settings.API_PREFIX)
+app.include_router(schema.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

@@ -1,0 +1,154 @@
+/* GroupBy Builder - User Friendly Design (Summarize By) */
+.groupby-builder {
+  background: white;
+  padding: 16px 20px;
+}
+
+.groupby-builder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.groupby-builder-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.add-groupby-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #1a56db 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-groupby-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.4);
+}
+
+.add-groupby-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.groupby-builder-empty {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.groupby-builder-empty .empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.groupby-builder-empty h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.groupby-builder-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.groupby-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  background-color: #eff6ff;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  margin-bottom: 16px;
+}
+
+.groupby-info .info-icon {
+  font-size: 18px;
+}
+
+.groupby-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #1e40af;
+  line-height: 1.5;
+}
+
+.groupby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupby-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.group-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a56db 0%, #3b82f6 100%);
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.groupby-select {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  background-color: white;
+}
+
+.groupby-select:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+.remove-groupby-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remove-groupby-btn:hover {
+  background-color: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
