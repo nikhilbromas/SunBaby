@@ -19,14 +19,38 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   onAddCalculated,
   onAddWindow
 }) => {
+  // Helper to find the actual table key in tableColumns (case-insensitive)
+  const findTableKey = useCallback((tableName: string): string | undefined => {
+    // First try exact match
+    if (tableColumns[tableName]) return tableName;
+    // Then try case-insensitive
+    const lowerName = tableName.toLowerCase();
+    return Object.keys(tableColumns).find(k => k.toLowerCase() === lowerName);
+  }, [tableColumns]);
+
+  // Get columns for a table (case-insensitive lookup)
+  const getTableColumns = useCallback((tableName: string): ColumnInfo[] => {
+    const key = findTableKey(tableName);
+    return key ? tableColumns[key] : [];
+  }, [tableColumns, findTableKey]);
+
   const isColumnSelected = useCallback((table: string, column: string) => {
-    return selectedColumns.some(c => c.table === table && c.column === column);
+    return selectedColumns.some(c => 
+      c.table.toLowerCase() === table.toLowerCase() && 
+      c.column.toLowerCase() === column.toLowerCase()
+    );
   }, [selectedColumns]);
 
   const toggleColumn = useCallback((table: string, column: ColumnInfo) => {
-    const isSelected = selectedColumns.some(c => c.table === table && c.column === column.name);
+    const isSelected = selectedColumns.some(c => 
+      c.table.toLowerCase() === table.toLowerCase() && 
+      c.column.toLowerCase() === column.name.toLowerCase()
+    );
     if (isSelected) {
-      onChange(selectedColumns.filter(c => !(c.table === table && c.column === column.name)));
+      onChange(selectedColumns.filter(c => !(
+        c.table.toLowerCase() === table.toLowerCase() && 
+        c.column.toLowerCase() === column.name.toLowerCase()
+      )));
     } else {
       onChange([...selectedColumns, { type: 'simple', table, column: column.name }]);
     }
@@ -34,26 +58,30 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
 
   const updateAlias = useCallback((table: string, column: string, alias: string) => {
     onChange(selectedColumns.map(c => 
-      c.table === table && c.column === column
+      c.table.toLowerCase() === table.toLowerCase() && 
+      c.column.toLowerCase() === column.toLowerCase()
         ? { ...c, alias: alias || undefined }
         : c
     ));
   }, [selectedColumns, onChange]);
 
   const selectAll = useCallback((tableName: string) => {
-    const cols = tableColumns[tableName] || [];
+    const cols = getTableColumns(tableName);
     const newCols = cols
-      .filter(col => !selectedColumns.some(c => c.table === tableName && c.column === col.name))
+      .filter(col => !selectedColumns.some(c => 
+        c.table.toLowerCase() === tableName.toLowerCase() && 
+        c.column.toLowerCase() === col.name.toLowerCase()
+      ))
       .map(col => ({ type: 'simple' as const, table: tableName, column: col.name }));
     onChange([...selectedColumns, ...newCols]);
-  }, [tableColumns, selectedColumns, onChange]);
+  }, [getTableColumns, selectedColumns, onChange]);
 
   const deselectAll = useCallback((tableName: string) => {
-    onChange(selectedColumns.filter(c => c.table !== tableName));
+    onChange(selectedColumns.filter(c => c.table.toLowerCase() !== tableName.toLowerCase()));
   }, [selectedColumns, onChange]);
 
   // Check if columns are loading (no columns data for a table yet)
-  const hasLoadingTables = selectedTables.some(t => !tableColumns[t]);
+  const hasLoadingTables = selectedTables.some(t => !findTableKey(t));
 
   return (
     <div className="column-selector">
@@ -85,69 +113,76 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
 
       {selectedTables.length > 0 && (
         <div className="column-tables">
-          {selectedTables.map(tableName => (
-            <div key={tableName} className="column-table-section">
-              <div className="table-header">
-                <span>{tableName}</span>
-                <div className="table-actions">
-                  <button 
-                    className="select-all-btn"
-                    onClick={() => selectAll(tableName)}
-                    title="Select all fields"
-                  >
-                    Select All
-                  </button>
-                  <button 
-                    className="deselect-all-btn"
-                    onClick={() => deselectAll(tableName)}
-                    title="Deselect all fields"
-                  >
-                    Clear
-                  </button>
+          {selectedTables.map(tableName => {
+            const cols = getTableColumns(tableName);
+            const tableKey = findTableKey(tableName);
+            return (
+              <div key={tableName} className="column-table-section">
+                <div className="table-header">
+                  <span>{tableName}</span>
+                  <div className="table-actions">
+                    <button 
+                      className="select-all-btn"
+                      onClick={() => selectAll(tableName)}
+                      title="Select all fields"
+                    >
+                      Select All
+                    </button>
+                    <button 
+                      className="deselect-all-btn"
+                      onClick={() => deselectAll(tableName)}
+                      title="Deselect all fields"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {tableColumns[tableName]?.length > 0 ? (
-                <div className="columns-list">
-                  {tableColumns[tableName].map(col => {
-                    const selected = isColumnSelected(tableName, col.name);
-                    return (
-                      <div key={col.name} className={`column-item ${selected ? 'selected' : ''}`}>
-                        <label className="column-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => toggleColumn(tableName, col)}
-                          />
-                          <span className="column-name">
-                            {col.name}
-                          </span>
-                          <span className="column-type">{col.dataType}</span>
-                          {col.isPrimaryKey && <span className="pk-badge">Key</span>}
-                          {col.isForeignKey && <span className="fk-badge">Link</span>}
-                        </label>
-                        {selected && (
-                          <div className="alias-row">
-                            <label className="alias-label">Display Name:</label>
+                {cols.length > 0 ? (
+                  <div className="columns-list">
+                    {cols.map(col => {
+                      const selected = isColumnSelected(tableName, col.name);
+                      return (
+                        <div key={col.name} className={`column-item ${selected ? 'selected' : ''}`}>
+                          <label className="column-checkbox">
                             <input
-                              type="text"
-                              className="alias-input"
-                              placeholder="Same as field name"
-                              value={selectedColumns.find(c => c.table === tableName && c.column === col.name)?.alias || ''}
-                              onChange={(e) => updateAlias(tableName, col.name, e.target.value)}
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleColumn(tableName, col)}
                             />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : tableColumns[tableName] ? (
-                <div className="no-columns">No fields available</div>
-              ) : (
-                <div className="no-columns">Loading...</div>
-              )}
-            </div>
-          ))}
+                            <span className="column-name">
+                              {col.name}
+                            </span>
+                            <span className="column-type">{col.dataType}</span>
+                            {col.isPrimaryKey && <span className="pk-badge">Key</span>}
+                            {col.isForeignKey && <span className="fk-badge">Link</span>}
+                          </label>
+                          {selected && (
+                            <div className="alias-row">
+                              <label className="alias-label">Display Name:</label>
+                              <input
+                                type="text"
+                                className="alias-input"
+                                placeholder="Same as field name"
+                                value={selectedColumns.find(c => 
+                                  c.table.toLowerCase() === tableName.toLowerCase() && 
+                                  c.column.toLowerCase() === col.name.toLowerCase()
+                                )?.alias || ''}
+                                onChange={(e) => updateAlias(tableName, col.name, e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : tableKey ? (
+                  <div className="no-columns">No fields available</div>
+                ) : (
+                  <div className="no-columns">Loading...</div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

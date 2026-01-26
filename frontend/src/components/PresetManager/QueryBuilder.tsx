@@ -126,8 +126,25 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       const result = parseSQL(initialSQL);
       
       if (result.state) {
+        // Merge FROM tables and JOIN tables into the tables list
+        // This ensures all tables appear in TableSelector
+        const fromTables = result.state.tables || [];
+        const joinTables = (result.state.joins || [])
+          .filter(j => j.table && j.table.trim())
+          .map(j => ({ name: j.table, alias: j.alias }));
+        
+        // Deduplicate tables (case-insensitive)
+        const tableMap = new Map<string, { name: string; alias?: string }>();
+        [...fromTables, ...joinTables].forEach(t => {
+          const key = t.name.toLowerCase();
+          if (!tableMap.has(key)) {
+            tableMap.set(key, t);
+          }
+        });
+        const allTables = Array.from(tableMap.values());
+        
         setQueryState({
-          tables: result.state.tables || [],
+          tables: allTables,
           joins: result.state.joins || [],
           columns: result.state.columns || [],
           where: result.state.where || [],
@@ -136,7 +153,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         });
         
         // If we parsed some data, go to preview tab
-        if (result.state.tables && result.state.tables.length > 0) {
+        if (allTables.length > 0) {
           setActiveTab('preview');
         }
       }
