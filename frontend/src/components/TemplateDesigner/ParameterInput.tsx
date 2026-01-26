@@ -49,12 +49,22 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
     if (defaultParameters && Object.keys(defaultParameters).length > 0) {
       setParameters((prevParams) => {
         const newParams: Record<string, any> = { ...prevParams };
-        // Merge default parameters, but preserve any user edits
+        
+        // Build a lowercase map of default parameters
+        const defaultsLower = new Map<string, string>();
         Object.keys(defaultParameters).forEach((key) => {
-          if (!(key in newParams) || newParams[key] === '') {
-            newParams[key] = defaultParameters[key] || '';
+          defaultsLower.set(key.toLowerCase(), defaultParameters[key] || '');
+        });
+        
+        // Merge default parameters (case-insensitive), but preserve any user edits
+        Object.keys(newParams).forEach((key) => {
+          const lowerKey = key.toLowerCase();
+          const defaultValue = defaultsLower.get(lowerKey);
+          if (defaultValue !== undefined && newParams[key] === '') {
+            newParams[key] = defaultValue;
           }
         });
+        
         return newParams;
       });
       setHasDefaults(true);
@@ -68,50 +78,59 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
 
     try {
       const sqlJson = JSON.parse(preset.SqlJson);
-      const paramRegex = /@(\w+)/g;
-      const paramNames = new Set<string>();
+      // Use Map to track unique parameters case-insensitively
+      // Key: lowercase name, Value: original name (first occurrence)
+      const paramMap = new Map<string, string>();
 
-      if (sqlJson.headerQuery) {
-        let match;
-        while ((match = paramRegex.exec(sqlJson.headerQuery)) !== null) {
-          paramNames.add(match[1]);
+      // Helper function to extract params from a query string
+      const extractFromQuery = (query: string) => {
+        if (!query) return;
+        // Use matchAll for cleaner extraction - creates fresh regex each time
+        const matches = query.matchAll(/@(\w+)/g);
+        for (const match of matches) {
+          const paramName = match[1];
+          const lowerName = paramName.toLowerCase();
+          // Only add if not already present (case-insensitive)
+          if (!paramMap.has(lowerName)) {
+            paramMap.set(lowerName, paramName);
+          }
         }
-      }
+      };
 
-      if (sqlJson.itemQuery) {
-        let match;
-        while ((match = paramRegex.exec(sqlJson.itemQuery)) !== null) {
-          paramNames.add(match[1]);
-        }
-      }
+      extractFromQuery(sqlJson.headerQuery);
+      extractFromQuery(sqlJson.itemQuery);
 
       // Extract parameters from contentDetails
       if (sqlJson.contentDetails && Array.isArray(sqlJson.contentDetails)) {
         sqlJson.contentDetails.forEach((contentDetail: any) => {
-          if (contentDetail.query) {
-            let match;
-            while ((match = paramRegex.exec(contentDetail.query)) !== null) {
-              paramNames.add(match[1]);
-            }
-          }
+          extractFromQuery(contentDetail.query);
         });
       }
 
+      // Get unique parameter names (using original case from first occurrence)
+      const uniqueParams = Array.from(paramMap.values());
+
       // Preserve existing parameter values, only initialize new ones
       setParameters((prevParams) => {
-        const newParams: Record<string, any> = { ...prevParams };
-        Array.from(paramNames).forEach((param) => {
-          // Only set to empty if parameter doesn't exist yet
-          if (!(param in newParams)) {
+        const newParams: Record<string, any> = {};
+        
+        // Build a lowercase map of existing params for case-insensitive lookup
+        const prevParamsLower = new Map<string, { key: string; value: any }>();
+        Object.keys(prevParams).forEach((key) => {
+          prevParamsLower.set(key.toLowerCase(), { key, value: prevParams[key] });
+        });
+        
+        uniqueParams.forEach((param) => {
+          const lowerParam = param.toLowerCase();
+          // Check if we have an existing value (case-insensitive)
+          const existing = prevParamsLower.get(lowerParam);
+          if (existing && existing.value !== '') {
+            newParams[param] = existing.value;
+          } else {
             newParams[param] = '';
           }
         });
-        // Remove parameters that are no longer needed
-        Object.keys(newParams).forEach((key) => {
-          if (!paramNames.has(key)) {
-            delete newParams[key];
-          }
-        });
+        
         return newParams;
       });
     } catch (e) {
@@ -130,10 +149,22 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
     if (defaultParameters && Object.keys(defaultParameters).length > 0) {
       setParameters((prevParams) => {
         const newParams: Record<string, any> = { ...prevParams };
-        // Overwrite with defaults
+        
+        // Build a lowercase map of default parameters
+        const defaultsLower = new Map<string, string>();
         Object.keys(defaultParameters).forEach((key) => {
-          newParams[key] = defaultParameters[key] || '';
+          defaultsLower.set(key.toLowerCase(), defaultParameters[key] || '');
         });
+        
+        // Overwrite with defaults (case-insensitive)
+        Object.keys(newParams).forEach((key) => {
+          const lowerKey = key.toLowerCase();
+          const defaultValue = defaultsLower.get(lowerKey);
+          if (defaultValue !== undefined) {
+            newParams[key] = defaultValue;
+          }
+        });
+        
         return newParams;
       });
     }
