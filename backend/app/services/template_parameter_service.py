@@ -35,6 +35,15 @@ class TemplateParameterService:
         from app.utils.company_schema import ensure_company_schema
         ensure_company_schema()
         
+        # Verify table exists
+        table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+        if not table_exists:
+            logger.warning("ReportTemplateParameters table not found in create_parameter, attempting to create...")
+            ensure_company_schema()
+            table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+            if not table_exists:
+                raise ValueError("ReportTemplateParameters table could not be created. Please check database permissions.")
+        
         # Verify template exists
         from app.services.template_service import template_service
         template = await template_service.get_template(parameter_data.templateId)
@@ -93,6 +102,7 @@ class TemplateParameterService:
         # Double-check table exists, if not, return None (table will be created on next request)
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if not table_exists:
+            logger.debug(f"ReportTemplateParameters table not found when querying parameter '{parameter_name}' for template {template_id}")
             return None
         
         query = """
@@ -126,21 +136,31 @@ class TemplateParameterService:
         from app.utils.company_schema import ensure_company_schema
         ensure_company_schema()
         
+        # Verify table exists
+        table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+        if not table_exists:
+            logger.debug(f"ReportTemplateParameters table not found when getting parameters for template {template_id}")
+            return []
+        
         query = """
             SELECT * FROM ReportTemplateParameters 
             WHERE TemplateId = ? AND IsActive = 1
             ORDER BY ParameterName
         """
         
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(query, (template_id,))
-                rows = cursor.fetchall()
-                
-                return [self._row_to_parameter_response(row) for row in rows]
-            finally:
-                cursor.close()
+        try:
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(query, (template_id,))
+                    rows = cursor.fetchall()
+                    
+                    return [self._row_to_parameter_response(row) for row in rows]
+                finally:
+                    cursor.close()
+        except Exception as e:
+            logger.error(f"Error getting parameters for template {template_id}: {e}", exc_info=True)
+            raise
     
     def get_parameters_as_dict(self, template_id: int) -> Dict[str, str]:
         """
@@ -156,25 +176,34 @@ class TemplateParameterService:
         from app.utils.company_schema import ensure_company_schema
         ensure_company_schema()
         
-        parameters = []
+        # Verify table exists
+        table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+        if not table_exists:
+            logger.debug(f"ReportTemplateParameters table not found when getting parameters dict for template {template_id}")
+            return {}
+        
         # Use sync method since this is called from sync contexts
         query = """
             SELECT ParameterName, ParameterValue FROM ReportTemplateParameters 
             WHERE TemplateId = ? AND IsActive = 1
         """
         
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(query, (template_id,))
-                rows = cursor.fetchall()
-                
-                result = {}
-                for row in rows:
-                    result[row[0]] = row[1] if row[1] else ''
-                return result
-            finally:
-                cursor.close()
+        try:
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(query, (template_id,))
+                    rows = cursor.fetchall()
+                    
+                    result = {}
+                    for row in rows:
+                        result[row[0]] = row[1] if row[1] else ''
+                    return result
+                finally:
+                    cursor.close()
+        except Exception as e:
+            logger.error(f"Error getting parameters dict for template {template_id}: {e}", exc_info=True)
+            return {}
     
     async def update_parameter(self, parameter_id: int, parameter_data: TemplateParameterUpdate) -> Optional[TemplateParameterResponse]:
         """
@@ -298,44 +327,73 @@ class TemplateParameterService:
         if not template:
             raise ValueError(f"Template with ID {bulk_data.templateId} not found")
         
+        # Verify table exists before proceeding
+        table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+        if not table_exists:
+            # Table doesn't exist, try to create it one more time
+            logger.warning("ReportTemplateParameters table not found, attempting to create...")
+            ensure_company_schema()
+            table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+            if not table_exists:
+                error_msg = "ReportTemplateParameters table could not be created. Please check database permissions and ensure ReportTemplates table exists."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            else:
+                logger.info("ReportTemplateParameters table created successfully")
+        
         results = []
         
         with db.get_connection() as conn:
             cursor = conn.cursor()
             try:
                 for param_name, param_value in bulk_data.parameters.items():
-                    # Check if parameter exists
-                    existing = self.get_parameter_by_name(bulk_data.templateId, param_name)
-                    
-                    if existing:
-                        # Update existing
-                        update_query = """
-                            UPDATE ReportTemplateParameters 
-                            SET ParameterValue = ?, UpdatedOn = GETDATE()
-                            OUTPUT INSERTED.*
-                            WHERE ParameterId = ? AND IsActive = 1
+                    try:
+                        # Check if parameter exists using a direct query within the same connection
+                        check_query = """
+                            SELECT ParameterId FROM ReportTemplateParameters 
+                            WHERE TemplateId = ? AND ParameterName = ? AND IsActive = 1
                         """
-                        cursor.execute(update_query, (param_value, existing.ParameterId))
-                        row = cursor.fetchone()
-                        if row:
-                            results.append(self._row_to_parameter_response(row))
-                    else:
-                        # Create new
-                        insert_query = """
-                            INSERT INTO ReportTemplateParameters (TemplateId, ParameterName, ParameterValue, CreatedBy)
-                            OUTPUT INSERTED.*
-                            VALUES (?, ?, ?, ?)
-                        """
-                        cursor.execute(
-                            insert_query,
-                            (bulk_data.templateId, param_name, param_value, bulk_data.createdBy)
-                        )
-                        row = cursor.fetchone()
-                        if row:
-                            results.append(self._row_to_parameter_response(row))
+                        cursor.execute(check_query, (bulk_data.templateId, param_name))
+                        existing_row = cursor.fetchone()
+                        
+                        if existing_row:
+                            # Update existing
+                            existing_id = existing_row[0]
+                            update_query = """
+                                UPDATE ReportTemplateParameters 
+                                SET ParameterValue = ?, UpdatedOn = GETDATE()
+                                OUTPUT INSERTED.*
+                                WHERE ParameterId = ? AND IsActive = 1
+                            """
+                            cursor.execute(update_query, (param_value, existing_id))
+                            row = cursor.fetchone()
+                            if row:
+                                results.append(self._row_to_parameter_response(row))
+                        else:
+                            # Create new
+                            insert_query = """
+                                INSERT INTO ReportTemplateParameters (TemplateId, ParameterName, ParameterValue, CreatedBy)
+                                OUTPUT INSERTED.*
+                                VALUES (?, ?, ?, ?)
+                            """
+                            cursor.execute(
+                                insert_query,
+                                (bulk_data.templateId, param_name, param_value, bulk_data.createdBy)
+                            )
+                            row = cursor.fetchone()
+                            if row:
+                                results.append(self._row_to_parameter_response(row))
+                    except Exception as e:
+                        logger.error(f"Error processing parameter '{param_name}': {e}", exc_info=True)
+                        raise
                 
                 conn.commit()
+                logger.debug(f"Bulk updated {len(results)} parameters for template {bulk_data.templateId}")
                 return results
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Error in bulk_update_parameters: {e}", exc_info=True)
+                raise
             finally:
                 cursor.close()
     

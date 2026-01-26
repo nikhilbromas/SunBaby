@@ -188,7 +188,7 @@ class TemplateService:
             finally:
                 cursor.close()
     
-    def update_template(self, template_id: int, template_data: TemplateUpdate) -> Optional[TemplateResponse]:
+    async def update_template(self, template_id: int, template_data: TemplateUpdate) -> Optional[TemplateResponse]:
         """
         Update an existing template.
         
@@ -198,7 +198,17 @@ class TemplateService:
             
         Returns:
             Updated template or None if not found
+            
+        Raises:
+            ValueError: If preset doesn't exist
         """
+        # Verify preset exists if presetId is being updated
+        if template_data.presetId is not None:
+            from app.services.preset_service import preset_service
+            preset = await preset_service.get_preset(template_data.presetId)
+            if not preset:
+                raise ValueError(f"Preset with ID {template_data.presetId} not found")
+        
         # Build update query dynamically
         updates = []
         params = []
@@ -211,13 +221,17 @@ class TemplateService:
             updates.append("TemplateJson = ?")
             params.append(template_data.templateJson)
         
+        if template_data.presetId is not None:
+            updates.append("PresetId = ?")
+            params.append(template_data.presetId)
+        
         if template_data.isActive is not None:
             updates.append("IsActive = ?")
             params.append(template_data.isActive)
         
         if not updates:
             # No updates provided, just return existing
-            return self.get_template(template_id)
+            return await self.get_template(template_id)
         
         updates.append("UpdatedOn = GETDATE()")
         params.append(template_id)

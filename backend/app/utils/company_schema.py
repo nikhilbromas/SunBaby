@@ -6,6 +6,9 @@ Matches backend/migrations/001_initial_schema.sql tables/indexes.
 """
 
 from app.database import db
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def ensure_company_schema() -> None:
@@ -416,24 +419,33 @@ def ensure_company_schema() -> None:
     )
 
     # Create ReportTemplateParameters if missing
-    db.execute_non_query(
-        """
-        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NULL
-        BEGIN
-            CREATE TABLE dbo.ReportTemplateParameters (
-                ParameterId INT IDENTITY(1,1) PRIMARY KEY,
-                TemplateId INT NOT NULL,
-                ParameterName VARCHAR(100) NOT NULL,
-                ParameterValue NVARCHAR(MAX) NULL,
-                CreatedBy VARCHAR(50) NULL,
-                CreatedOn DATETIME DEFAULT GETDATE(),
-                UpdatedOn DATETIME NULL,
-                IsActive BIT DEFAULT 1
-            );
-        END
-        """,
-        autocommit=True
-    )
+    try:
+        db.execute_non_query(
+            """
+            IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReportTemplateParameters (
+                    ParameterId INT IDENTITY(1,1) PRIMARY KEY,
+                    TemplateId INT NOT NULL,
+                    ParameterName VARCHAR(100) NOT NULL,
+                    ParameterValue NVARCHAR(MAX) NULL,
+                    CreatedBy VARCHAR(50) NULL,
+                    CreatedOn DATETIME DEFAULT GETDATE(),
+                    UpdatedOn DATETIME NULL,
+                    IsActive BIT DEFAULT 1
+                );
+            END
+            """,
+            autocommit=True
+        )
+        # Verify table was created
+        table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+        if table_exists:
+            logger.debug("ReportTemplateParameters table created or already exists")
+        else:
+            logger.warning("ReportTemplateParameters table creation may have failed")
+    except Exception as e:
+        logger.error(f"Error creating ReportTemplateParameters table: {e}", exc_info=True)
 
     # Patch missing columns in dbo.ReportTemplateParameters (if table exists but schema differs)
     db.execute_non_query(
@@ -542,29 +554,45 @@ def ensure_company_schema() -> None:
 
     # Final safety check: ensure ReportTemplateParameters table exists
     # This handles edge cases where table creation might have failed earlier
-    db.execute_non_query(
-        """
-        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NULL
-           AND OBJECT_ID('dbo.ReportTemplates', 'U') IS NOT NULL
-        BEGIN
-            BEGIN TRY
-                CREATE TABLE dbo.ReportTemplateParameters (
-                    ParameterId INT IDENTITY(1,1) PRIMARY KEY,
-                    TemplateId INT NOT NULL,
-                    ParameterName VARCHAR(100) NOT NULL,
-                    ParameterValue NVARCHAR(MAX) NULL,
-                    CreatedBy VARCHAR(50) NULL,
-                    CreatedOn DATETIME DEFAULT GETDATE(),
-                    UpdatedOn DATETIME NULL,
-                    IsActive BIT DEFAULT 1
-                );
-            END TRY
-            BEGIN CATCH
-                -- Table might already exist or creation failed, ignore
-            END CATCH
-        END
-        """,
-        autocommit=True
-    )
+    try:
+        table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+        templates_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplates','U')")
+        
+        if not table_exists and templates_exists:
+            logger.info("ReportTemplateParameters table missing, attempting to create...")
+            db.execute_non_query(
+                """
+                BEGIN TRY
+                    CREATE TABLE dbo.ReportTemplateParameters (
+                        ParameterId INT IDENTITY(1,1) PRIMARY KEY,
+                        TemplateId INT NOT NULL,
+                        ParameterName VARCHAR(100) NOT NULL,
+                        ParameterValue NVARCHAR(MAX) NULL,
+                        CreatedBy VARCHAR(50) NULL,
+                        CreatedOn DATETIME DEFAULT GETDATE(),
+                        UpdatedOn DATETIME NULL,
+                        IsActive BIT DEFAULT 1
+                    );
+                    -- Create basic indexes immediately
+                    CREATE INDEX IX_ReportTemplateParameters_TemplateId ON dbo.ReportTemplateParameters(TemplateId);
+                    CREATE INDEX IX_ReportTemplateParameters_ParameterName ON dbo.ReportTemplateParameters(ParameterName);
+                    CREATE INDEX IX_ReportTemplateParameters_IsActive ON dbo.ReportTemplateParameters(IsActive);
+                END TRY
+                BEGIN CATCH
+                    -- Table might already exist or creation failed
+                    DECLARE @ErrorMsg NVARCHAR(4000) = ERROR_MESSAGE();
+                    -- Log error but don't fail
+                END CATCH
+                """,
+                autocommit=True
+            )
+            # Verify creation succeeded
+            table_exists_after = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
+            if table_exists_after:
+                logger.info("ReportTemplateParameters table created successfully in safety check")
+            else:
+                logger.error("ReportTemplateParameters table creation failed in safety check")
+    except Exception as e:
+        logger.error(f"Error in ReportTemplateParameters safety check: {e}", exc_info=True)
 
 
