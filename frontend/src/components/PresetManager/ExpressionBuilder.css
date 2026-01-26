@@ -95,6 +95,16 @@
   line-height: 1.8;
 }
 
+.formula-hints {
+  margin-top: 6px;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
 /* Helper Sections */
 .expression-helpers {
   display: flex;
@@ -243,6 +253,102 @@
 .functions-section {
   padding-top: 12px;
   border-top: 1px solid #e2e8f0;
+}
+
+/* Templates Section */
+.templates-section {
+  margin-bottom: 16px;
+  padding: 16px;
+  background-color: #fef3c7;
+  border-radius: 12px;
+  border: 1px solid #fcd34d;
+}
+
+.templates-section h4 {
+  margin: 0 0 4px 0;
+  color: #92400e;
+}
+
+.section-description {
+  font-size: 11px;
+  color: #78350f;
+  margin: 0 0 10px 0;
+}
+
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.template-btn {
+  padding: 10px 12px;
+  background-color: white;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.template-btn:hover {
+  background-color: #fef3c7;
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.template-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: #92400e;
+}
+
+.template-desc {
+  font-size: 10px;
+  color: #78350f;
+}
+
+/* Data Types Section */
+.data-types-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.data-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.datatype-btn {
+  background-color: white;
+  color: #1e293b;
+  border: 1px solid #c7d2fe;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.datatype-btn:hover {
+  background-color: #e0e7ff;
+  border-color: #818cf8;
+}
+
+.datatype-value {
+  font-weight: 600;
+  font-size: 11px;
+  color: #3730a3;
+  font-family: 'Fira Code', 'Consolas', monospace;
+}
+
+.datatype-label {
+  font-size: 10px;
+  color: #64748b;
 }
 
 /* Actions */
