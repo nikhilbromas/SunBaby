@@ -174,12 +174,14 @@ async def update_template(
                     detail="company_id is required (or select company via /auth/select-company) to update templates",
                 )
 
-        template = template_service.update_template(template_id, template_data)
+        template = await template_service.update_template(template_id, template_data)
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         return template
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         msg = str(e)
         if company_id is None and "Invalid object name" in msg and "ReportTemplates" in msg:

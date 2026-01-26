@@ -121,6 +121,7 @@ class TemplateUpdate(BaseModel):
     """Model for updating an existing template."""
     templateName: Optional[str] = Field(None, alias="TemplateName", min_length=1, max_length=100)
     templateJson: Optional[str] = Field(None, alias="TemplateJson")
+    presetId: Optional[int] = Field(None, alias="PresetId", description="Linked SQL preset ID")
     isActive: Optional[bool] = Field(None, alias="IsActive")
     
     model_config = {"populate_by_name": True}

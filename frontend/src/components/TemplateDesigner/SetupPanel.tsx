@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import Lottie from 'lottie-react';
 import ParameterInput from './ParameterInput';
+import ParameterCopyModal from './ParameterCopyModal';
 import apiClient from '../../services/api';
 import type { Preset, Template } from '../../services/types';
 import lottieAnimation from '../../Printer.json';
@@ -41,6 +42,12 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
   const [templateName, setTemplateName] = useState('');
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [showPresetChangeModal, setShowPresetChangeModal] = useState(false);
+  const [changingPreset, setChangingPreset] = useState(false);
+  const [defaultParameters, setDefaultParameters] = useState<Record<string, string>>({});
+  const [loadingParameters, setLoadingParameters] = useState(false);
+  const [showParameterCopyModal, setShowParameterCopyModal] = useState(false);
+  const [copyModalType, setCopyModalType] = useState<'template' | 'preset' | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -59,6 +66,16 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, selectedTemplateId, selectedPresetId]);
+
+  // Load default parameters when template is selected
+  useEffect(() => {
+    if (localTemplateId && step === 'parameters') {
+      loadDefaultParameters();
+    } else {
+      setDefaultParameters({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localTemplateId, step]);
 
   useEffect(() => {
     // keep parent in sync when preset changes during create flow
@@ -97,6 +114,107 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
       setTemplates([]);
     } finally {
       setLoadingTemplates(false);
+    }
+  };
+
+  const loadDefaultParameters = async () => {
+    if (!localTemplateId) return;
+    try {
+      setLoadingParameters(true);
+      const response = await apiClient.getTemplateParameters(localTemplateId);
+      const params: Record<string, string> = {};
+      response.parameters.forEach((param) => {
+        if (param.ParameterValue) {
+          params[param.ParameterName] = param.ParameterValue;
+        }
+      });
+      setDefaultParameters(params);
+    } catch (error) {
+      console.error('Error loading default parameters:', error);
+      setDefaultParameters({});
+    } finally {
+      setLoadingParameters(false);
+    }
+  };
+
+  const handleSaveParameters = async (parameters: Record<string, string>) => {
+    if (!localTemplateId) return;
+    try {
+      await apiClient.bulkUpdateTemplateParameters(localTemplateId, parameters);
+      await loadDefaultParameters(); // Reload to update state
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to save parameters');
+    }
+  };
+
+  const handleCopyFromTemplate = async (sourceTemplateId: number) => {
+    if (!localTemplateId) return;
+    try {
+      const sourceParams = await apiClient.getTemplateParameters(sourceTemplateId);
+      const params: Record<string, string> = {};
+      sourceParams.parameters.forEach((param) => {
+        if (param.ParameterValue) {
+          params[param.ParameterName] = param.ParameterValue;
+        }
+      });
+      // Only copy parameters that match current preset's parameters
+      if (currentPreset) {
+        const sqlJson = JSON.parse(currentPreset.SqlJson);
+        const paramRegex = /@(\w+)/g;
+        const validParams = new Set<string>();
+        
+        if (sqlJson.headerQuery) {
+          let match;
+          while ((match = paramRegex.exec(sqlJson.headerQuery)) !== null) {
+            validParams.add(match[1]);
+          }
+        }
+        if (sqlJson.itemQuery) {
+          let match;
+          while ((match = paramRegex.exec(sqlJson.itemQuery)) !== null) {
+            validParams.add(match[1]);
+          }
+        }
+        if (sqlJson.contentDetails && Array.isArray(sqlJson.contentDetails)) {
+          sqlJson.contentDetails.forEach((cd: any) => {
+            if (cd.query) {
+              let match;
+              while ((match = paramRegex.exec(cd.query)) !== null) {
+                validParams.add(match[1]);
+              }
+            }
+          });
+        }
+
+        const filteredParams: Record<string, string> = {};
+        Object.keys(params).forEach((key) => {
+          if (validParams.has(key)) {
+            filteredParams[key] = params[key];
+          }
+        });
+        
+        await apiClient.bulkUpdateTemplateParameters(localTemplateId, filteredParams);
+        await loadDefaultParameters();
+        setShowParameterCopyModal(false);
+      }
+    } catch (error: any) {
+      alert(`Failed to copy parameters: ${error.message}`);
+    }
+  };
+
+  const handleCopyFromPreset = async (sourcePresetId: number) => {
+    // Note: Presets don't store parameter values, so this would copy from templates using that preset
+    // For now, we'll find templates using this preset and copy from the first one
+    if (!localTemplateId) return;
+    try {
+      const templatesWithPreset = templates.filter(t => t.PresetId === sourcePresetId && t.TemplateId !== localTemplateId);
+      if (templatesWithPreset.length > 0) {
+        await handleCopyFromTemplate(templatesWithPreset[0].TemplateId);
+      } else {
+        alert('No templates found with this preset to copy parameters from');
+      }
+    } catch (error: any) {
+      alert(`Failed to copy parameters: ${error.message}`);
     }
   };
 
@@ -160,6 +278,32 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
       setTimeout(() => {
         onClose();
       }, 300);
+    }
+  };
+
+  const handleChangePreset = async (newPresetId: number) => {
+    if (!localTemplateId) {
+      alert('No template selected');
+      return;
+    }
+    if (newPresetId === localPresetId) {
+      setShowPresetChangeModal(false);
+      return;
+    }
+    try {
+      setChangingPreset(true);
+      await apiClient.updateTemplate(localTemplateId, { presetId: newPresetId });
+      setLocalPresetId(newPresetId);
+      onPresetSelect(newPresetId);
+      await loadAllTemplates();
+      setShowPresetChangeModal(false);
+      // Reload presets to ensure we have the latest preset data
+      const presetResp = await apiClient.getPresets();
+      setPresets(presetResp.presets);
+    } catch (error: any) {
+      alert(`Failed to change preset: ${error.message}`);
+    } finally {
+      setChangingPreset(false);
     }
   };
 
@@ -423,18 +567,137 @@ const SetupPanel: React.FC<SetupPanelProps> = ({
                   marginBottom: '1rem',
                   borderLeft: '4px solid #007bff'
                 }}>
-                  <strong>Template ID: {localTemplateId}</strong>
-                  {localTemplateId === selectedTemplateId && (
-                    <span style={{ marginLeft: '0.5rem', color: '#6c757d', fontSize: '0.875rem' }}>
-                      (Currently Selected)
-                    </span>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <strong>Template ID: {localTemplateId}</strong>
+                      {localTemplateId === selectedTemplateId && (
+                        <span style={{ marginLeft: '0.5rem', color: '#6c757d', fontSize: '0.875rem' }}>
+                          (Currently Selected)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #dee2e6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontSize: '0.875rem', color: '#6c757d' }}>Current Preset: </span>
+                        <strong style={{ color: 'var(--brand-600)' }}>{currentPreset.PresetName}</strong>
+                      </div>
+                      <button
+                        className="change-preset-btn"
+                        onClick={() => setShowPresetChangeModal(true)}
+                        disabled={changingPreset}
+                      >
+                        {changingPreset ? 'Changing...' : 'Change Preset'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              )}
+              {showPresetChangeModal && (
+                <div 
+                  className="preset-change-modal"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !changingPreset) {
+                      setShowPresetChangeModal(false);
+                    }
+                  }}
+                >
+                  <div className="preset-change-modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="preset-change-modal-header">
+                      <h4>Change Template Preset</h4>
+                      <button
+                        className="preset-change-modal-close"
+                        onClick={() => setShowPresetChangeModal(false)}
+                        disabled={changingPreset}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="preset-change-modal-body">
+                      <p style={{ marginBottom: '1rem', color: '#6c757d', fontSize: '0.875rem' }}>
+                        Select a new preset for this template. The template will be updated to use the selected preset.
+                      </p>
+                      <div className="preset-change-list">
+                        {presets.map((preset) => (
+                          <div
+                            key={preset.PresetId}
+                            className={`preset-change-item ${preset.PresetId === localPresetId ? 'current' : ''}`}
+                            onClick={() => !changingPreset && handleChangePreset(preset.PresetId)}
+                          >
+                            <div className="preset-change-item-header">
+                              <strong>{preset.PresetName}</strong>
+                              {preset.PresetId === localPresetId && (
+                                <span className="preset-change-current-badge">Current</span>
+                              )}
+                            </div>
+                            {preset.CreatedBy && (
+                              <div className="preset-change-item-meta">
+                                Created by: {preset.CreatedBy}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {localTemplateId && (
+                <div className="parameter-management-section" style={{
+                  background: '#f8f9fa',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  marginBottom: '1rem',
+                  border: '1px solid #dee2e6'
+                }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#495057' }}>Parameter Management:</span>
+                    <button
+                      className="param-action-btn"
+                      onClick={() => {
+                        setCopyModalType('template');
+                        setShowParameterCopyModal(true);
+                      }}
+                      disabled={loadingParameters}
+                    >
+                      Copy from Template
+                    </button>
+                    <button
+                      className="param-action-btn"
+                      onClick={() => {
+                        setCopyModalType('preset');
+                        setShowParameterCopyModal(true);
+                      }}
+                      disabled={loadingParameters}
+                    >
+                      Copy from Preset
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showParameterCopyModal && (
+                <ParameterCopyModal
+                  isOpen={showParameterCopyModal}
+                  onClose={() => {
+                    setShowParameterCopyModal(false);
+                    setCopyModalType(null);
+                  }}
+                  type={copyModalType || 'template'}
+                  templates={templates}
+                  presets={presets}
+                  currentTemplateId={localTemplateId}
+                  onCopyFromTemplate={handleCopyFromTemplate}
+                  onCopyFromPreset={handleCopyFromPreset}
+                />
               )}
               <ParameterInput
                 preset={currentPreset}
+                templateId={localTemplateId || undefined}
+                defaultParameters={defaultParameters}
                 onExecute={() => {}} // onExecute is called but we use onDataReceived for closing
                 onDataReceived={handleParameterExecute}
+                onSaveParameters={handleSaveParameters}
               />
             </div>
           )}

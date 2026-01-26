@@ -5,23 +5,31 @@ import './ParameterInput.css';
 
 interface ParameterInputProps {
   preset: Preset | null;
+  templateId?: number | null;
+  defaultParameters?: Record<string, string>;
   onExecute: (parameters: Record<string, any>) => void;
   onDataReceived: (data: {
     header: { data: Record<string, any> | null; fields: string[] };
     items: { data: Record<string, any>[]; fields: string[]; sampleCount: number };
     contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
   }) => void;
+  onSaveParameters?: (parameters: Record<string, any>) => void;
 }
 
 const ParameterInput: React.FC<ParameterInputProps> = ({
   preset,
+  templateId,
+  defaultParameters,
   onExecute,
   onDataReceived,
+  onSaveParameters,
 }) => {
   const [parameters, setParameters] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastPresetId, setLastPresetId] = useState<number | null>(null);
+  const [hasDefaults, setHasDefaults] = useState(false);
 
   useEffect(() => {
     if (preset) {
@@ -35,6 +43,25 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
       setLastPresetId(null);
     }
   }, [preset, lastPresetId]);
+
+  // Load default parameters when they're provided
+  useEffect(() => {
+    if (defaultParameters && Object.keys(defaultParameters).length > 0) {
+      setParameters((prevParams) => {
+        const newParams: Record<string, any> = { ...prevParams };
+        // Merge default parameters, but preserve any user edits
+        Object.keys(defaultParameters).forEach((key) => {
+          if (!(key in newParams) || newParams[key] === '') {
+            newParams[key] = defaultParameters[key] || '';
+          }
+        });
+        return newParams;
+      });
+      setHasDefaults(true);
+    } else {
+      setHasDefaults(false);
+    }
+  }, [defaultParameters]);
 
   const extractParameters = () => {
     if (!preset) return;
@@ -99,6 +126,45 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
     }));
   };
 
+  const handleLoadDefaults = () => {
+    if (defaultParameters && Object.keys(defaultParameters).length > 0) {
+      setParameters((prevParams) => {
+        const newParams: Record<string, any> = { ...prevParams };
+        // Overwrite with defaults
+        Object.keys(defaultParameters).forEach((key) => {
+          newParams[key] = defaultParameters[key] || '';
+        });
+        return newParams;
+      });
+    }
+  };
+
+  const handleSaveDefaults = async () => {
+    if (!templateId || !onSaveParameters) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      // Prepare parameters for saving (only non-empty values)
+      const paramsToSave: Record<string, string> = {};
+      Object.keys(parameters).forEach((key) => {
+        const value = parameters[key];
+        if (value !== null && value !== undefined && value.toString().trim() !== '') {
+          paramsToSave[key] = typeof value === 'string' ? value.trim() : String(value);
+        }
+      });
+
+      await onSaveParameters(paramsToSave);
+      setHasDefaults(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save parameters');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExecute = async () => {
     if (!preset) {
       setError('No preset selected');
@@ -157,8 +223,46 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
 
   return (
     <div className="parameter-input">
-      <h4>Query Parameters</h4>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h4 style={{ margin: 0 }}>Query Parameters</h4>
+        {templateId && (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {hasDefaults && defaultParameters && Object.keys(defaultParameters).length > 0 && (
+              <button
+                onClick={handleLoadDefaults}
+                disabled={loading || saving}
+                className="load-defaults-button"
+                title="Load saved default values"
+              >
+                Load Defaults
+              </button>
+            )}
+            {onSaveParameters && (
+              <button
+                onClick={handleSaveDefaults}
+                disabled={loading || saving || paramNames.length === 0}
+                className="save-defaults-button"
+                title="Save current values as template defaults"
+              >
+                {saving ? 'Saving...' : 'Save as Default'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       {error && <div className="error-message">{error}</div>}
+      {hasDefaults && (
+        <div style={{ 
+          fontSize: '0.875rem', 
+          color: '#28a745', 
+          marginBottom: '0.5rem',
+          padding: '0.5rem',
+          background: '#f0f9ff',
+          borderRadius: '4px'
+        }}>
+          ✓ Default parameters loaded
+        </div>
+      )}
 
       {paramNames.length === 0 ? (
         <p className="no-params">No parameters required for this preset</p>
@@ -182,7 +286,7 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
           </div>
           <button
             onClick={handleExecute}
-            disabled={loading}
+            disabled={loading || saving}
             className="execute-button"
           >
             {loading ? 'Executing...' : 'Execute Query & Load Data'}

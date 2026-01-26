@@ -415,4 +415,156 @@ def ensure_company_schema() -> None:
         autocommit=True
     )
 
+    # Create ReportTemplateParameters if missing
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.ReportTemplateParameters (
+                ParameterId INT IDENTITY(1,1) PRIMARY KEY,
+                TemplateId INT NOT NULL,
+                ParameterName VARCHAR(100) NOT NULL,
+                ParameterValue NVARCHAR(MAX) NULL,
+                CreatedBy VARCHAR(50) NULL,
+                CreatedOn DATETIME DEFAULT GETDATE(),
+                UpdatedOn DATETIME NULL,
+                IsActive BIT DEFAULT 1
+            );
+        END
+        """,
+        autocommit=True
+    )
+
+    # Patch missing columns in dbo.ReportTemplateParameters (if table exists but schema differs)
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NOT NULL
+        BEGIN
+            IF COL_LENGTH('dbo.ReportTemplateParameters','ParameterId') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD ParameterId INT IDENTITY(1,1) NOT NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','TemplateId') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD TemplateId INT NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','ParameterName') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD ParameterName VARCHAR(100) NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','ParameterValue') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD ParameterValue NVARCHAR(MAX) NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','CreatedBy') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD CreatedBy VARCHAR(50) NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','CreatedOn') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD CreatedOn DATETIME NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','UpdatedOn') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD UpdatedOn DATETIME NULL;
+            IF COL_LENGTH('dbo.ReportTemplateParameters','IsActive') IS NULL
+                ALTER TABLE dbo.ReportTemplateParameters ADD IsActive BIT NULL;
+        END
+        """,
+        autocommit=True
+    )
+
+    # Create indexes if missing
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','TemplateId') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportTemplateParameters_TemplateId' AND object_id = OBJECT_ID('dbo.ReportTemplateParameters'))
+        BEGIN
+            CREATE INDEX IX_ReportTemplateParameters_TemplateId ON dbo.ReportTemplateParameters(TemplateId);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','ParameterName') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportTemplateParameters_ParameterName' AND object_id = OBJECT_ID('dbo.ReportTemplateParameters'))
+        BEGIN
+            CREATE INDEX IX_ReportTemplateParameters_ParameterName ON dbo.ReportTemplateParameters(ParameterName);
+        END
+        """,
+        autocommit=True
+    )
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','IsActive') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportTemplateParameters_IsActive' AND object_id = OBJECT_ID('dbo.ReportTemplateParameters'))
+        BEGIN
+            CREATE INDEX IX_ReportTemplateParameters_IsActive ON dbo.ReportTemplateParameters(IsActive);
+        END
+        """,
+        autocommit=True
+    )
+
+    # Create unique index for TemplateId + ParameterName (filtered index for IsActive = 1)
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','TemplateId') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','ParameterName') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','IsActive') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportTemplateParameters_TemplateId_ParameterName_Unique' AND object_id = OBJECT_ID('dbo.ReportTemplateParameters'))
+        BEGIN
+            CREATE UNIQUE NONCLUSTERED INDEX IX_ReportTemplateParameters_TemplateId_ParameterName_Unique
+            ON dbo.ReportTemplateParameters(TemplateId, ParameterName)
+            WHERE IsActive = 1;
+        END
+        """,
+        autocommit=True
+    )
+
+    # Add FK if possible and missing (optional if existing data prevents it)
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NOT NULL
+           AND OBJECT_ID('dbo.ReportTemplates', 'U') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplateParameters','TemplateId') IS NOT NULL
+           AND COL_LENGTH('dbo.ReportTemplates','TemplateId') IS NOT NULL
+           AND NOT EXISTS (
+               SELECT 1
+               FROM sys.foreign_keys
+               WHERE name = 'FK_ReportTemplateParameters_ReportTemplates'
+                 AND parent_object_id = OBJECT_ID('dbo.ReportTemplateParameters')
+           )
+        BEGIN
+            BEGIN TRY
+                ALTER TABLE dbo.ReportTemplateParameters
+                ADD CONSTRAINT FK_ReportTemplateParameters_ReportTemplates
+                FOREIGN KEY (TemplateId) REFERENCES dbo.ReportTemplates(TemplateId) ON DELETE CASCADE;
+            END TRY
+            BEGIN CATCH
+                -- If existing data violates FK or permissions are limited, skip FK creation.
+            END CATCH
+        END
+        """,
+        autocommit=True
+    )
+
+    # Final safety check: ensure ReportTemplateParameters table exists
+    # This handles edge cases where table creation might have failed earlier
+    db.execute_non_query(
+        """
+        IF OBJECT_ID('dbo.ReportTemplateParameters', 'U') IS NULL
+           AND OBJECT_ID('dbo.ReportTemplates', 'U') IS NOT NULL
+        BEGIN
+            BEGIN TRY
+                CREATE TABLE dbo.ReportTemplateParameters (
+                    ParameterId INT IDENTITY(1,1) PRIMARY KEY,
+                    TemplateId INT NOT NULL,
+                    ParameterName VARCHAR(100) NOT NULL,
+                    ParameterValue NVARCHAR(MAX) NULL,
+                    CreatedBy VARCHAR(50) NULL,
+                    CreatedOn DATETIME DEFAULT GETDATE(),
+                    UpdatedOn DATETIME NULL,
+                    IsActive BIT DEFAULT 1
+                );
+            END TRY
+            BEGIN CATCH
+                -- Table might already exist or creation failed, ignore
+            END CATCH
+        END
+        """,
+        autocommit=True
+    )
+
 

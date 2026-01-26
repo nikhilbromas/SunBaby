@@ -222,12 +222,47 @@ export interface TemplateCreate {
 export interface TemplateUpdate {
   templateName?: string;
   templateJson?: string;
+  presetId?: number;
   isActive?: boolean;
 }
 
 export interface TemplateListResponse {
   templates: Template[];
   total: number;
+}
+
+export interface TemplateParameter {
+  ParameterId: number;
+  TemplateId: number;
+  ParameterName: string;
+  ParameterValue?: string | null;
+  CreatedBy?: string | null;
+  CreatedOn: string;
+  UpdatedOn?: string | null;
+  IsActive: boolean;
+}
+
+export interface TemplateParameterCreate {
+  templateId: number;
+  parameterName: string;
+  parameterValue?: string | null;
+  createdBy?: string | null;
+}
+
+export interface TemplateParameterUpdate {
+  parameterValue?: string | null;
+  isActive?: boolean;
+}
+
+export interface TemplateParameterListResponse {
+  parameters: TemplateParameter[];
+  total: number;
+}
+
+export interface BulkTemplateParameterUpdate {
+  templateId: number;
+  parameters: Record<string, string>;
+  createdBy?: string | null;
 }
 
 export interface PreviewRequest {

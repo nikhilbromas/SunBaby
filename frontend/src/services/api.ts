@@ -11,6 +11,11 @@ import type {
   TemplateCreate,
   TemplateUpdate,
   TemplateListResponse,
+  TemplateParameter,
+  TemplateParameterCreate,
+  TemplateParameterUpdate,
+  TemplateParameterListResponse,
+  BulkTemplateParameterUpdate,
   PreviewRequest,
   PreviewData,
   LoginResponse,
@@ -201,6 +206,57 @@ class ApiClient {
     await this.client.delete(`/templates/${templateId}`, {
       params: companyId ? { company_id: companyId } : {},
     });
+  }
+
+  // Template Parameter endpoints
+  async getTemplateParameters(templateId: number): Promise<TemplateParameterListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.get<TemplateParameterListResponse>(
+      `/template-parameters/template/${templateId}`,
+      {
+        params: companyId ? { company_id: companyId } : {},
+      }
+    );
+    return response.data;
+  }
+
+  async createTemplateParameter(data: TemplateParameterCreate): Promise<TemplateParameter> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.post<TemplateParameter>('/template-parameters', data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async updateTemplateParameter(parameterId: number, data: TemplateParameterUpdate): Promise<TemplateParameter> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.put<TemplateParameter>(`/template-parameters/${parameterId}`, data, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+    return response.data;
+  }
+
+  async deleteTemplateParameter(parameterId: number): Promise<void> {
+    const companyId = this.getCompanyId();
+    await this.client.delete(`/template-parameters/${parameterId}`, {
+      params: companyId ? { company_id: companyId } : {},
+    });
+  }
+
+  async bulkUpdateTemplateParameters(templateId: number, parameters: Record<string, string>, createdBy?: string): Promise<TemplateParameterListResponse> {
+    const companyId = this.getCompanyId();
+    const response = await this.client.post<TemplateParameterListResponse>(
+      '/template-parameters/bulk',
+      {
+        templateId,
+        parameters,
+        createdBy,
+      } as BulkTemplateParameterUpdate,
+      {
+        params: companyId ? { company_id: companyId } : {},
+      }
+    );
+    return response.data;
   }
 
   // Preview endpoints
