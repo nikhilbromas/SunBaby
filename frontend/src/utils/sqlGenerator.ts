@@ -51,23 +51,30 @@ const SQL_RESERVED_KEYWORDS = new Set([
 function escapeIdentifier(identifier: string): string {
   if (!identifier) return identifier;
   
+  // Clean the identifier - remove semicolons, extra spaces, etc.
+  let cleaned = identifier.trim();
+  // Remove trailing semicolons
+  cleaned = cleaned.replace(/;+$/, '');
+  // Remove any brackets that might already be there (we'll add our own if needed)
+  cleaned = cleaned.replace(/^\[|\]$/g, '');
+  
   // If it contains a dot (table.column), split and escape each part
-  if (identifier.includes('.')) {
-    const parts = identifier.split('.');
+  if (cleaned.includes('.')) {
+    const parts = cleaned.split('.');
     return parts.map(part => escapeIdentifier(part)).join('.');
   }
   
   // Check if it's a reserved keyword (case-insensitive)
-  if (SQL_RESERVED_KEYWORDS.has(identifier.toLowerCase())) {
-    return `[${identifier}]`;
+  if (SQL_RESERVED_KEYWORDS.has(cleaned.toLowerCase())) {
+    return `[${cleaned}]`;
   }
   
   // Also escape if it contains special characters or starts with a number
-  if (/[^a-zA-Z0-9_]/.test(identifier) || /^[0-9]/.test(identifier)) {
-    return `[${identifier}]`;
+  if (/[^a-zA-Z0-9_]/.test(cleaned) || /^[0-9]/.test(cleaned)) {
+    return `[${cleaned}]`;
   }
   
-  return identifier;
+  return cleaned;
 }
 
 /**
@@ -81,9 +88,27 @@ export function generateSQL(state: QueryState): string {
   parts.push(selectClause);
 
   // FROM clause - required for valid SQL
-  if (state.tables.length > 0) {
-    const fromClause = generateFromClause(state.tables[0]);
-    parts.push(fromClause);
+  // If we have columns, WHERE, GROUP BY, or ORDER BY, we need a FROM clause
+  const needsFromClause = state.columns.length > 0 || 
+                          state.where.length > 0 || 
+                          state.groupBy.length > 0 || 
+                          state.orderBy.length > 0;
+  
+  if (needsFromClause) {
+    if (state.tables.length > 0) {
+      const fromClause = generateFromClause(state.tables[0]);
+      parts.push(fromClause);
+    } else {
+      // If no tables are specified but we have columns/WHERE/etc, we still need FROM
+      // Try to infer table from first column or use a placeholder
+      const firstColumn = state.columns.find(c => c.type === 'simple') as SimpleColumn | undefined;
+      if (firstColumn && firstColumn.table) {
+        parts.push(`FROM ${escapeIdentifier(firstColumn.table)}`);
+      } else {
+        // Fallback: use a placeholder (this shouldn't happen in normal usage)
+        parts.push('FROM [Table]');
+      }
+    }
 
     // JOIN clauses (only valid if we have a FROM clause)
     if (state.joins.length > 0) {
@@ -177,8 +202,27 @@ export function generateExpression(node: ExpressionNode): string {
 
     case 'literal':
       // Quote string literals, but keep parameters as-is
-      if (typeof node.value === 'string' && !node.value.match(/^@\w+$/)) {
-        return `'${node.value.replace(/'/g, "''")}'`;
+      // Also don't quote if it looks like SQL code (contains SQL keywords, functions, operators, etc.)
+      if (typeof node.value === 'string') {
+        const value = node.value.trim();
+        // Don't quote if it's a parameter
+        if (value.match(/^@\w+$/)) {
+          return value;
+        }
+        // Don't quote if it looks like SQL code (contains SQL keywords, CAST, functions, operators, etc.)
+        const sqlPatterns = [
+          /\b(CAST|CONVERT|ISNULL|COALESCE|SUM|AVG|COUNT|MIN|MAX|ROW_NUMBER|RANK|DENSE_RANK)\s*\(/i,
+          /\b(AS|SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|OUTER|ON|GROUP|BY|ORDER|ASC|DESC)\b/i,
+          /[+\-*/()]/, // Arithmetic operators
+          /\./, // Table.column notation
+          /\[.*\]/, // Bracketed identifiers
+        ];
+        const looksLikeSQL = sqlPatterns.some(pattern => pattern.test(value));
+        if (looksLikeSQL) {
+          return value; // Return as-is, don't quote
+        }
+        // Otherwise, quote it as a string literal
+        return `'${value.replace(/'/g, "''")}'`;
       }
       return String(node.value || '');
 
