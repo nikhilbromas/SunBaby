@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { CalculatedColumn } from '../../services/types';
-import { SQL_FUNCTIONS, SQL_FUNCTION_CATEGORIES, getFunctionsByCategory } from '../../utils/sqlFunctions';
+import { SQL_FUNCTION_CATEGORIES, getFunctionsByCategory } from '../../utils/sqlFunctions';
 import './ExpressionBuilder.css';
 
 interface ExpressionBuilderProps {

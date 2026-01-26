@@ -119,7 +119,7 @@ function parseJoins(sql: string, warnings: string[]): JoinConfig[] {
 /**
  * Parse JOIN ON conditions
  */
-function parseJoinConditions(onClause: string | undefined, warnings: string[]): any[] {
+function parseJoinConditions(onClause: string | undefined, _warnings: string[]): any[] {
   if (!onClause) return [];
   
   const conditions: any[] = [];
@@ -314,7 +314,7 @@ function parseWhereCondition(expr: string, warnings: string[]): WhereCondition |
 /**
  * Parse GROUP BY clause
  */
-function parseGroupBy(sql: string, warnings: string[]): string[] {
+function parseGroupBy(sql: string, _warnings: string[]): string[] {
   const groupByMatch = sql.match(/GROUP\s+BY\s+(.*?)(?:\s+ORDER\s+BY|$)/is);
   
   if (!groupByMatch) {
@@ -330,7 +330,7 @@ function parseGroupBy(sql: string, warnings: string[]): string[] {
 /**
  * Parse ORDER BY clause
  */
-function parseOrderBy(sql: string, warnings: string[]): { column: string; direction: 'ASC' | 'DESC' }[] {
+function parseOrderBy(sql: string, _warnings: string[]): { column: string; direction: 'ASC' | 'DESC' }[] {
   const orderByMatch = sql.match(/ORDER\s+BY\s+(.+)$/is);
   
   if (!orderByMatch) {

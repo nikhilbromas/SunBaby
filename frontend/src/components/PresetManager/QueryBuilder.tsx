@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { QueryState, ColumnConfig, SimpleColumn, WindowFunction, CalculatedColumn } from '../../services/types';
+import type { QueryState, SimpleColumn } from '../../services/types';
 import { generateSQL } from '../../utils/sqlGenerator';
 import TableSelector from './TableSelector';
 import ColumnSelector from './ColumnSelector';
@@ -35,7 +35,7 @@ const TABS: Tab[] = [
 ];
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
-  initialSQL,
+  initialSQL: _initialSQL,
   onApply,
   onCancel
 }) => {
