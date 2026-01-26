@@ -29,13 +29,16 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'columns' | 'finalRows' | 'style'>('general');
   const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set());
   const [expandedColumn, setExpandedColumn] = useState<number | null>(null);
+  const [expandedCells, setExpandedCells] = useState<Record<string, boolean>>({});
   const [showBindingSuggestions, setShowBindingSuggestions] = useState<Record<number, boolean>>({});
+  const [showFormulaBuilder, setShowFormulaBuilder] = useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     if (isOpen) {
       setEditedTable({ ...table });
       setSelectedColumns(new Set());
       setExpandedColumn(null);
+      setExpandedCells({});
       setActiveTab('general');
     }
   }, [isOpen, table]);
@@ -305,6 +308,610 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
   };
 
   const calculationSources = getCalculationSources();
+
+  // Formula Builder Component with improved collapse functionality
+  const FormulaBuilder: React.FC<{
+    formula: string;
+    onFormulaChange: (formula: string) => void;
+    id: string;
+  }> = ({ formula, onFormulaChange, id }) => {
+    const [currentFunction, setCurrentFunction] = useState<string>('');
+    const [currentSource, setCurrentSource] = useState<string>('');
+    const [currentField, setCurrentField] = useState<string>('');
+    const [currentNumber, setCurrentNumber] = useState<string>('');
+    const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+      functions: false,
+      operators: false,
+      numbers: false,
+      examples: false
+    });
+
+    const toggleSection = (section: string) => {
+      setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
+    const addFunction = () => {
+      if (currentFunction && currentSource && currentField) {
+        const funcFormula = `${currentFunction}(${currentSource}.${currentField})`;
+        onFormulaChange(formula ? `${formula} + ${funcFormula}` : funcFormula);
+        setCurrentFunction('');
+        setCurrentSource('');
+        setCurrentField('');
+      } else if (currentFunction && currentSource) {
+        // For count, field is optional
+        const funcFormula = `${currentFunction}(${currentSource})`;
+        onFormulaChange(formula ? `${formula} + ${funcFormula}` : funcFormula);
+        setCurrentFunction('');
+        setCurrentSource('');
+      }
+    };
+
+    const addOperator = (op: string) => {
+      onFormulaChange(formula ? `${formula} ${op} ` : `${op} `);
+    };
+
+    const addNumber = () => {
+      if (currentNumber) {
+        onFormulaChange(formula ? `${formula} ${currentNumber}` : currentNumber);
+        setCurrentNumber('');
+      }
+    };
+
+    const addParenthesis = (open: boolean) => {
+      onFormulaChange(formula ? `${formula}${open ? '(' : ')'}` : (open ? '(' : ')'));
+    };
+
+    const clearFormula = () => {
+      onFormulaChange('');
+    };
+
+    const removeLast = () => {
+      if (formula) {
+        const newFormula = formula.trim().slice(0, -1).trim();
+        onFormulaChange(newFormula);
+      }
+    };
+
+    const isExpanded = showFormulaBuilder[id];
+
+    return (
+      <div className="formula-builder" style={{
+        marginTop: '1rem',
+        padding: isExpanded ? '1.25rem' : '0.75rem',
+        background: 'linear-gradient(135deg, rgba(11, 99, 255, 0.08) 0%, rgba(30, 136, 229, 0.04) 100%)',
+        border: '2px solid rgba(11, 99, 255, 0.2)',
+        borderRadius: '8px',
+        transition: 'all 0.3s ease'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isExpanded ? '1rem' : '0' }}>
+          <h5 style={{ margin: 0, color: '#0B63FF', fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🧮</span>
+            <span>Visual Formula Builder</span>
+            {formula && (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                fontWeight: 400, 
+                color: '#6c757d',
+                fontFamily: 'monospace',
+                marginLeft: '0.5rem'
+              }}>
+                ({formula.length} chars)
+              </span>
+            )}
+          </h5>
+          <button
+            type="button"
+            onClick={() => setShowFormulaBuilder({ ...showFormulaBuilder, [id]: !showFormulaBuilder[id] })}
+            style={{
+              background: isExpanded ? 'rgba(11, 99, 255, 0.15)' : 'rgba(11, 99, 255, 0.1)',
+              border: '1px solid rgba(11, 99, 255, 0.3)',
+              borderRadius: '4px',
+              padding: '0.4rem 0.9rem',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              color: '#0B63FF',
+              fontWeight: 600,
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(11, 99, 255, 0.2)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = isExpanded ? 'rgba(11, 99, 255, 0.15)' : 'rgba(11, 99, 255, 0.1)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <span>{isExpanded ? '▼' : '▶'}</span>
+            <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
+          </button>
+        </div>
+
+        {isExpanded && (
+          <div className="formula-builder-content">
+            {/* Formula Preview */}
+            <div style={{
+              marginBottom: '1rem',
+              padding: '0.75rem',
+              background: '#ffffff',
+              border: '2px solid rgba(11, 99, 255, 0.2)',
+              borderRadius: '6px',
+              minHeight: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem'
+            }}>
+              {formula ? (
+                <code style={{ 
+                  fontSize: '0.9rem', 
+                  color: '#0B63FF',
+                  fontFamily: 'monospace',
+                  wordBreak: 'break-all'
+                }}>
+                  {formula}
+                </code>
+              ) : (
+                <span style={{ color: '#6c757d', fontStyle: 'italic' }}>Formula will appear here...</span>
+              )}
+            </div>
+
+            {/* Function Builder - Collapsible */}
+            <div style={{ marginBottom: '1rem', border: '1px solid rgba(11, 99, 255, 0.15)', borderRadius: '6px', overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => toggleSection('functions')}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: collapsedSections.functions ? 'rgba(11, 99, 255, 0.05)' : 'rgba(11, 99, 255, 0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#2c3e50',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📊</span>
+                  <span>Add Calculation Function</span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                  {collapsedSections.functions ? '▶' : '▼'}
+                </span>
+              </button>
+              {!collapsedSections.functions && (
+                <div style={{ padding: '1rem', background: 'white' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#2c3e50' }}>
+                Select function, source, and field:
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <select
+                  value={currentFunction}
+                  onChange={(e) => setCurrentFunction(e.target.value)}
+                  style={{
+                    padding: '0.5rem',
+                    border: '1px solid rgba(11, 99, 255, 0.2)',
+                    borderRadius: '4px',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <option value="">Select function...</option>
+                  <option value="sum">➕ Sum</option>
+                  <option value="avg">📊 Average</option>
+                  <option value="count">🔢 Count</option>
+                  <option value="min">📉 Min</option>
+                  <option value="max">📈 Max</option>
+                </select>
+                <select
+                  value={currentSource}
+                  onChange={(e) => {
+                    setCurrentSource(e.target.value);
+                    setCurrentField('');
+                  }}
+                  style={{
+                    padding: '0.5rem',
+                    border: '1px solid rgba(11, 99, 255, 0.2)',
+                    borderRadius: '4px',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <option value="">Select source...</option>
+                  {calculationSources.map(source => (
+                    <option key={source.value} value={source.value}>
+                      {source.label}
+                    </option>
+                  ))}
+                </select>
+                {currentFunction !== 'count' && (
+                  <select
+                    value={currentField}
+                    onChange={(e) => setCurrentField(e.target.value)}
+                    disabled={!currentSource}
+                    style={{
+                      padding: '0.5rem',
+                      border: '1px solid rgba(11, 99, 255, 0.2)',
+                      borderRadius: '4px',
+                      fontSize: '0.9rem',
+                      opacity: currentSource ? 1 : 0.5
+                    }}
+                  >
+                    <option value="">Select field...</option>
+                    {currentSource && getFieldsFromSource(currentSource).map(field => (
+                      <option key={field.value} value={field.value}>
+                        {field.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {currentFunction === 'count' && <div></div>}
+                <button
+                  type="button"
+                  onClick={addFunction}
+                  disabled={!currentFunction || !currentSource || (currentFunction !== 'count' && !currentField)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: (currentFunction && currentSource && (currentFunction === 'count' || currentField))
+                      ? 'linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%)'
+                      : '#e9ecef',
+                    color: (currentFunction && currentSource && (currentFunction === 'count' || currentField))
+                      ? 'white'
+                      : '#6c757d',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: (currentFunction && currentSource && (currentFunction === 'count' || currentField))
+                      ? 'pointer'
+                      : 'not-allowed',
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+                </div>
+              )}
+            </div>
+
+            {/* Operators - Collapsible */}
+            <div style={{ marginBottom: '1rem', border: '1px solid rgba(11, 99, 255, 0.15)', borderRadius: '6px', overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => toggleSection('operators')}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: collapsedSections.operators ? 'rgba(11, 99, 255, 0.05)' : 'rgba(11, 99, 255, 0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#2c3e50',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>➕</span>
+                  <span>Add Operator</span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                  {collapsedSections.operators ? '▶' : '▼'}
+                </span>
+              </button>
+              {!collapsedSections.operators && (
+                <div style={{ padding: '1rem', background: 'white' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#2c3e50' }}>
+                Click an operator to add it:
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {['+', '-', '*', '/'].map(op => (
+                  <button
+                    key={op}
+                    type="button"
+                    onClick={() => addOperator(op)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: 'white',
+                      border: '2px solid rgba(11, 99, 255, 0.3)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '1.2rem',
+                      fontWeight: 'bold',
+                      color: '#0B63FF',
+                      minWidth: '50px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(11, 99, 255, 0.1)';
+                      e.currentTarget.style.transform = 'scale(1.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+                </div>
+              )}
+            </div>
+
+            {/* Number Input - Collapsible */}
+            <div style={{ marginBottom: '1rem', border: '1px solid rgba(11, 99, 255, 0.15)', borderRadius: '6px', overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => toggleSection('numbers')}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: collapsedSections.numbers ? 'rgba(11, 99, 255, 0.05)' : 'rgba(11, 99, 255, 0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#2c3e50',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>🔢</span>
+                  <span>Add Number</span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                  {collapsedSections.numbers ? '▶' : '▼'}
+                </span>
+              </button>
+              {!collapsedSections.numbers && (
+                <div style={{ padding: '1rem', background: 'white' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#2c3e50' }}>
+                Enter a number to add:
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="number"
+                  value={currentNumber}
+                  onChange={(e) => setCurrentNumber(e.target.value)}
+                  placeholder="Enter number..."
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    border: '1px solid rgba(11, 99, 255, 0.2)',
+                    borderRadius: '4px',
+                    fontSize: '0.9rem'
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      addNumber();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={addNumber}
+                  disabled={!currentNumber}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: currentNumber
+                      ? 'linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%)'
+                      : '#e9ecef',
+                    color: currentNumber ? 'white' : '#6c757d',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: currentNumber ? 'pointer' : 'not-allowed',
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+                </div>
+              )}
+            </div>
+
+            {/* Parentheses - Always visible, compact */}
+            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#2c3e50', marginRight: '0.5rem' }}>
+                📐 Grouping:
+              </label>
+              <button
+                type="button"
+                onClick={() => addParenthesis(true)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'white',
+                  border: '2px solid rgba(11, 99, 255, 0.3)',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  color: '#0B63FF',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(11, 99, 255, 0.1)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                (
+              </button>
+              <button
+                type="button"
+                onClick={() => addParenthesis(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'white',
+                  border: '2px solid rgba(11, 99, 255, 0.3)',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  color: '#0B63FF',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(11, 99, 255, 0.1)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                )
+              </button>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(11, 99, 255, 0.2)' }}>
+              <button
+                type="button"
+                onClick={clearFormula}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#ff6b6b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: 600
+                }}
+              >
+                🗑️ Clear All
+              </button>
+              <button
+                type="button"
+                onClick={removeLast}
+                disabled={!formula}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: formula ? '#ffa500' : '#e9ecef',
+                  color: formula ? 'white' : '#6c757d',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: formula ? 'pointer' : 'not-allowed',
+                  fontSize: '0.85rem',
+                  fontWeight: 600
+                }}
+              >
+                ⌫ Remove Last
+              </button>
+            </div>
+
+            {/* Quick Examples - Collapsible */}
+            <div style={{
+              marginTop: '1rem',
+              border: '1px solid rgba(11, 99, 255, 0.15)',
+              borderRadius: '6px',
+              overflow: 'hidden'
+            }}>
+              <button
+                type="button"
+                onClick={() => toggleSection('examples')}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: collapsedSections.examples ? 'rgba(11, 99, 255, 0.05)' : 'rgba(11, 99, 255, 0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#2c3e50',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>💡</span>
+                  <span>Quick Examples</span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                  {collapsedSections.examples ? '▶' : '▼'}
+                </span>
+              </button>
+              {!collapsedSections.examples && (
+                <div style={{ padding: '1rem', background: '#f8f9fa', fontSize: '0.85rem', color: '#6c757d' }}>
+              <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#2c3e50' }}>Click to use these examples:</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => onFormulaChange('sum(items.Amount)')}
+                  style={{
+                    textAlign: 'left',
+                    padding: '0.5rem',
+                    background: 'white',
+                    border: '1px solid rgba(11, 99, 255, 0.2)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    color: '#0B63FF'
+                  }}
+                >
+                  Sum of all amounts: <code>sum(items.Amount)</code>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFormulaChange('avg(items.Price) * 1.1')}
+                  style={{
+                    textAlign: 'left',
+                    padding: '0.5rem',
+                    background: 'white',
+                    border: '1px solid rgba(11, 99, 255, 0.2)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    color: '#0B63FF'
+                  }}
+                >
+                  Average with 10% markup: <code>avg(items.Price) * 1.1</code>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFormulaChange('count(items) * header.unitPrice')}
+                  style={{
+                    textAlign: 'left',
+                    padding: '0.5rem',
+                    background: 'white',
+                    border: '1px solid rgba(11, 99, 255, 0.2)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    color: '#0B63FF'
+                  }}
+                >
+                  Count times unit price: <code>count(items) * header.unitPrice</code>
+                </button>
+              </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -741,32 +1348,42 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                       <span>✨</span> Custom Formula
                                     </span>
-                                    <input
-                                      type="text"
-                                      value={col.calculationFormula || ''}
-                                      onChange={(e) => updateColumn(index, { calculationFormula: e.target.value })}
-                                      placeholder="e.g., sum(items.rate) * header.exchangeRate"
-                                      className="formula-input"
-                                    />
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                      <input
+                                        type="text"
+                                        value={col.calculationFormula || ''}
+                                        onChange={(e) => updateColumn(index, { calculationFormula: e.target.value })}
+                                        placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                                        className="formula-input"
+                                        style={{ flex: 1 }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowFormulaBuilder({ ...showFormulaBuilder, [`col-${index}`]: !showFormulaBuilder[`col-${index}`] })}
+                                        style={{
+                                          padding: '0.5rem 1rem',
+                                          background: 'linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%)',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontSize: '0.85rem',
+                                          fontWeight: 600,
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                      >
+                                        🧮 {showFormulaBuilder[`col-${index}`] ? 'Hide' : 'Show'} Builder
+                                      </button>
+                                    </div>
                                   </label>
                                   <small className="field-hint">
-                                    💡 Use functions like sum(), avg(), count(), min(), max() with field paths
+                                    💡 Use the formula builder below or type directly
                                   </small>
-                                  <div style={{ 
-                                    marginTop: '0.5rem', 
-                                    padding: '0.75rem', 
-                                    background: '#f8f9fa', 
-                                    borderRadius: '6px',
-                                    fontSize: '0.85rem',
-                                    color: '#6c757d'
-                                  }}>
-                                    <strong>Examples:</strong>
-                                    <ul style={{ margin: '0.5rem 0 0 1.5rem', padding: 0 }}>
-                                      <li><code>sum(items.Amount)</code> - Sum of all amounts</li>
-                                      <li><code>avg(items.Price) * 1.1</code> - Average price with 10% markup</li>
-                                      <li><code>count(items) * header.unitPrice</code> - Count times unit price</li>
-                                    </ul>
-                                  </div>
+                                  <FormulaBuilder
+                                    formula={col.calculationFormula || ''}
+                                    onFormulaChange={(formula) => updateColumn(index, { calculationFormula: formula })}
+                                    id={`col-${index}`}
+                                  />
                                 </div>
                               )}
                             </>
@@ -860,10 +1477,36 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
 
                       <div className="final-row-cells">
                         <h5>Cells</h5>
-                        {finalRow.cells.map((cell, cellIndex) => (
-                          <div key={cellIndex} className="final-row-cell">
+                        {finalRow.cells.map((cell, cellIndex) => {
+                          const cellKey = `row-${rowIndex}-cell-${cellIndex}`;
+                          const isExpanded = expandedCells[cellKey] !== false; // Default to expanded
+                          
+                          return (
+                          <div key={cellIndex} className={`final-row-cell ${isExpanded ? 'expanded' : ''}`}>
                             <div className="cell-header">
-                              <span>Cell {cellIndex + 1}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                                <button
+                                  className="expand-btn"
+                                  onClick={() => setExpandedCells({ ...expandedCells, [cellKey]: !isExpanded })}
+                                  style={{
+                                    background: 'transparent',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    padding: '0.375rem 0.75rem',
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  {isExpanded ? '▼' : '▶'}
+                                </button>
+                                <span style={{ fontWeight: 600, color: '#495057' }}>Cell {cellIndex + 1}</span>
+                                {cell.label && (
+                                  <span style={{ fontSize: '0.85rem', color: '#6c757d', fontStyle: 'italic' }}>
+                                    - {cell.label}
+                                  </span>
+                                )}
+                              </div>
                               <button
                                 className="delete-btn small"
                                 onClick={() => deleteCellFromFinalRow(rowIndex, cellIndex)}
@@ -871,6 +1514,9 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                                 ×
                               </button>
                             </div>
+
+                            {isExpanded && (
+                            <div className="cell-content" style={{ paddingTop: '1rem', borderTop: '1px solid #e9ecef', animation: 'slideDown 0.2s ease' }}>
 
                             <div className="form-group">
                               <label>
@@ -1023,32 +1669,42 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <span>✨</span> Custom Formula
                                   </span>
-                                  <input
-                                    type="text"
-                                    value={cell.formula || ''}
-                                    onChange={(e) => updateFinalRowCell(rowIndex, cellIndex, { formula: e.target.value })}
-                                    placeholder="e.g., sum(items.rate) * header.exchangeRate"
-                                    className="formula-input"
-                                  />
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <input
+                                      type="text"
+                                      value={cell.formula || ''}
+                                      onChange={(e) => updateFinalRowCell(rowIndex, cellIndex, { formula: e.target.value })}
+                                      placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                                      className="formula-input"
+                                      style={{ flex: 1 }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowFormulaBuilder({ ...showFormulaBuilder, [`cell-${rowIndex}-${cellIndex}`]: !showFormulaBuilder[`cell-${rowIndex}-${cellIndex}`] })}
+                                      style={{
+                                        padding: '0.5rem 1rem',
+                                        background: 'linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      🧮 {showFormulaBuilder[`cell-${rowIndex}-${cellIndex}`] ? 'Hide' : 'Show'} Builder
+                                    </button>
+                                  </div>
                                 </label>
                                 <small className="field-hint">
-                                  💡 Use functions like sum(), avg(), count(), min(), max() with field paths
+                                  💡 Use the formula builder below or type directly
                                 </small>
-                                <div style={{ 
-                                  marginTop: '0.5rem', 
-                                  padding: '0.75rem', 
-                                  background: '#f8f9fa', 
-                                  borderRadius: '6px',
-                                  fontSize: '0.85rem',
-                                  color: '#6c757d'
-                                }}>
-                                  <strong>Examples:</strong>
-                                  <ul style={{ margin: '0.5rem 0 0 1.5rem', padding: 0 }}>
-                                    <li><code>sum(items.Amount)</code> - Sum of all amounts</li>
-                                    <li><code>avg(items.Price) * 1.1</code> - Average price with 10% markup</li>
-                                    <li><code>count(items) * header.unitPrice</code> - Count times unit price</li>
-                                  </ul>
-                                </div>
+                                <FormulaBuilder
+                                  formula={cell.formula || ''}
+                                  onFormulaChange={(formula) => updateFinalRowCell(rowIndex, cellIndex, { formula })}
+                                  id={`cell-${rowIndex}-${cellIndex}`}
+                                />
                               </div>
                             )}
 
@@ -1114,8 +1770,11 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                                 Bold
                               </label>
                             </div>
+                            </div>
+                            )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))
