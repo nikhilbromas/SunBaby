@@ -328,64 +328,49 @@ function parseColumns(sql: string, warnings: string[], aliasMap: AliasMap): Colu
 }
 
 /**
- * Extract inner expression from nested parentheses
+ * Parse CAST expression - detects if expression is a CAST or contains CAST
  */
-function extractInnerExpression(expr: string, startIndex: number): { inner: string; endIndex: number } | null {
-  if (expr[startIndex] !== '(') return null;
+function parseCastExpression(expr: string): { innerExpr: string; dataType: string } | null {
+  // Check if expression starts with CAST or TRY_CAST
+  if (!expr.match(/^(?:TRY_)?CAST\s*\(/i)) {
+    return null;
+  }
   
+  // Find the opening parenthesis after CAST
+  const castMatch = expr.match(/^(?:TRY_)?CAST\s*\(/i);
+  if (!castMatch) return null;
+  
+  const openParenIndex = castMatch[0].length - 1; // Position of '('
+  
+  // Find the matching closing parenthesis
   let depth = 0;
-  let i = startIndex;
-  while (i < expr.length) {
+  let asIndex = -1;
+  let closeParenIndex = -1;
+  
+  for (let i = openParenIndex; i < expr.length; i++) {
     if (expr[i] === '(') depth++;
-    if (expr[i] === ')') {
+    else if (expr[i] === ')') {
       depth--;
       if (depth === 0) {
-        return {
-          inner: expr.substring(startIndex + 1, i),
-          endIndex: i + 1
-        };
+        closeParenIndex = i;
+        break;
       }
     }
-    i++;
-  }
-  return null;
-}
-
-/**
- * Parse CAST expression
- */
-function parseCastExpression(expr: string, aliasMap: AliasMap): { innerExpr: string; dataType: string } | null {
-  // Match CAST(expression AS datatype) or TRY_CAST(expression AS datatype)
-  // Handle datatypes like DECIMAL(18,2), VARCHAR(255), etc.
-  // Use a more robust approach: find the AS keyword and split there
-  const castMatch = expr.match(/^(?:TRY_)?CAST\s*\(\s*(.+?)\s+AS\s+(.+?)\s*\)$/is);
-  if (castMatch) {
-    // The datatype might contain parentheses (e.g., DECIMAL(18,2))
-    // So we need to be more careful
-    let innerExpr = castMatch[1].trim();
-    let dataType = castMatch[2].trim();
-    
-    // If datatype ends with ), it might have captured too much
-    // Try to find the actual AS keyword position
-    const asIndex = expr.toUpperCase().indexOf(' AS ');
-    if (asIndex > 0) {
-      // Find the opening parenthesis
-      const openParen = expr.indexOf('(');
-      if (openParen >= 0 && asIndex > openParen) {
-        innerExpr = expr.substring(openParen + 1, asIndex).trim();
-        // Find the closing parenthesis from the end
-        const closeParen = expr.lastIndexOf(')');
-        if (closeParen > asIndex) {
-          dataType = expr.substring(asIndex + 4, closeParen).trim();
-        }
+    // Find the AS keyword that's not inside nested parentheses
+    if (depth === 1 && asIndex === -1) {
+      const asCheck = expr.substring(i, i + 4).toUpperCase();
+      if (asCheck === ' AS ') {
+        asIndex = i;
       }
     }
-    
-    return {
-      innerExpr,
-      dataType
-    };
   }
+  
+  if (asIndex > 0 && closeParenIndex > asIndex) {
+    const innerExpr = expr.substring(openParenIndex + 1, asIndex).trim();
+    const dataType = expr.substring(asIndex + 4, closeParenIndex).trim();
+    return { innerExpr, dataType };
+  }
+  
   return null;
 }
 
@@ -438,27 +423,22 @@ function parseColumnExpression(expr: string, warnings: string[], aliasMap: Alias
     }
   }
   
-  // Check for window functions
-  if (expression.match(/ROW_NUMBER|RANK|DENSE_RANK|NTILE|LAG|LEAD/i)) {
-    warnings.push(`Window function detected - use visual builder to recreate: ${expression.substring(0, 50)}...`);
-    return null;
-  }
-  
-  // Check for aggregate functions (with optional brackets)
-  const aggMatch = expression.match(/(SUM|AVG|COUNT|MIN|MAX)\s*\(\s*(.+?)\s*\)/i);
-  if (aggMatch) {
-    let colPart = removeBrackets(aggMatch[2]).replace(/\[|\]/g, '');
-    colPart = resolveColumnAlias(colPart, aliasMap);
+  // FIRST: Check for any expression containing CAST (including nested, arithmetic, etc.)
+  // This must come BEFORE window function check to catch CAST expressions
+  if (expression.match(/CAST\s*\(/i) || expression.match(/TRY_CAST\s*\(/i)) {
+    // Store as calculated column - no warning needed
     return {
-      type: 'aggregate',
-      function: aggMatch[1].toUpperCase() as any,
-      column: colPart,
-      alias: alias || expression
+      type: 'calculated',
+      alias: alias,
+      expression: {
+        type: 'literal',
+        value: expression
+      }
     } as ColumnConfig;
   }
   
   // Check for CAST expressions - these should be treated as calculated columns
-  const castInfo = parseCastExpression(expression, aliasMap);
+  const castInfo = parseCastExpression(expression);
   if (castInfo) {
     // Store as calculated column - the ExpressionBuilder can handle CAST expressions
     // No warning needed since we can edit it in the visual builder
@@ -486,16 +466,22 @@ function parseColumnExpression(expr: string, warnings: string[], aliasMap: Alias
     } as ColumnConfig;
   }
   
-  // Check for any expression containing CAST (including nested, arithmetic, etc.)
-  if (expression.match(/CAST\s*\(/i) || expression.match(/TRY_CAST\s*\(/i)) {
-    // Store as calculated column - no warning needed
+  // Check for window functions (but not if it contains CAST - already handled above)
+  if (expression.match(/ROW_NUMBER|RANK|DENSE_RANK|NTILE|LAG|LEAD/i)) {
+    warnings.push(`Window function detected - use visual builder to recreate: ${expression.substring(0, 50)}...`);
+    return null;
+  }
+  
+  // Check for aggregate functions (with optional brackets)
+  const aggMatch = expression.match(/(SUM|AVG|COUNT|MIN|MAX)\s*\(\s*(.+?)\s*\)/i);
+  if (aggMatch) {
+    let colPart = removeBrackets(aggMatch[2]).replace(/\[|\]/g, '');
+    colPart = resolveColumnAlias(colPart, aliasMap);
     return {
-      type: 'calculated',
-      alias: alias,
-      expression: {
-        type: 'literal',
-        value: expression
-      }
+      type: 'aggregate',
+      function: aggMatch[1].toUpperCase() as any,
+      column: colPart,
+      alias: alias || expression
     } as ColumnConfig;
   }
   
@@ -673,7 +659,6 @@ function splitByComma(str: string): string[] {
   
   for (let i = 0; i < str.length; i++) {
     const char = str[i];
-    const nextChar = i < str.length - 1 ? str[i + 1] : '';
     
     if (char === '[') {
       inBrackets = true;
