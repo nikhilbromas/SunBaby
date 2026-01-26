@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { QueryState, SimpleColumn, ColumnInfo } from '../../services/types';
+import type { QueryState, SimpleColumn, ColumnInfo, CalculatedColumn, WindowFunction } from '../../services/types';
 import { generateSQL } from '../../utils/sqlGenerator';
 import { parseSQL } from '../../utils/sqlParser';
 import apiClient from '../../services/api';
@@ -53,6 +53,8 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   const [showExpressionBuilder, setShowExpressionBuilder] = useState(false);
   const [showWindowBuilder, setShowWindowBuilder] = useState(false);
+  const [editingCalculated, setEditingCalculated] = useState<{ column: CalculatedColumn; index: number } | null>(null);
+  const [editingWindow, setEditingWindow] = useState<{ column: WindowFunction; index: number } | null>(null);
   const [generatedSQL, setGeneratedSQL] = useState('');
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const parsedInitial = useRef(false);
@@ -340,31 +342,77 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
               {showExpressionBuilder ? (
                 <ExpressionBuilder
                   availableColumns={allAvailableColumns}
+                  initialValue={editingCalculated?.column}
                   onAdd={(col) => {
-                    setQueryState(prev => ({
-                      ...prev,
-                      columns: [...prev.columns, col]
-                    }));
+                    if (editingCalculated) {
+                      // Update existing
+                      setQueryState(prev => ({
+                        ...prev,
+                        columns: prev.columns.map((c, i) => 
+                          i === editingCalculated.index ? col : c
+                        )
+                      }));
+                      setEditingCalculated(null);
+                    } else {
+                      // Add new
+                      setQueryState(prev => ({
+                        ...prev,
+                        columns: [...prev.columns, col]
+                      }));
+                    }
                     setShowExpressionBuilder(false);
                   }}
-                  onCancel={() => setShowExpressionBuilder(false)}
+                  onUpdate={(col) => {
+                    if (editingCalculated) {
+                      setQueryState(prev => ({
+                        ...prev,
+                        columns: prev.columns.map((c, i) => 
+                          i === editingCalculated.index ? col : c
+                        )
+                      }));
+                      setEditingCalculated(null);
+                      setShowExpressionBuilder(false);
+                    }
+                  }}
+                  onCancel={() => {
+                    setShowExpressionBuilder(false);
+                    setEditingCalculated(null);
+                  }}
                 />
               ) : showWindowBuilder ? (
                 <WindowFunctionBuilder
                   availableColumns={allAvailableColumns}
+                  initialValue={editingWindow?.column}
                   onAdd={(windowFunc) => {
-                    setQueryState(prev => ({
-                      ...prev,
-                      columns: [...prev.columns, windowFunc]
-                    }));
+                    if (editingWindow) {
+                      // Update existing
+                      setQueryState(prev => ({
+                        ...prev,
+                        columns: prev.columns.map((c, i) => 
+                          i === editingWindow.index ? windowFunc : c
+                        )
+                      }));
+                      setEditingWindow(null);
+                    } else {
+                      // Add new
+                      setQueryState(prev => ({
+                        ...prev,
+                        columns: [...prev.columns, windowFunc]
+                      }));
+                    }
                     setShowWindowBuilder(false);
                   }}
-                  onCancel={() => setShowWindowBuilder(false)}
+                  onCancel={() => {
+                    setShowWindowBuilder(false);
+                    setEditingWindow(null);
+                  }}
                 />
               ) : (
                 <ColumnSelector
                   selectedTables={availableTables}
                   selectedColumns={queryState.columns.filter(c => c.type === 'simple') as SimpleColumn[]}
+                  calculatedColumns={queryState.columns.filter(c => c.type === 'calculated') as CalculatedColumn[]}
+                  windowColumns={queryState.columns.filter(c => c.type === 'window') as WindowFunction[]}
                   tableColumns={allTableColumns}
                   onChange={(columns) => {
                     const otherColumns = queryState.columns.filter(c => c.type !== 'simple');
@@ -373,8 +421,56 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                       columns: [...columns, ...otherColumns]
                     }));
                   }}
-                  onAddCalculated={() => setShowExpressionBuilder(true)}
-                  onAddWindow={() => setShowWindowBuilder(true)}
+                  onCalculatedChange={(columns) => {
+                    const otherColumns = queryState.columns.filter(c => c.type !== 'calculated');
+                    setQueryState(prev => ({
+                      ...prev,
+                      columns: [...otherColumns, ...columns]
+                    }));
+                  }}
+                  onWindowChange={(columns) => {
+                    const otherColumns = queryState.columns.filter(c => c.type !== 'window');
+                    setQueryState(prev => ({
+                      ...prev,
+                      columns: [...otherColumns, ...columns]
+                    }));
+                  }}
+                  onAddCalculated={() => {
+                    setEditingCalculated(null);
+                    setShowExpressionBuilder(true);
+                  }}
+                  onAddWindow={() => {
+                    setEditingWindow(null);
+                    setShowWindowBuilder(true);
+                  }}
+                  onEditCalculated={(col, index) => {
+                    // Find the actual index in queryState.columns
+                    const actualIndex = queryState.columns.findIndex((c, i) => {
+                      let calcIndex = 0;
+                      for (let j = 0; j < i; j++) {
+                        if (queryState.columns[j].type === 'calculated') calcIndex++;
+                      }
+                      return c.type === 'calculated' && calcIndex === index;
+                    });
+                    if (actualIndex >= 0) {
+                      setEditingCalculated({ column: col, index: actualIndex });
+                      setShowExpressionBuilder(true);
+                    }
+                  }}
+                  onEditWindow={(col, index) => {
+                    // Find the actual index in queryState.columns
+                    const actualIndex = queryState.columns.findIndex((c, i) => {
+                      let windowIndex = 0;
+                      for (let j = 0; j < i; j++) {
+                        if (queryState.columns[j].type === 'window') windowIndex++;
+                      }
+                      return c.type === 'window' && windowIndex === index;
+                    });
+                    if (actualIndex >= 0) {
+                      setEditingWindow({ column: col, index: actualIndex });
+                      setShowWindowBuilder(true);
+                    }
+                  }}
                 />
               )}
             </div>
@@ -506,3 +602,5 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 };
 
 export default QueryBuilder;
+
+

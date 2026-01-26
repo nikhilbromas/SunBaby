@@ -4,6 +4,7 @@ import './WindowFunctionBuilder.css';
 
 interface WindowFunctionBuilderProps {
   availableColumns: string[];
+  initialValue?: WindowFunction;
   onAdd: (windowFunc: WindowFunction) => void;
   onCancel: () => void;
 }
@@ -33,17 +34,28 @@ const WINDOW_FUNCTIONS: WindowFunctionType[] = [
 
 const WindowFunctionBuilder: React.FC<WindowFunctionBuilderProps> = ({
   availableColumns,
+  initialValue,
   onAdd,
   onCancel
 }) => {
-  const [selectedFunction, setSelectedFunction] = useState<WindowFunctionType>('ROW_NUMBER');
-  const [alias, setAlias] = useState('');
-  const [usePartitionBy, setUsePartitionBy] = useState(false);
-  const [partitionColumns, setPartitionColumns] = useState<string[]>([]);
-  const [useOrderBy, setUseOrderBy] = useState(true);
-  const [orderByItems, setOrderByItems] = useState<{ column: string; direction: 'ASC' | 'DESC' }[]>([
-    { column: availableColumns[0] || '', direction: 'ASC' }
-  ]);
+  const [selectedFunction, setSelectedFunction] = useState<WindowFunctionType>(
+    initialValue?.function || 'ROW_NUMBER'
+  );
+  const [alias, setAlias] = useState(initialValue?.alias || '');
+  const [usePartitionBy, setUsePartitionBy] = useState(
+    (initialValue?.partitionBy && initialValue.partitionBy.length > 0) || false
+  );
+  const [partitionColumns, setPartitionColumns] = useState<string[]>(
+    initialValue?.partitionBy || []
+  );
+  const [useOrderBy, setUseOrderBy] = useState<boolean>(
+    (initialValue?.orderBy && initialValue.orderBy.length > 0) || true
+  );
+  const [orderByItems, setOrderByItems] = useState<{ column: string; direction: 'ASC' | 'DESC' }[]>(
+    initialValue?.orderBy || [
+      { column: availableColumns[0] || '', direction: 'ASC' }
+    ]
+  );
 
   const handleAdd = () => {
     const windowFunc: WindowFunction = {
@@ -81,8 +93,8 @@ const WindowFunctionBuilder: React.FC<WindowFunctionBuilderProps> = ({
   return (
     <div className="window-function-builder">
       <div className="window-header">
-        <h3>🔢 Add Ranking or Running Calculation</h3>
-        <p>Add row numbers, rankings, or running totals to your results</p>
+        <h3>{initialValue ? '✏️ Edit Ranking or Running Calculation' : '🔢 Add Ranking or Running Calculation'}</h3>
+        <p>{initialValue ? 'Update your ranking or running calculation' : 'Add row numbers, rankings, or running totals to your results'}</p>
       </div>
 
       <div className="window-form">
@@ -242,7 +254,7 @@ const WindowFunctionBuilder: React.FC<WindowFunctionBuilderProps> = ({
           ← Back
         </button>
         <button type="button" onClick={handleAdd} className="add-btn primary">
-          ✓ Add {WINDOW_FUNCTION_INFO[selectedFunction].label}
+          {initialValue ? '✓ Update' : `✓ Add ${WINDOW_FUNCTION_INFO[selectedFunction].label}`}
         </button>
       </div>
     </div>

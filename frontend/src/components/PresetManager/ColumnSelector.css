@@ -409,6 +409,144 @@
   color: #1a56db;
 }
 
+/* Formula Fields Section */
+.formula-fields-section {
+  margin-top: 20px;
+  padding: 16px 20px;
+  background-color: #f0f9ff;
+  border-top: 2px solid #0ea5e9;
+  border-radius: 8px;
+}
+
+.formula-fields-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.formula-fields-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0c4a6e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formula-fields-header h4::before {
+  content: '📐';
+}
+
+.formula-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #0369a1;
+  background-color: #e0f2fe;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.formula-count .filtered-count {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.formula-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formula-item {
+  background: white;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.formula-item:hover {
+  border-color: #0ea5e9;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.1);
+}
+
+.formula-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.formula-icon {
+  font-size: 16px;
+}
+
+.formula-name {
+  font-weight: 600;
+  color: #0c4a6e;
+  flex: 1;
+}
+
+.formula-type-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #0369a1;
+  background-color: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.formula-expression {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #475569;
+  background-color: #f8fafc;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  word-break: break-all;
+  max-height: 60px;
+  overflow-y: auto;
+}
+
+.formula-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.edit-formula-btn,
+.delete-formula-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-formula-btn {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.edit-formula-btn:hover {
+  background-color: #2563eb;
+}
+
+.delete-formula-btn {
+  background-color: #ef4444;
+  color: white;
+}
+
+.delete-formula-btn:hover {
+  background-color: #dc2626;
+}
+
 /* Search Highlighting */
 .search-highlight {
   background-color: #fef3c7;

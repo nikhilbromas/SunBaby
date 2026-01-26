@@ -1,23 +1,35 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import type { ColumnInfo, SimpleColumn } from '../../services/types';
+import type { ColumnInfo, SimpleColumn, CalculatedColumn, WindowFunction } from '../../services/types';
 import './ColumnSelector.css';
 
 interface ColumnSelectorProps {
   selectedTables: string[];
   selectedColumns: SimpleColumn[];
+  calculatedColumns: CalculatedColumn[];
+  windowColumns: WindowFunction[];
   tableColumns: Record<string, ColumnInfo[]>; // Passed from parent (centralized)
   onChange: (columns: SimpleColumn[]) => void;
+  onCalculatedChange: (columns: CalculatedColumn[]) => void;
+  onWindowChange: (columns: WindowFunction[]) => void;
   onAddCalculated?: () => void;
   onAddWindow?: () => void;
+  onEditCalculated?: (column: CalculatedColumn, index: number) => void;
+  onEditWindow?: (column: WindowFunction, index: number) => void;
 }
 
 const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   selectedTables,
   selectedColumns,
+  calculatedColumns,
+  windowColumns,
   tableColumns,
   onChange,
+  onCalculatedChange,
+  onWindowChange,
   onAddCalculated,
-  onAddWindow
+  onAddWindow,
+  onEditCalculated,
+  onEditWindow
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [collapsedTables, setCollapsedTables] = useState<Set<string>>(new Set());
@@ -86,17 +98,26 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   // Check if columns are loading (no columns data for a table yet)
   const hasLoadingTables = selectedTables.some(t => !findTableKey(t));
 
-  // Filter columns based on search term
+  // Filter columns based on search term - enhanced to match partial names
   const filterColumns = useCallback((columns: ColumnInfo[], tableName: string): ColumnInfo[] => {
     if (!searchTerm.trim()) return columns;
     
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = searchTerm.toLowerCase().trim();
+    // Split search term into words for more flexible matching
+    const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0);
+    
     return columns.filter(col => {
       const colName = col.name.toLowerCase();
       const dataType = (col.dataType || '').toLowerCase();
       
-      // Check if column name matches
+      // Check if column name contains the search term (partial match)
+      // This will match "billid" in "posdbillid", "poshbillid", etc.
       if (colName.includes(searchLower)) return true;
+      
+      // Also check if all search words are present in column name
+      if (searchWords.length > 1 && searchWords.every(word => colName.includes(word))) {
+        return true;
+      }
       
       // Check if data type matches
       if (dataType.includes(searchLower)) return true;
@@ -111,6 +132,48 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
       return false;
     });
   }, [searchTerm, selectedColumns]);
+  
+  // Filter formula fields based on search term
+  const filterFormulaFields = useCallback((fields: CalculatedColumn[] | WindowFunction[]): (CalculatedColumn | WindowFunction)[] => {
+    if (!searchTerm.trim()) return fields;
+    
+    const searchLower = searchTerm.toLowerCase().trim();
+    
+    return fields.filter(field => {
+      // Check alias/name
+      if (field.alias.toLowerCase().includes(searchLower)) return true;
+      
+      // For calculated columns, check expression text
+      if (field.type === 'calculated') {
+        const getExpressionText = (expr: any): string => {
+          if (typeof expr === 'string') return expr;
+          if (expr?.type === 'literal') return expr.value || '';
+          if (expr?.type === 'column') return `${expr.table ? `${expr.table}.` : ''}${expr.column}`;
+          if (expr?.type === 'function') {
+            const args = expr.args?.map(getExpressionText).join(', ') || '';
+            return `${expr.name}(${args})`;
+          }
+          if (expr?.type === 'operator') {
+            const left = getExpressionText(expr.left);
+            const right = getExpressionText(expr.right);
+            return `(${left} ${expr.operator} ${right})`;
+          }
+          return JSON.stringify(expr);
+        };
+        const expressionText = getExpressionText(field.expression);
+        if (expressionText.toLowerCase().includes(searchLower)) return true;
+      }
+      
+      // For window functions, check function name and columns
+      if (field.type === 'window') {
+        if (field.function.toLowerCase().includes(searchLower)) return true;
+        if (field.partitionBy?.some(col => col.toLowerCase().includes(searchLower))) return true;
+        if (field.orderBy?.some(o => o.column.toLowerCase().includes(searchLower))) return true;
+      }
+      
+      return false;
+    });
+  }, [searchTerm]);
 
   // Get tables that have matching columns (for auto-expand)
   const tablesWithMatches = useMemo(() => {
@@ -379,6 +442,141 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
           <span className="selected-count">{selectedColumns.length} fields selected</span>
         </div>
       )}
+
+      {/* Formula Fields Section */}
+      {(() => {
+        const filteredCalculated = searchTerm.trim() 
+          ? filterFormulaFields(calculatedColumns) as CalculatedColumn[]
+          : calculatedColumns;
+        const filteredWindow = searchTerm.trim()
+          ? filterFormulaFields(windowColumns) as WindowFunction[]
+          : windowColumns;
+        
+        if (filteredCalculated.length === 0 && filteredWindow.length === 0) {
+          return null;
+        }
+        
+        return (
+          <div className="formula-fields-section">
+            <div className="formula-fields-header">
+              <h4>Formula Fields</h4>
+              <span className="formula-count">
+                {filteredCalculated.length + filteredWindow.length} formula{filteredCalculated.length + filteredWindow.length !== 1 ? 's' : ''}
+                {searchTerm.trim() && (calculatedColumns.length + windowColumns.length !== filteredCalculated.length + filteredWindow.length) && (
+                  <span className="filtered-count">
+                    {' '}(filtered from {calculatedColumns.length + windowColumns.length})
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* Calculated Columns */}
+            {filteredCalculated.length > 0 && (
+              <div className="formula-list">
+                {filteredCalculated.map((col, index) => {
+                  // Find original index for proper editing
+                  const originalIndex = calculatedColumns.findIndex(c => c === col);
+                // Extract expression text from expression node
+                const getExpressionText = (expr: any): string => {
+                  if (typeof expr === 'string') return expr;
+                  if (expr?.type === 'literal') return expr.value || '';
+                  if (expr?.type === 'column') return `${expr.table ? `${expr.table}.` : ''}${expr.column}`;
+                  if (expr?.type === 'function') {
+                    const args = expr.args?.map(getExpressionText).join(', ') || '';
+                    return `${expr.name}(${args})`;
+                  }
+                  if (expr?.type === 'operator') {
+                    const left = getExpressionText(expr.left);
+                    const right = getExpressionText(expr.right);
+                    return `(${left} ${expr.operator} ${right})`;
+                  }
+                  return JSON.stringify(expr);
+                };
+                
+                const expressionText = getExpressionText(col.expression);
+                
+                return (
+                  <div key={`calc-${index}`} className="formula-item">
+                    <div className="formula-item-header">
+                      <span className="formula-icon">📐</span>
+                      <span className="formula-name">{col.alias || 'Unnamed Formula'}</span>
+                      <span className="formula-type-badge">Formula</span>
+                    </div>
+                    <div className="formula-expression">{expressionText}</div>
+                    <div className="formula-actions">
+                      {onEditCalculated && (
+                        <button
+                          className="edit-formula-btn"
+                          onClick={() => onEditCalculated(col, originalIndex >= 0 ? originalIndex : index)}
+                          title="Edit formula"
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
+                      <button
+                        className="delete-formula-btn"
+                        onClick={() => {
+                          const updated = calculatedColumns.filter((_, i) => i !== (originalIndex >= 0 ? originalIndex : index));
+                          onCalculatedChange(updated);
+                        }}
+                        title="Delete formula"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+            {/* Window Function Columns */}
+            {filteredWindow.length > 0 && (
+              <div className="formula-list">
+                {filteredWindow.map((col, index) => {
+                  // Find original index for proper editing
+                  const originalIndex = windowColumns.findIndex(c => c === col);
+                  const partitionText = col.partitionBy?.join(', ') || '';
+                  const orderByText = col.orderBy?.map(o => `${o.column} ${o.direction}`).join(', ') || '';
+                  const functionText = `${col.function}(${partitionText ? `PARTITION BY ${partitionText}` : ''}${orderByText ? ` ORDER BY ${orderByText}` : ''})`;
+                  
+                  return (
+                    <div key={`window-${index}`} className="formula-item">
+                      <div className="formula-item-header">
+                        <span className="formula-icon">🔢</span>
+                        <span className="formula-name">{col.alias || 'Unnamed Ranking'}</span>
+                        <span className="formula-type-badge">Ranking</span>
+                      </div>
+                      <div className="formula-expression">{functionText}</div>
+                      <div className="formula-actions">
+                        {onEditWindow && (
+                          <button
+                            className="edit-formula-btn"
+                            onClick={() => onEditWindow(col, originalIndex >= 0 ? originalIndex : index)}
+                            title="Edit ranking"
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
+                        <button
+                          className="delete-formula-btn"
+                          onClick={() => {
+                            const updated = windowColumns.filter((_, i) => i !== (originalIndex >= 0 ? originalIndex : index));
+                            onWindowChange(updated);
+                          }}
+                          title="Delete ranking"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };

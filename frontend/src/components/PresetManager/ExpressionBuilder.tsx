@@ -7,6 +7,8 @@ interface ExpressionBuilderProps {
   availableColumns: string[];
   onAdd: (column: CalculatedColumn) => void;
   onCancel: () => void;
+  initialValue?: CalculatedColumn;
+  onUpdate?: (column: CalculatedColumn) => void;
 }
 
 // User-friendly category labels
@@ -23,10 +25,31 @@ const CATEGORY_LABELS: Record<string, string> = {
 const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   availableColumns,
   onAdd,
-  onCancel
+  onCancel,
+  initialValue,
+  onUpdate
 }) => {
-  const [alias, setAlias] = useState('');
-  const [expressionText, setExpressionText] = useState('');
+  // Helper to extract expression text from expression node
+  const getExpressionText = (expr: any): string => {
+    if (typeof expr === 'string') return expr;
+    if (expr?.type === 'literal') return expr.value || '';
+    if (expr?.type === 'column') return `${expr.table ? `${expr.table}.` : ''}${expr.column}`;
+    if (expr?.type === 'function') {
+      const args = expr.args?.map(getExpressionText).join(', ') || '';
+      return `${expr.name}(${args})`;
+    }
+    if (expr?.type === 'operator') {
+      const left = getExpressionText(expr.left);
+      const right = getExpressionText(expr.right);
+      return `(${left} ${expr.operator} ${right})`;
+    }
+    return JSON.stringify(expr);
+  };
+
+  const [alias, setAlias] = useState(initialValue?.alias || '');
+  const [expressionText, setExpressionText] = useState(
+    initialValue ? getExpressionText(initialValue.expression) : ''
+  );
   const [selectedCategory, setSelectedCategory] = useState(SQL_FUNCTION_CATEGORIES[0]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -182,7 +205,11 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
       }
     };
 
-    onAdd(calculatedColumn);
+    if (onUpdate && initialValue) {
+      onUpdate(calculatedColumn);
+    } else {
+      onAdd(calculatedColumn);
+    }
   };
 
   const functionsInCategory = getFunctionsByCategory(selectedCategory);
@@ -190,8 +217,8 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   return (
     <div className="expression-builder">
       <div className="expression-header">
-        <h3>➕ Add Formula Field</h3>
-        <p>Create a calculated field using math, functions, or other fields</p>
+        <h3>{initialValue ? '✏️ Edit Formula Field' : '➕ Add Formula Field'}</h3>
+        <p>{initialValue ? 'Update your calculated field' : 'Create a calculated field using math, functions, or other fields'}</p>
       </div>
 
       <div className="expression-form">
@@ -372,7 +399,7 @@ Examples:
           className="add-btn primary"
           disabled={!alias.trim() || !expressionText.trim()}
         >
-          ✓ Add Formula Field
+          {initialValue ? '✓ Update Formula' : '✓ Add Formula Field'}
         </button>
       </div>
     </div>
