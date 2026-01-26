@@ -30,11 +30,8 @@ import type {
   Department,
   Shop,
   Interface,
-  TableInfo,
   TableListResponse,
-  ColumnInfo,
   ColumnListResponse,
-  RelationshipInfo,
   RelationshipListResponse,
 } from './types';
 
