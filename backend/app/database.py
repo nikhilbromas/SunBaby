@@ -458,11 +458,14 @@ class Database:
                             # No parameters, execute directly
                             cursor.execute(query)
                         else:
-                            # Get unique parameter names for validation
-                            param_names = list(set(match.group(1) for match in all_param_matches))
+                            # Get unique parameter names for validation (lowercase for comparison)
+                            param_names_lower = list(set(match.group(1).lower() for match in all_param_matches))
                             
-                            # Validate all required parameters are provided
-                            missing_params = [p for p in param_names if p not in params]
+                            # Build case-insensitive param lookup
+                            params_lower = {k.lower(): v for k, v in params.items()}
+                            
+                            # Validate all required parameters are provided (case-insensitive)
+                            missing_params = [p for p in param_names_lower if p not in params_lower]
                             if missing_params:
                                 raise ValueError(f"Missing required parameters: {', '.join(missing_params)}")
                             
@@ -474,11 +477,12 @@ class Database:
                             # Process matches in reverse order to preserve positions
                             for match in reversed(all_param_matches):
                                 param_name = match.group(1)
+                                param_name_lower = param_name.lower()
                                 start, end = match.span()
                                 # Replace this occurrence with ? 
                                 formatted_query = formatted_query[:start] + '?' + formatted_query[end:]
-                                # Add the parameter value (will be used in reverse order, so prepend)
-                                param_values.insert(0, params[param_name])
+                                # Add the parameter value (case-insensitive lookup)
+                                param_values.insert(0, params_lower[param_name_lower])
                             
                             # Execute the parameterized query
                             cursor.execute(formatted_query, param_values)

@@ -282,33 +282,40 @@ async def test_preset_queries(
         
         # Extract required parameters
         param_pattern = r'@(\w+)'
-        required_params = []
+        required_params_set = set()  # Use set to avoid duplicates (case-insensitive)
         
         # Extract from headerQuery and itemQuery
         if 'headerQuery' in sql_json and sql_json['headerQuery']:
             params = re.findall(param_pattern, sql_json['headerQuery'], re.IGNORECASE)
-            required_params.extend(params)
+            for p in params:
+                required_params_set.add(p.lower())
         
         if 'itemQuery' in sql_json and sql_json['itemQuery']:
             params = re.findall(param_pattern, sql_json['itemQuery'], re.IGNORECASE)
-            required_params.extend(params)
+            for p in params:
+                required_params_set.add(p.lower())
         
         # Extract from contentDetails
         if 'contentDetails' in sql_json and isinstance(sql_json['contentDetails'], list):
             for content_detail in sql_json['contentDetails']:
                 if isinstance(content_detail, dict) and 'query' in content_detail:
                     params = re.findall(param_pattern, content_detail['query'], re.IGNORECASE)
-                    required_params.extend(params)
+                    for p in params:
+                        required_params_set.add(p.lower())
         
-        required_params = list(set(required_params))
+        # Build case-insensitive map of provided parameters
+        provided_params_lower = {k.lower(): v for k, v in request.parameters.items()}
         
-        # Validate parameters
-        missing_params = [p for p in required_params if p not in request.parameters]
+        # Validate parameters (case-insensitive)
+        missing_params = [p for p in required_params_set if p not in provided_params_lower]
         if missing_params:
             raise HTTPException(
                 status_code=400,
                 detail=f"Missing required parameters: {', '.join(missing_params)}"
             )
+        
+        # Normalize parameters for SQL execution (use lowercase keys)
+        normalized_params = {k.lower(): v for k, v in request.parameters.items()}
         
         # Execute queries and get sample data
         header_data = None
@@ -317,9 +324,12 @@ async def test_preset_queries(
         items_fields = []
         content_details_data = {}
         
+        # Use normalized parameters for execution (handles case differences)
+        exec_params = normalized_params
+        
         if 'headerQuery' in sql_json:
             try:
-                header_data = db.execute_query(sql_json['headerQuery'], request.parameters)
+                header_data = db.execute_query(sql_json['headerQuery'], exec_params)
                 if header_data and len(header_data) > 0:
                     header_fields = list(header_data[0].keys())
                     header_data = header_data[0]  # Return first row as sample
@@ -329,7 +339,7 @@ async def test_preset_queries(
         
         if 'itemQuery' in sql_json:
             try:
-                items_data = db.execute_query(sql_json['itemQuery'], request.parameters)
+                items_data = db.execute_query(sql_json['itemQuery'], exec_params)
                 if items_data and len(items_data) > 0:
                     items_fields = list(items_data[0].keys())
                     items_data = items_data[:5]  # Return first 5 rows as samples
@@ -348,7 +358,7 @@ async def test_preset_queries(
                 data_type = content_detail.get('dataType', 'array')  # Default to 'array' for backward compatibility
                 
                 try:
-                    cd_data = db.execute_query(query, request.parameters)
+                    cd_data = db.execute_query(query, exec_params)
                     cd_fields = []
                     
                     if data_type == 'object':
