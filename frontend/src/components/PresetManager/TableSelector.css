@@ -178,3 +178,19 @@
   font-weight: 600;
   color: #1a56db;
 }
+
+/* Selected table styling - make it more prominent */
+.table-item.selected {
+  background-color: #dbeafe;
+  border-color: #1a56db;
+  box-shadow: 0 2px 4px rgba(26, 86, 219, 0.15);
+}
+
+.table-item.selected .table-name {
+  color: #1a56db;
+}
+
+.table-item.selected .table-icon {
+  background-color: #1a56db;
+  color: white;
+}

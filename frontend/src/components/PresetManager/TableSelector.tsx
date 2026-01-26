@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import apiClient from '../../services/api';
 import type { TableInfo } from '../../services/types';
 import './TableSelector.css';
@@ -36,9 +36,65 @@ const TableSelector: React.FC<TableSelectorProps> = ({
     }
   };
 
+  // Combine selected tables with API results, ensuring selected tables always appear
+  const displayTables = useMemo(() => {
+    const tableNames = new Set(tables.map(t => t.name.toLowerCase()));
+    
+    // Create placeholder entries for selected tables not in API results
+    const missingSelectedTables: TableInfo[] = selectedTables
+      .filter(name => !tableNames.has(name.toLowerCase()))
+      .map(name => ({
+        name,
+        schemaName: 'dbo',
+        type: 'table' as const,
+        rowCount: undefined
+      }));
+    
+    // If searching, filter to only show matching tables but always include selected
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchingTables = tables.filter(t => 
+        t.name.toLowerCase().includes(searchLower) ||
+        selectedTables.some(s => s.toLowerCase() === t.name.toLowerCase())
+      );
+      const matchingMissing = missingSelectedTables.filter(t =>
+        t.name.toLowerCase().includes(searchLower) ||
+        selectedTables.some(s => s.toLowerCase() === t.name.toLowerCase())
+      );
+      
+      // Sort: selected tables first, then alphabetically
+      return [...matchingMissing, ...matchingTables].sort((a, b) => {
+        const aSelected = selectedTables.some(s => s.toLowerCase() === a.name.toLowerCase());
+        const bSelected = selectedTables.some(s => s.toLowerCase() === b.name.toLowerCase());
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    
+    // No search - show selected first, then all tables
+    const allTables = [...missingSelectedTables, ...tables];
+    return allTables.sort((a, b) => {
+      const aSelected = selectedTables.some(s => s.toLowerCase() === a.name.toLowerCase());
+      const bSelected = selectedTables.some(s => s.toLowerCase() === b.name.toLowerCase());
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [tables, selectedTables, searchTerm]);
+
+  // Case-insensitive check for table selection
+  const isTableSelected = (tableName: string): boolean => {
+    return selectedTables.some(s => s.toLowerCase() === tableName.toLowerCase());
+  };
+
   const handleTableClick = (tableName: string) => {
-    if (selectedTables.includes(tableName)) {
-      onTableDeselect(tableName);
+    if (isTableSelected(tableName)) {
+      // Find the exact name in selectedTables (case-insensitive match)
+      const exactName = selectedTables.find(s => s.toLowerCase() === tableName.toLowerCase());
+      if (exactName) {
+        onTableDeselect(exactName);
+      }
     } else {
       onTableSelect(tableName);
     }
@@ -62,36 +118,39 @@ const TableSelector: React.FC<TableSelectorProps> = ({
 
       {!loading && !error && (
         <div className="table-list">
-          {tables.length === 0 ? (
+          {displayTables.length === 0 ? (
             <div className="table-list-empty">
               <div className="empty-icon">📋</div>
               <p>No data sources found</p>
               <span>Try a different search term</span>
             </div>
           ) : (
-            tables.map((table) => (
-              <div
-                key={table.name}
-                className={`table-item ${selectedTables.includes(table.name) ? 'selected' : ''}`}
-                onClick={() => handleTableClick(table.name)}
-              >
-                <span className="table-icon">
-                  {table.type === 'table' ? '📋' : '👁️'}
-                </span>
-                <div className="table-info">
-                  <span className="table-name">{table.name}</span>
-                  <span className="table-type">
-                    {table.type === 'table' ? 'Table' : 'View'}
+            displayTables.map((table) => {
+              const selected = isTableSelected(table.name);
+              return (
+                <div
+                  key={table.name}
+                  className={`table-item ${selected ? 'selected' : ''}`}
+                  onClick={() => handleTableClick(table.name)}
+                >
+                  <span className="table-icon">
+                    {table.type === 'table' ? '📋' : '👁️'}
                   </span>
+                  <div className="table-info">
+                    <span className="table-name">{table.name}</span>
+                    <span className="table-type">
+                      {table.type === 'table' ? 'Table' : 'View'}
+                    </span>
+                  </div>
+                  {table.rowCount !== undefined && table.rowCount !== null && (
+                    <span className="table-rows">{table.rowCount.toLocaleString()} records</span>
+                  )}
+                  {selected && (
+                    <span className="selected-badge">✓ Selected</span>
+                  )}
                 </div>
-                {table.rowCount !== undefined && table.rowCount !== null && (
-                  <span className="table-rows">{table.rowCount.toLocaleString()} records</span>
-                )}
-                {selectedTables.includes(table.name) && (
-                  <span className="selected-badge">✓ Selected</span>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
