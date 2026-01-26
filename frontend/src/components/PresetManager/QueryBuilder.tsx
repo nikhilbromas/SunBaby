@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { QueryState, SimpleColumn } from '../../services/types';
 import { generateSQL } from '../../utils/sqlGenerator';
+import { parseSQL } from '../../utils/sqlParser';
 import TableSelector from './TableSelector';
 import ColumnSelector from './ColumnSelector';
 import JoinBuilder from './JoinBuilder';
@@ -35,7 +36,7 @@ const TABS: Tab[] = [
 ];
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
-  initialSQL: _initialSQL,
+  initialSQL,
   onApply,
   onCancel
 }) => {
@@ -52,6 +53,41 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const [showExpressionBuilder, setShowExpressionBuilder] = useState(false);
   const [showWindowBuilder, setShowWindowBuilder] = useState(false);
   const [generatedSQL, setGeneratedSQL] = useState('');
+  const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const parsedInitial = useRef(false);
+
+  // Parse initial SQL when provided
+  useEffect(() => {
+    if (initialSQL && initialSQL.trim() && !parsedInitial.current) {
+      parsedInitial.current = true;
+      const result = parseSQL(initialSQL);
+      
+      if (result.state) {
+        setQueryState({
+          tables: result.state.tables || [],
+          joins: result.state.joins || [],
+          columns: result.state.columns || [],
+          where: result.state.where || [],
+          groupBy: result.state.groupBy || [],
+          orderBy: result.state.orderBy || []
+        });
+        
+        // If we parsed some data, go to preview tab
+        if (result.state.tables && result.state.tables.length > 0) {
+          setActiveTab('preview');
+        }
+      }
+      
+      if (result.warnings.length > 0) {
+        setParseWarnings(result.warnings);
+      }
+      
+      // If parsing failed, keep the original SQL in generatedSQL
+      if (!result.success || result.errors.length > 0) {
+        setGeneratedSQL(initialSQL);
+      }
+    }
+  }, [initialSQL]);
 
   // Generate SQL whenever query state changes
   useEffect(() => {
@@ -138,6 +174,24 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Parse Warnings */}
+      {parseWarnings.length > 0 && (
+        <div className="parse-warnings">
+          <div className="parse-warnings-header">
+            <span>⚠️ Some parts of the existing query couldn't be fully parsed:</span>
+            <button onClick={() => setParseWarnings([])} className="dismiss-btn">✕</button>
+          </div>
+          <ul>
+            {parseWarnings.slice(0, 3).map((warning, i) => (
+              <li key={i}>{warning}</li>
+            ))}
+            {parseWarnings.length > 3 && (
+              <li>...and {parseWarnings.length - 3} more</li>
+            )}
+          </ul>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="query-tabs">

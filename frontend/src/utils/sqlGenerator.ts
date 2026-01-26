@@ -1,6 +1,7 @@
 /**
  * SQL Generator Utility
  * Generates SQL queries from query builder state
+ * Uses SQL Server bracket notation for identifiers to avoid reserved keyword conflicts
  */
 
 import type {
@@ -14,6 +15,60 @@ import type {
   WhereCondition,
   ExpressionNode
 } from '../services/types';
+
+/**
+ * SQL Server reserved keywords that need escaping
+ */
+const SQL_RESERVED_KEYWORDS = new Set([
+  'add', 'all', 'alter', 'and', 'any', 'as', 'asc', 'authorization', 'backup', 'begin',
+  'between', 'break', 'browse', 'bulk', 'by', 'cascade', 'case', 'check', 'checkpoint',
+  'close', 'clustered', 'coalesce', 'collate', 'column', 'commit', 'compute', 'constraint',
+  'contains', 'containstable', 'continue', 'convert', 'create', 'cross', 'current',
+  'current_date', 'current_time', 'current_timestamp', 'current_user', 'cursor', 'database',
+  'dbcc', 'deallocate', 'declare', 'default', 'delete', 'deny', 'desc', 'disk', 'distinct',
+  'distributed', 'double', 'drop', 'dump', 'else', 'end', 'errlvl', 'escape', 'except',
+  'exec', 'execute', 'exists', 'exit', 'external', 'fetch', 'file', 'fillfactor', 'for',
+  'foreign', 'freetext', 'freetexttable', 'from', 'full', 'function', 'goto', 'grant',
+  'group', 'having', 'holdlock', 'identity', 'identity_insert', 'identitycol', 'if', 'in',
+  'index', 'inner', 'insert', 'intersect', 'into', 'is', 'join', 'key', 'kill', 'left',
+  'like', 'lineno', 'load', 'merge', 'national', 'natural', 'nocheck', 'nonclustered',
+  'not', 'null', 'nullif', 'number', 'of', 'off', 'offsets', 'on', 'open', 'opendatasource',
+  'openquery', 'openrowset', 'openxml', 'option', 'or', 'order', 'outer', 'over', 'percent',
+  'pivot', 'plan', 'precision', 'primary', 'print', 'proc', 'procedure', 'public',
+  'raiserror', 'read', 'readtext', 'reconfigure', 'references', 'replication', 'restore',
+  'restrict', 'return', 'revert', 'revoke', 'right', 'rollback', 'rowcount', 'rowguidcol',
+  'rule', 'save', 'schema', 'securityaudit', 'select', 'semantickeyphrasetable',
+  'semanticsimilaritydetailstable', 'semanticsimilaritytable', 'session_user', 'set',
+  'setuser', 'shutdown', 'some', 'statistics', 'system_user', 'table', 'tablesample',
+  'textsize', 'then', 'to', 'top', 'tran', 'transaction', 'trigger', 'truncate', 'try_convert',
+  'tsequal', 'union', 'unique', 'unpivot', 'update', 'updatetext', 'use', 'user', 'values',
+  'varying', 'view', 'waitfor', 'when', 'where', 'while', 'with', 'within', 'writetext'
+]);
+
+/**
+ * Escape identifier if it's a reserved keyword
+ */
+function escapeIdentifier(identifier: string): string {
+  if (!identifier) return identifier;
+  
+  // If it contains a dot (table.column), split and escape each part
+  if (identifier.includes('.')) {
+    const parts = identifier.split('.');
+    return parts.map(part => escapeIdentifier(part)).join('.');
+  }
+  
+  // Check if it's a reserved keyword (case-insensitive)
+  if (SQL_RESERVED_KEYWORDS.has(identifier.toLowerCase())) {
+    return `[${identifier}]`;
+  }
+  
+  // Also escape if it contains special characters or starts with a number
+  if (/[^a-zA-Z0-9_]/.test(identifier) || /^[0-9]/.test(identifier)) {
+    return `[${identifier}]`;
+  }
+  
+  return identifier;
+}
 
 /**
  * Generate complete SQL query from query state
@@ -95,8 +150,13 @@ export function generateSelectClause(columns: ColumnConfig[]): string {
  * Generate simple column reference
  */
 function generateSimpleColumn(col: SimpleColumn): string {
-  const fullColumn = col.table ? `${col.table}.${col.column}` : col.column;
-  return col.alias ? `${fullColumn} AS ${col.alias}` : fullColumn;
+  let fullColumn: string;
+  if (col.table) {
+    fullColumn = `${escapeIdentifier(col.table)}.${escapeIdentifier(col.column)}`;
+  } else {
+    fullColumn = escapeIdentifier(col.column);
+  }
+  return col.alias ? `${fullColumn} AS ${escapeIdentifier(col.alias)}` : fullColumn;
 }
 
 /**
@@ -104,7 +164,7 @@ function generateSimpleColumn(col: SimpleColumn): string {
  */
 function generateCalculatedColumn(col: CalculatedColumn): string {
   const expression = generateExpression(col.expression);
-  return col.alias ? `${expression} AS ${col.alias}` : expression;
+  return col.alias ? `${expression} AS ${escapeIdentifier(col.alias)}` : expression;
 }
 
 /**
@@ -113,10 +173,10 @@ function generateCalculatedColumn(col: CalculatedColumn): string {
 export function generateExpression(node: ExpressionNode): string {
   switch (node.type) {
     case 'column':
-      return String(node.value || '');
+      return escapeIdentifier(String(node.value || ''));
 
     case 'literal':
-      // Quote string literals
+      // Quote string literals, but keep parameters as-is
       if (typeof node.value === 'string' && !node.value.match(/^@\w+$/)) {
         return `'${node.value.replace(/'/g, "''")}'`;
       }
@@ -153,11 +213,11 @@ export function generateWindowFunction(col: WindowFunction): string {
   const overParts: string[] = [];
 
   if (col.partitionBy && col.partitionBy.length > 0) {
-    overParts.push(`PARTITION BY ${col.partitionBy.join(', ')}`);
+    overParts.push(`PARTITION BY ${col.partitionBy.map(c => escapeIdentifier(c)).join(', ')}`);
   }
 
   if (col.orderBy && col.orderBy.length > 0) {
-    const orderItems = col.orderBy.map(o => `${o.column} ${o.direction}`).join(', ');
+    const orderItems = col.orderBy.map(o => `${escapeIdentifier(o.column)} ${o.direction}`).join(', ');
     overParts.push(`ORDER BY ${orderItems}`);
   }
 
@@ -169,7 +229,7 @@ export function generateWindowFunction(col: WindowFunction): string {
     sql += ` OVER (${overParts.join(' ')})`;
   }
 
-  return col.alias ? `${sql} AS ${col.alias}` : sql;
+  return col.alias ? `${sql} AS ${escapeIdentifier(col.alias)}` : sql;
 }
 
 /**
@@ -177,15 +237,16 @@ export function generateWindowFunction(col: WindowFunction): string {
  */
 function generateAggregateColumn(col: AggregateColumn): string {
   const distinct = col.distinct ? 'DISTINCT ' : '';
-  const agg = `${col.function}(${distinct}${col.column})`;
-  return col.alias ? `${agg} AS ${col.alias}` : agg;
+  const agg = `${col.function}(${distinct}${escapeIdentifier(col.column)})`;
+  return col.alias ? `${agg} AS ${escapeIdentifier(col.alias)}` : agg;
 }
 
 /**
  * Generate FROM clause
  */
 export function generateFromClause(table: { name: string; alias?: string }): string {
-  return table.alias ? `FROM ${table.name} ${table.alias}` : `FROM ${table.name}`;
+  const tableName = escapeIdentifier(table.name);
+  return table.alias ? `FROM ${tableName} ${escapeIdentifier(table.alias)}` : `FROM ${tableName}`;
 }
 
 /**
@@ -193,12 +254,13 @@ export function generateFromClause(table: { name: string; alias?: string }): str
  */
 export function generateJoinClauses(joins: JoinConfig[]): string {
   return joins.map(join => {
-    const tablePart = join.alias ? `${join.table} ${join.alias}` : join.table;
+    const tableName = escapeIdentifier(join.table);
+    const tablePart = join.alias ? `${tableName} ${escapeIdentifier(join.alias)}` : tableName;
     let joinStr = `${join.type} JOIN ${tablePart}`;
 
     if (join.conditions.length > 0 && join.type !== 'CROSS') {
       const conditions = join.conditions.map((cond, index) => {
-        const condStr = `${cond.leftColumn} ${cond.operator} ${cond.rightColumn}`;
+        const condStr = `${escapeIdentifier(cond.leftColumn)} ${cond.operator} ${escapeIdentifier(cond.rightColumn)}`;
         if (index === 0) {
           return condStr;
         }
@@ -219,14 +281,15 @@ export function generateWhereClause(conditions: WhereCondition[]): string {
 
   const conditionStrings = conditions.map((cond, index) => {
     let condStr = '';
+    const columnName = escapeIdentifier(cond.column);
 
     if (cond.operator === 'IS NULL' || cond.operator === 'IS NOT NULL') {
-      condStr = `${cond.column} ${cond.operator}`;
+      condStr = `${columnName} ${cond.operator}`;
     } else if (cond.operator === 'IN') {
       const values = Array.isArray(cond.value)
         ? cond.value.map(v => typeof v === 'string' ? `'${v}'` : v).join(', ')
         : String(cond.value);
-      condStr = `${cond.column} IN (${values})`;
+      condStr = `${columnName} IN (${values})`;
     } else {
       let value = cond.value;
       if (cond.isParameter) {
@@ -234,7 +297,7 @@ export function generateWhereClause(conditions: WhereCondition[]): string {
       } else if (typeof value === 'string') {
         value = `'${value.replace(/'/g, "''")}'`;
       }
-      condStr = `${cond.column} ${cond.operator} ${value}`;
+      condStr = `${columnName} ${cond.operator} ${value}`;
     }
 
     if (index === 0) {
@@ -250,14 +313,14 @@ export function generateWhereClause(conditions: WhereCondition[]): string {
  * Generate GROUP BY clause
  */
 export function generateGroupByClause(columns: string[]): string {
-  return `GROUP BY ${columns.join(', ')}`;
+  return `GROUP BY ${columns.map(c => escapeIdentifier(c)).join(', ')}`;
 }
 
 /**
  * Generate ORDER BY clause
  */
 export function generateOrderByClause(orderBy: { column: string; direction: 'ASC' | 'DESC' }[]): string {
-  const orderItems = orderBy.map(o => `${o.column} ${o.direction}`).join(', ');
+  const orderItems = orderBy.map(o => `${escapeIdentifier(o.column)} ${o.direction}`).join(', ');
   return `ORDER BY ${orderItems}`;
 }
 
@@ -272,4 +335,3 @@ export function formatSQL(sql: string): string {
     .filter(line => line.length > 0)
     .join('\n');
 }
-
