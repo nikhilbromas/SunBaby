@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import type { QueryState, SimpleColumn } from '../../services/types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import type { QueryState, SimpleColumn, ColumnInfo } from '../../services/types';
 import { generateSQL } from '../../utils/sqlGenerator';
 import { parseSQL } from '../../utils/sqlParser';
+import apiClient from '../../services/api';
 import TableSelector from './TableSelector';
 import ColumnSelector from './ColumnSelector';
 import JoinBuilder from './JoinBuilder';
@@ -55,6 +56,68 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const [generatedSQL, setGeneratedSQL] = useState('');
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const parsedInitial = useRef(false);
+  
+  // Centralized column storage for ALL tables (FROM + JOINed tables)
+  const [allTableColumns, setAllTableColumns] = useState<Record<string, ColumnInfo[]>>({});
+  const loadedTablesRef = useRef<Set<string>>(new Set());
+  const [columnsLoading, setColumnsLoading] = useState(false);
+
+  // Load columns for specified tables
+  const loadColumnsForTables = useCallback(async (tableNames: string[]) => {
+    const tablesToLoad = tableNames.filter(t => !loadedTablesRef.current.has(t));
+    if (tablesToLoad.length === 0) return;
+    
+    setColumnsLoading(true);
+    const newColumns: Record<string, ColumnInfo[]> = {};
+    
+    for (const tableName of tablesToLoad) {
+      try {
+        const response = await apiClient.getTableColumns(tableName);
+        newColumns[tableName] = response.columns;
+        loadedTablesRef.current.add(tableName);
+      } catch (error) {
+        console.error(`Failed to load columns for ${tableName}`, error);
+        newColumns[tableName] = [];
+        loadedTablesRef.current.add(tableName);
+      }
+    }
+    
+    if (Object.keys(newColumns).length > 0) {
+      setAllTableColumns(prev => ({ ...prev, ...newColumns }));
+    }
+    setColumnsLoading(false);
+  }, []);
+
+  // Get all table names (FROM tables + JOINed tables)
+  const getAllTableNames = useCallback((): string[] => {
+    const fromTables = queryState.tables.map(t => t.name);
+    const joinTables = queryState.joins.map(j => j.table).filter(t => t && t.trim());
+    const allNames = [...new Set([...fromTables, ...joinTables])];
+    return allNames;
+  }, [queryState.tables, queryState.joins]);
+
+  // Load columns when tables or joins change
+  useEffect(() => {
+    const allTableNames = getAllTableNames();
+    
+    // Remove columns for tables that are no longer selected
+    const currentTables = new Set(allTableNames);
+    const tablesToRemove = Array.from(loadedTablesRef.current).filter(t => !currentTables.has(t));
+    
+    if (tablesToRemove.length > 0) {
+      tablesToRemove.forEach(t => loadedTablesRef.current.delete(t));
+      setAllTableColumns(prev => {
+        const updated = { ...prev };
+        tablesToRemove.forEach(t => delete updated[t]);
+        return updated;
+      });
+    }
+    
+    // Load columns for new tables
+    if (allTableNames.length > 0) {
+      loadColumnsForTables(allTableNames);
+    }
+  }, [queryState.tables, queryState.joins, getAllTableNames, loadColumnsForTables]);
 
   // Parse initial SQL when provided
   useEffect(() => {
@@ -117,14 +180,32 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   };
 
   const availableTables = queryState.tables.map(t => t.name);
-  const availableColumns = queryState.columns
-    .filter(c => c.type === 'simple')
-    .map(c => {
-      const sc = c as SimpleColumn;
-      return sc.table ? `${sc.table}.${sc.column}` : sc.column;
-    });
-
-  const allAvailableColumns = [...availableColumns, ...queryState.groupBy];
+  
+  // Get all tables including joined tables
+  const allTables = getAllTableNames();
+  
+  // Compute ALL available columns from all tables (for JoinBuilder, WhereBuilder, etc.)
+  const allAvailableColumns = React.useMemo(() => {
+    const columns: string[] = [];
+    
+    // Add columns from all tables in Table.Column format
+    for (const tableName of allTables) {
+      const tableColList = allTableColumns[tableName] || [];
+      for (const col of tableColList) {
+        columns.push(`${tableName}.${col.name}`);
+      }
+    }
+    
+    // Also include any groupBy columns that might not be in the table columns
+    for (const gb of queryState.groupBy) {
+      if (!columns.includes(gb)) {
+        columns.push(gb);
+      }
+    }
+    
+    return columns;
+  }, [allTables, allTableColumns, queryState.groupBy]);
+  
 
   const getTabStatus = (tabId: TabId): 'pending' | 'active' | 'completed' => {
     if (tabId === activeTab) return 'active';
@@ -236,6 +317,9 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           {/* Tab: Choose Columns */}
           {activeTab === 'columns' && (
             <div className="builder-section">
+              {columnsLoading && (
+                <div className="columns-loading-indicator">Loading columns...</div>
+              )}
               {showExpressionBuilder ? (
                 <ExpressionBuilder
                   availableColumns={allAvailableColumns}
@@ -264,6 +348,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 <ColumnSelector
                   selectedTables={availableTables}
                   selectedColumns={queryState.columns.filter(c => c.type === 'simple') as SimpleColumn[]}
+                  tableColumns={allTableColumns}
                   onChange={(columns) => {
                     const otherColumns = queryState.columns.filter(c => c.type !== 'simple');
                     setQueryState(prev => ({

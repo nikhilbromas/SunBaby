@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import apiClient from '../../services/api';
+import React, { useCallback } from 'react';
 import type { ColumnInfo, SimpleColumn } from '../../services/types';
 import './ColumnSelector.css';
 
 interface ColumnSelectorProps {
   selectedTables: string[];
   selectedColumns: SimpleColumn[];
+  tableColumns: Record<string, ColumnInfo[]>; // Passed from parent (centralized)
   onChange: (columns: SimpleColumn[]) => void;
   onAddCalculated?: () => void;
   onAddWindow?: () => void;
@@ -14,63 +14,11 @@ interface ColumnSelectorProps {
 const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   selectedTables,
   selectedColumns,
+  tableColumns,
   onChange,
   onAddCalculated,
   onAddWindow
 }) => {
-  const [tableColumns, setTableColumns] = useState<Record<string, ColumnInfo[]>>({});
-  const [loading, setLoading] = useState(false);
-  const loadedTablesRef = useRef<Set<string>>(new Set());
-
-  // Load columns only for newly added tables
-  const loadColumnsForTables = useCallback(async (tablesToLoad: string[]) => {
-    if (tablesToLoad.length === 0) return;
-
-    setLoading(true);
-    const newTableColumns: Record<string, ColumnInfo[]> = {};
-
-    for (const tableName of tablesToLoad) {
-      if (loadedTablesRef.current.has(tableName)) continue;
-      
-      try {
-        const response = await apiClient.getTableColumns(tableName);
-        newTableColumns[tableName] = response.columns;
-        loadedTablesRef.current.add(tableName);
-      } catch (error) {
-        console.error(`Failed to load fields for ${tableName}`, error);
-      }
-    }
-
-    if (Object.keys(newTableColumns).length > 0) {
-      setTableColumns(prev => ({ ...prev, ...newTableColumns }));
-    }
-    setLoading(false);
-  }, []);
-
-  // Effect to load columns when tables change
-  useEffect(() => {
-    // Find tables that need to be loaded
-    const tablesToLoad = selectedTables.filter(t => !loadedTablesRef.current.has(t));
-    
-    // Remove columns for deselected tables
-    const currentTables = new Set(selectedTables);
-    const tablesToRemove = Array.from(loadedTablesRef.current).filter(t => !currentTables.has(t));
-    
-    if (tablesToRemove.length > 0) {
-      tablesToRemove.forEach(t => loadedTablesRef.current.delete(t));
-      setTableColumns(prev => {
-        const updated = { ...prev };
-        tablesToRemove.forEach(t => delete updated[t]);
-        return updated;
-      });
-    }
-
-    // Load new tables
-    if (tablesToLoad.length > 0) {
-      loadColumnsForTables(tablesToLoad);
-    }
-  }, [selectedTables, loadColumnsForTables]);
-
   const isColumnSelected = useCallback((table: string, column: string) => {
     return selectedColumns.some(c => c.table === table && c.column === column);
   }, [selectedColumns]);
@@ -104,6 +52,9 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
     onChange(selectedColumns.filter(c => c.table !== tableName));
   }, [selectedColumns, onChange]);
 
+  // Check if columns are loading (no columns data for a table yet)
+  const hasLoadingTables = selectedTables.some(t => !tableColumns[t]);
+
   return (
     <div className="column-selector">
       <div className="column-selector-header">
@@ -122,9 +73,9 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
         </div>
       </div>
 
-      {loading && <div className="column-selector-loading">Loading fields...</div>}
+      {hasLoadingTables && <div className="column-selector-loading">Loading fields...</div>}
 
-      {!loading && selectedTables.length === 0 && (
+      {selectedTables.length === 0 && (
         <div className="column-selector-empty">
           <div className="empty-icon">📋</div>
           <h4>No data sources selected</h4>
@@ -132,7 +83,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
         </div>
       )}
 
-      {!loading && selectedTables.length > 0 && (
+      {selectedTables.length > 0 && (
         <div className="column-tables">
           {selectedTables.map(tableName => (
             <div key={tableName} className="column-table-section">
@@ -190,8 +141,10 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                     );
                   })}
                 </div>
-              ) : (
+              ) : tableColumns[tableName] ? (
                 <div className="no-columns">No fields available</div>
+              ) : (
+                <div className="no-columns">Loading...</div>
               )}
             </div>
           ))}

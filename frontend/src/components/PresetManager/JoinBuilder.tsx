@@ -32,17 +32,53 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
   availableColumns,
   onChange
 }) => {
+  // Get columns for a specific table from availableColumns
+  const getColumnsForTable = (tableName: string): string[] => {
+    return availableColumns.filter(col => col.startsWith(`${tableName}.`));
+  };
+
+  // Try to find a smart default condition (matching column names between tables)
+  const findSmartDefaults = (baseTable: string, joinTable: string): { left: string; right: string } => {
+    const baseCols = getColumnsForTable(baseTable);
+    const joinCols = getColumnsForTable(joinTable);
+    
+    // Look for common column name patterns (ID, Key endings, or same name)
+    for (const leftCol of baseCols) {
+      const leftName = leftCol.split('.').pop()?.toLowerCase() || '';
+      for (const rightCol of joinCols) {
+        const rightName = rightCol.split('.').pop()?.toLowerCase() || '';
+        // Exact match or common FK patterns
+        if (leftName === rightName && leftName) {
+          return { left: leftCol, right: rightCol };
+        }
+        // Common patterns: BillID matches poshBillID, etc.
+        if (leftName.endsWith('id') && rightName.includes(leftName.replace('id', ''))) {
+          return { left: leftCol, right: rightCol };
+        }
+        if (rightName.endsWith('id') && leftName.includes(rightName.replace('id', ''))) {
+          return { left: leftCol, right: rightCol };
+        }
+      }
+    }
+    
+    return { left: baseCols[0] || '', right: joinCols[0] || '' };
+  };
+
   const addJoin = () => {
-    // Get the first table that isn't already in a join
+    // Get a table that isn't already in a join and isn't the base table
     const usedTables = joins.map(j => j.table);
-    const availableForJoin = availableTables.filter(t => !usedTables.includes(t));
+    const baseTable = availableTables[0] || '';
+    const availableForJoin = availableTables.filter(t => !usedTables.includes(t) && t !== baseTable);
     const defaultTable = availableForJoin[0] || availableTables[1] || availableTables[0] || '';
+    
+    // Try to find smart defaults for the join condition
+    const defaults = findSmartDefaults(baseTable, defaultTable);
     
     const newJoin: JoinConfig = {
       type: 'INNER',
       table: defaultTable,
       alias: '',
-      conditions: [{ leftColumn: '', operator: '=', rightColumn: '' }]
+      conditions: [{ leftColumn: defaults.left, operator: '=', rightColumn: defaults.right }]
     };
     onChange([...joins, newJoin]);
   };
@@ -54,15 +90,26 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
   const updateJoin = (index: number, updates: Partial<JoinConfig>) => {
     const updated = [...joins];
     updated[index] = { ...updated[index], ...updates };
+    
+    // If table changed, try to update conditions with smart defaults
+    if (updates.table && updates.table !== joins[index].table) {
+      const baseTable = availableTables[0] || '';
+      const defaults = findSmartDefaults(baseTable, updates.table);
+      if (defaults.left || defaults.right) {
+        updated[index].conditions = [{ leftColumn: defaults.left, operator: '=', rightColumn: defaults.right }];
+      }
+    }
+    
     onChange(updated);
   };
 
   const addCondition = (joinIndex: number) => {
     const updated = [...joins];
+    // Pick the first available column as default, preferring empty to avoid confusion
     updated[joinIndex].conditions.push({
-      leftColumn: availableColumns[0] || '',
+      leftColumn: '',
       operator: '=',
-      rightColumn: availableColumns[0] || '',
+      rightColumn: '',
       andOr: 'AND'
     });
     onChange(updated);
