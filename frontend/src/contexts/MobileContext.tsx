@@ -23,8 +23,8 @@ interface MobileContextType {
   exitPlacementMode: () => void;
   
   // Mobile designer tabs
-  activeDesignerTab: 'canvas' | 'elements' | 'properties';
-  setActiveDesignerTab: (tab: 'canvas' | 'elements' | 'properties') => void;
+  activeDesignerTab: 'canvas' | 'elements' | 'data' | 'properties';
+  setActiveDesignerTab: (tab: 'canvas' | 'elements' | 'data' | 'properties') => void;
   
   // Canvas zoom/pan state
   canvasZoom: number;
@@ -51,7 +51,7 @@ export const MobileProvider: React.FC<MobileProviderProps> = ({ children }) => {
   const [placementItem, setPlacementItem] = useState<PlacementItem | null>(null);
   
   // Mobile designer tabs
-  const [activeDesignerTab, setActiveDesignerTab] = useState<'canvas' | 'elements' | 'properties'>('canvas');
+  const [activeDesignerTab, setActiveDesignerTab] = useState<'canvas' | 'elements' | 'data' | 'properties'>('canvas');
   
   // Canvas zoom
   const [canvasZoom, setCanvasZoom] = useState(1);
@@ -66,16 +66,8 @@ export const MobileProvider: React.FC<MobileProviderProps> = ({ children }) => {
       setIsTablet(width >= 768 && width < 1024);
       setIsTouchDevice(hasTouchScreen);
       
-      // Set initial zoom based on device
-      if (width < 480) {
-        setCanvasZoom(0.35);
-      } else if (width < 768) {
-        setCanvasZoom(0.5);
-      } else if (width < 1024) {
-        setCanvasZoom(0.7);
-      } else {
-        setCanvasZoom(1);
-      }
+      // Default zoom is always 100% - user can manually zoom out if needed
+      // Zoom is preserved on resize, only set initial on first load
     };
 
     checkDevice();
@@ -109,16 +101,8 @@ export const MobileProvider: React.FC<MobileProviderProps> = ({ children }) => {
   }, []);
 
   const resetZoom = useCallback(() => {
-    const width = window.innerWidth;
-    if (width < 480) {
-      setCanvasZoom(0.35);
-    } else if (width < 768) {
-      setCanvasZoom(0.5);
-    } else if (width < 1024) {
-      setCanvasZoom(0.7);
-    } else {
-      setCanvasZoom(1);
-    }
+    // Reset zoom to 100% on all devices
+    setCanvasZoom(1);
   }, []);
 
   const value: MobileContextType = {
