@@ -215,10 +215,7 @@
     flex-direction: column;
   }
   
-  .canvas {
-    width: 100% !important;
-    max-width: 100%;
-  }
+  /* Canvas width is controlled by JavaScript zoom - don't override */
   
   .canvas-container {
     padding: 1rem;
@@ -497,46 +494,146 @@
   right: 16px;
   display: flex;
   flex-direction: row;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  border-radius: 28px;
-  padding: 6px 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
   z-index: 200;
 }
 
 .zoom-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: 50%;
-  background: white;
+  border-radius: 10px;
+  background: transparent;
   color: var(--text, #1e293b);
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: 1.3rem;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .zoom-btn:hover {
-  background: var(--brand-50, #eff6ff);
+  background: rgba(11, 99, 255, 0.1);
   color: var(--brand-600, #0B63FF);
 }
 
 .zoom-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
+  background: rgba(11, 99, 255, 0.2);
+}
+
+.zoom-btn.zoom-out,
+.zoom-btn.zoom-in {
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+
+.zoom-level-container {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .zoom-btn.zoom-reset {
-  font-size: 0.7rem;
+  width: auto;
+  min-width: 50px;
+  padding: 0 8px;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: -0.3px;
+  border-radius: 8px;
+  background: rgba(11, 99, 255, 0.08);
+  color: var(--brand-600, #0B63FF);
+}
+
+.zoom-btn.zoom-reset:hover {
+  background: rgba(11, 99, 255, 0.15);
+}
+
+/* Zoom presets dropdown */
+.zoom-presets {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: row;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 6px;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 300;
+}
+
+.zoom-level-container:hover .zoom-presets,
+.zoom-presets:hover {
+  display: flex;
+}
+
+.zoom-preset {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text, #1e293b);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.zoom-preset:hover {
+  background: rgba(11, 99, 255, 0.1);
+  color: var(--brand-600, #0B63FF);
+}
+
+.zoom-preset.active {
+  background: var(--brand-600, #0B63FF);
+  color: white;
+}
+
+/* Mobile zoom controls */
+@media (max-width: 768px) {
+  .canvas-zoom-controls {
+    bottom: 12px;
+    right: 12px;
+    padding: 4px 8px;
+    border-radius: 12px;
+  }
+  
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1.1rem;
+  }
+  
+  .zoom-btn.zoom-reset {
+    min-width: 44px;
+    font-size: 0.7rem;
+  }
+  
+  .zoom-presets {
+    flex-wrap: wrap;
+    max-width: 150px;
+    justify-content: center;
+  }
+  
+  .zoom-preset {
+    font-size: 0.7rem;
+    padding: 5px 8px;
+  }
 }
 
 /* Mobile-specific adjustments for side panel in fullscreen mode */
@@ -623,11 +720,10 @@
     min-width: 0;
   }
   
-  /* Remove CSS scaling - use JavaScript controlled zoom */
+  /* Canvas zoom is controlled by JavaScript via inline style */
   .template-designer-mobile .canvas {
     transform-origin: top left;
-    transform: unset !important; /* Override generic .canvas media query transform */
-    /* Actual transform is controlled by JavaScript via inline style */
+    /* Transform is set by JavaScript - do not override */
   }
   
   /* Ensure canvas container allows scrolling for full canvas height */

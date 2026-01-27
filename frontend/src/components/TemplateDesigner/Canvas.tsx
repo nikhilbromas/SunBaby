@@ -2226,11 +2226,40 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
           {/* Zoom Controls - positioned at bottom-right of canvas container */}
           {(!isMobile || activeDesignerTab === 'canvas') && (
             <div className="canvas-zoom-controls">
-              <button onClick={zoomOut} className="zoom-btn" aria-label="Zoom out">−</button>
-              <button onClick={resetZoom} className="zoom-btn zoom-reset" aria-label="Reset zoom">
-                {Math.round(canvasZoom * 100)}%
-              </button>
-              <button onClick={zoomIn} className="zoom-btn" aria-label="Zoom in">+</button>
+              <button onClick={zoomOut} className="zoom-btn zoom-out" aria-label="Zoom out">−</button>
+              <div className="zoom-level-container">
+                <button 
+                  onClick={resetZoom} 
+                  className="zoom-btn zoom-reset" 
+                  aria-label="Reset zoom"
+                  title="Click to reset to 100%"
+                >
+                  {Math.round(canvasZoom * 100)}%
+                </button>
+                <div className="zoom-presets">
+                  <button 
+                    onClick={() => setCanvasZoom(0.5)} 
+                    className={`zoom-preset ${Math.abs(canvasZoom - 0.5) < 0.05 ? 'active' : ''}`}
+                    title="50%"
+                  >50%</button>
+                  <button 
+                    onClick={() => setCanvasZoom(0.75)} 
+                    className={`zoom-preset ${Math.abs(canvasZoom - 0.75) < 0.05 ? 'active' : ''}`}
+                    title="75%"
+                  >75%</button>
+                  <button 
+                    onClick={() => setCanvasZoom(1)} 
+                    className={`zoom-preset ${Math.abs(canvasZoom - 1) < 0.05 ? 'active' : ''}`}
+                    title="100%"
+                  >100%</button>
+                  <button 
+                    onClick={() => setCanvasZoom(1.5)} 
+                    className={`zoom-preset ${Math.abs(canvasZoom - 1.5) < 0.05 ? 'active' : ''}`}
+                    title="150%"
+                  >150%</button>
+                </div>
+              </div>
+              <button onClick={zoomIn} className="zoom-btn zoom-in" aria-label="Zoom in">+</button>
             </div>
           )}
         </div>
