@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig, ImageFieldConfig } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { Target, Settings, Palette, Save } from 'lucide-react';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
@@ -35,6 +41,35 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onOpenTableModal,
   onOpenZoneConfig,
 }) => {
+  // Fixed Action Bar Component
+  const ActionBar = () => {
+    if (!onSave && !onSetup) return null;
+    
+    return (
+      <div className="property-panel-actions">
+        {onSetup && (
+          <Button 
+            variant="secondary"
+            className="setup-button"
+            onClick={onSetup}
+          >
+            <Settings size={16} className="mr-2" />
+            Start
+          </Button>
+        )}
+        {onSave && (
+          <Button 
+            className="save-button" 
+            onClick={onSave} 
+            disabled={isSaving}
+          >
+            <Save size={16} className="mr-2" />
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
+        )}
+      </div>
+    );
+  };
   const getFieldForSelected = (): TextFieldConfig | null => {
     if (!selectedElement || selectedElement.type !== 'field') return null;
     const section = selectedElement.section || 'header';
@@ -113,7 +148,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 e.currentTarget.style.boxShadow = '0 2px 6px rgba(11, 99, 255, 0.25)';
               }}
             >
-              🎯 Configure Zones
+              <Target size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+              Configure Zones
             </button>
             <small style={{ display: 'block', marginTop: '0.5rem', color: '#6c757d', fontSize: '0.8rem' }}>
               Position and size zones (headers, footers, content areas)
@@ -123,27 +159,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="no-selection-container">
           <p className="no-selection">Select an element to edit properties</p>
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                 Start 
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save '}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -222,27 +238,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </label>
           )}
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -361,27 +357,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             Visible
           </label>
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -445,7 +421,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 transition: 'all 0.2s ease',
               }}
             >
-              🎨 Open Table Editor
+              <Palette size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+              Open Table Editor
             </button>
           )}
         </div>
@@ -1072,27 +1049,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -1154,7 +1111,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 transition: 'all 0.2s ease',
               }}
             >
-              🎨 Open Table Editor
+              <Palette size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+              Open Table Editor
             </button>
           )}
         </div>
@@ -1765,27 +1723,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </p>
           )}
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -1847,7 +1785,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 transition: 'all 0.2s ease',
               }}
             >
-              🎨 Open Table Editor
+              <Palette size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+              Open Table Editor
             </button>
           )}
         </div>
@@ -2487,27 +2426,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </label>
           </div>
         )}
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }

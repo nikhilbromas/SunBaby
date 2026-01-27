@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { ImageFieldConfig } from '../../services/types';
 import apiClient from '../../services/api';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import './ImageEditor.css';
 
 interface ImageEditorProps {

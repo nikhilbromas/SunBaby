@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDrag } from 'react-dnd';
 import apiClient from '../../services/api';
 import type { Image } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Upload, Loader2 } from 'lucide-react';
 import './ImageGallery.css';
 
 const ImageGallery: React.FC = () => {
@@ -95,13 +100,25 @@ const ImageGallery: React.FC = () => {
     <div className="image-gallery">
       <div className="image-gallery-header">
         <h3>Images</h3>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           className="upload-button"
           onClick={handleUploadClick}
           disabled={uploading}
         >
-          {uploading ? 'Uploading...' : '📤 Upload'}
-        </button>
+          {uploading ? (
+            <>
+              <Loader2 size={16} className="mr-2 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Upload size={16} className="mr-2" />
+              Upload
+            </>
+          )}
+        </Button>
         <input
           ref={fileInputRef}
           type="file"

@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { useDrag } from 'react-dnd';
 import { useMobile } from '../../contexts/MobileContext';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { Search } from 'lucide-react';
 import './DataPreview.css';
 
 interface DataPreviewProps {
@@ -435,13 +439,17 @@ const DataPreview: React.FC<DataPreviewProps> = ({
       {hasData && (
         <>
           <div className="search-container">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="🔍 Search fields by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div style={{ position: 'relative' }}>
+              <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#6c757d', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                className="search-input"
+                style={{ paddingLeft: '2.5rem' }}
+                placeholder="Search fields by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
             {searchTerm.trim() && (
               <button
                 className="search-clear"

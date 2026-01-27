@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../services/api';
 import type { Preset, Template } from '../../services/types';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import './ParameterForm.css';
 
 interface ParameterFormProps {

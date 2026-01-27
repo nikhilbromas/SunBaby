@@ -12,6 +12,9 @@ import ZoneConfigModal from './ZoneConfigModal';
 import DataPreview from './DataPreview';
 import apiClient from '../../services/api';
 import { useMobile } from '../../contexts/MobileContext';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Palette, Puzzle, BarChart, Settings, Save, Loader2 } from 'lucide-react';
 import './Canvas.css';
 
 // Page dimensions in pixels (at 96 DPI)
@@ -1889,7 +1892,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         <div className="placement-mode-banner">
           <span className="placement-icon">📍</span>
           <span>Tap on canvas to place {placementItem?.type === 'data-field' ? placementItem.field : placementItem?.type}</span>
-          <button onClick={exitPlacementMode} className="cancel-placement-btn">✕</button>
+          <Button onClick={exitPlacementMode} variant="ghost" size="icon" className="cancel-placement-btn">✕</Button>
         </div>
       )}
       
@@ -2244,42 +2247,51 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
           </div>
           </div>
           {/* Zoom Controls - positioned at bottom-right of canvas container */}
-          {(!isMobile || activeDesignerTab === 'canvas') && (
+          {(!isMobile || activeDesignerTab === 'canvas') && !isTableModalOpen && !isZoneConfigModalOpen && !isSetupPanelOpen && (
             <div className="canvas-zoom-controls">
-              <button onClick={zoomOut} className="zoom-btn zoom-out" aria-label="Zoom out">−</button>
+              <Button onClick={zoomOut} variant="outline" size="icon" className="zoom-btn zoom-out" aria-label="Zoom out">−</Button>
               <div className="zoom-level-container">
-                <button 
+                <Button 
                   onClick={resetZoom} 
+                  variant="outline"
                   className="zoom-btn zoom-reset" 
                   aria-label="Reset zoom"
                   title="Click to reset to 100%"
                 >
                   {Math.round(canvasZoom * 100)}%
-                </button>
+                </Button>
                 <div className="zoom-presets">
-                  <button 
+                  <Button 
                     onClick={() => setCanvasZoom(0.5)} 
-                    className={`zoom-preset ${Math.abs(canvasZoom - 0.5) < 0.05 ? 'active' : ''}`}
+                    variant="ghost"
+                    size="sm"
+                    className={cn("zoom-preset", Math.abs(canvasZoom - 0.5) < 0.05 && 'active')}
                     title="50%"
-                  >50%</button>
-                  <button 
+                  >50%</Button>
+                  <Button 
                     onClick={() => setCanvasZoom(0.75)} 
-                    className={`zoom-preset ${Math.abs(canvasZoom - 0.75) < 0.05 ? 'active' : ''}`}
+                    variant="ghost"
+                    size="sm"
+                    className={cn("zoom-preset", Math.abs(canvasZoom - 0.75) < 0.05 && 'active')}
                     title="75%"
-                  >75%</button>
-                  <button 
+                  >75%</Button>
+                  <Button 
                     onClick={() => setCanvasZoom(1)} 
-                    className={`zoom-preset ${Math.abs(canvasZoom - 1) < 0.05 ? 'active' : ''}`}
+                    variant="ghost"
+                    size="sm"
+                    className={cn("zoom-preset", Math.abs(canvasZoom - 1) < 0.05 && 'active')}
                     title="100%"
-                  >100%</button>
-                  <button 
+                  >100%</Button>
+                  <Button 
                     onClick={() => setCanvasZoom(1.5)} 
-                    className={`zoom-preset ${Math.abs(canvasZoom - 1.5) < 0.05 ? 'active' : ''}`}
+                    variant="ghost"
+                    size="sm"
+                    className={cn("zoom-preset", Math.abs(canvasZoom - 1.5) < 0.05 && 'active')}
                     title="150%"
-                  >150%</button>
+                  >150%</Button>
                 </div>
               </div>
-              <button onClick={zoomIn} className="zoom-btn zoom-in" aria-label="Zoom in">+</button>
+              <Button onClick={zoomIn} variant="outline" size="icon" className="zoom-btn zoom-in" aria-label="Zoom in">+</Button>
             </div>
           )}
         </div>
@@ -2314,43 +2326,55 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
       {/* Mobile Tab Bar */}
       {isMobile && (
         <div className="mobile-tab-bar">
-          <button
-            className={`mobile-tab-btn ${activeDesignerTab === 'canvas' ? 'active' : ''}`}
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'canvas' && 'active')}
             onClick={() => setActiveDesignerTab('canvas')}
           >
-            <span className="mobile-tab-icon">🎨</span>
+            <span className="mobile-tab-icon"><Palette size={20} /></span>
             <span className="mobile-tab-label">Canvas</span>
-          </button>
-          <button
-            className={`mobile-tab-btn ${activeDesignerTab === 'elements' ? 'active' : ''}`}
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'elements' && 'active')}
             onClick={() => setActiveDesignerTab('elements')}
           >
-            <span className="mobile-tab-icon">🧩</span>
+            <span className="mobile-tab-icon"><Puzzle size={20} /></span>
             <span className="mobile-tab-label">Elements</span>
-          </button>
-          <button
-            className={`mobile-tab-btn ${activeDesignerTab === 'data' ? 'active' : ''}`}
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'data' && 'active')}
             onClick={() => setActiveDesignerTab('data')}
             disabled={!sampleData}
           >
-            <span className="mobile-tab-icon">📊</span>
+            <span className="mobile-tab-icon"><BarChart size={20} /></span>
             <span className="mobile-tab-label">Data</span>
-          </button>
-          <button
-            className={`mobile-tab-btn ${activeDesignerTab === 'properties' ? 'active' : ''}`}
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'properties' && 'active')}
             onClick={() => setActiveDesignerTab('properties')}
           >
-            <span className="mobile-tab-icon">⚙️</span>
+            <span className="mobile-tab-icon"><Settings size={20} /></span>
             <span className="mobile-tab-label">Properties</span>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            className="mobile-tab-btn start-btn"
+            onClick={() => setIsSetupPanelOpen(true)}
+          >
+            <span className="mobile-tab-icon"><Settings size={20} /></span>
+            <span className="mobile-tab-label">Start</span>
+          </Button>
+          <Button
             className="mobile-tab-btn save-btn"
             onClick={saveTemplate}
             disabled={isSaving}
           >
-            <span className="mobile-tab-icon">{isSaving ? '⏳' : '💾'}</span>
+            <span className="mobile-tab-icon">{isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}</span>
             <span className="mobile-tab-label">{isSaving ? 'Saving' : 'Save'}</span>
-          </button>
+          </Button>
         </div>
       )}
       

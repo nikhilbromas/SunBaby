@@ -10,7 +10,26 @@ import type {
   Shop,
   Interface,
 } from '../../services/types';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import TemplateConfigEditor from './TemplateConfigEditor';
+import { cn } from '@/lib/utils';
 import './TemplateConfigList.css';
+
+function useDebounce<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = React.useState(value);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debounced;
+}
+
 
 const TemplateConfigList: React.FC = () => {
   const [configs, setConfigs] = useState<TemplateConfig[]>([]);
@@ -33,10 +52,34 @@ const TemplateConfigList: React.FC = () => {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
-  const [interfaces, setInterfaces] = useState<Interface[]>([]);
+  // const [interfaces, setInterfaces] = useState<Interface[]>([]);
   const [interfaceSearch, setInterfaceSearch] = useState<string>('');
   const [loadingLookups, setLoadingLookups] = useState(false);
 
+  const [showInterfaceDropdown, setShowInterfaceDropdown] = useState(false);
+  
+  const debouncedInterfaceSearch = useDebounce(interfaceSearch, 300);
+
+  const [allInterfaces, setAllInterfaces] = useState<Interface[]>([]);
+const [filteredInterfaces, setFilteredInterfaces] = useState<Interface[]>([]);
+
+  
+
+useEffect(() => {
+  const fetchInterfaces = async () => {
+    if (!debouncedInterfaceSearch.trim()) {
+      setFilteredInterfaces(allInterfaces);
+      return;
+    }
+
+    const res = await apiClient.getInterfaces(0, 50, debouncedInterfaceSearch);
+    setFilteredInterfaces(res);
+  };
+
+  fetchInterfaces();
+}, [debouncedInterfaceSearch, allInterfaces]);
+
+  
   useEffect(() => {
     loadConfigs();
     loadLookupData();
@@ -69,6 +112,7 @@ const TemplateConfigList: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiClient.getTemplateConfigs();
+      
       setConfigs(response.configs);
       
       // After loading configs, load shops for all departments referenced in configs
@@ -137,6 +181,7 @@ const TemplateConfigList: React.FC = () => {
       setPresets(presetsRes.presets);
       setDepartments(deptsRes);
       
+      
       // Load all interfaces in batches
       let allInterfaces: Interface[] = [];
       let skip = 0;
@@ -157,7 +202,10 @@ const TemplateConfigList: React.FC = () => {
           hasMore = false;
         }
       }
-      setInterfaces(allInterfaces);
+      setAllInterfaces(allInterfaces);
+setFilteredInterfaces(allInterfaces);
+
+     
     } catch (err: any) {
       setError(err.message || 'Failed to load lookup data');
     } finally {
@@ -174,27 +222,29 @@ const TemplateConfigList: React.FC = () => {
     }
   };
 
-  const handleSearchInterfaces = async (search: string) => {
-    setInterfaceSearch(search);
-    try {
-      const interfacesRes = await apiClient.getInterfaces(0, 100, search);
-      setInterfaces(interfacesRes);
-    } catch (err: any) {
-      console.error('Failed to search interfaces:', err);
-    }
-  };
+  // const handleSearchInterfaces = async (search: string) => {
+  //   setInterfaceSearch(search);
+  //   try {
+  //     const interfacesRes = await apiClient.getInterfaces(0, 100, search);
+  //     setAllInterfaces(interfacesRes);
+  //   } catch (err: any) {
+  //     console.error('Failed to search interfaces:', err);
+  //   }
+  // };
 
   const handleCreateNew = () => {
     setSelectedConfig(null);
     setTemplateId(0);
     setPresetId(0);
     setInterfaceId(0);
+    setInterfaceSearch('');
     setDepartmentId(null);
     setShopId(null);
     setType('');
     setDescription('');
     setIsEditing(true);
   };
+  
 
   const handleEdit = (config: TemplateConfig) => {
     setSelectedConfig(config);
@@ -206,11 +256,20 @@ const TemplateConfigList: React.FC = () => {
     setType(config.Type);
     setDescription(config.Description || '');
     setIsEditing(true);
-    
-    // Load shops if department is set
+    const interfaceItem = allInterfaces.find(
+      i => i.InterfaceID === config.InterfaceId
+    );
+   
+    setInterfaceSearch(
+      interfaceItem
+        ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}`
+        : ''
+    );
+  
     if (config.DepartmentId) {
       loadShops(config.DepartmentId);
     }
+   
   };
 
   const handleDelete = async (configId: number) => {
@@ -280,288 +339,223 @@ const TemplateConfigList: React.FC = () => {
 
   if (isEditing) {
     return (
-      <div className="template-config-manager">
-        <div className="config-form">
-          <div className="form-header">
-            <h2>{selectedConfig ? 'Edit Template Config' : 'Create New Template Config'}</h2>
-          </div>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="form-group">
-            <label>
-              Template *:
-              <select
-                value={templateId}
-                onChange={(e) => setTemplateId(parseInt(e.target.value))}
-                required
-                disabled={loadingLookups}
-              >
-                <option value="0">-- Select Template --</option>
-                {templates.map((t) => (
-                  <option key={t.TemplateId} value={t.TemplateId}>
-                    {t.TemplateName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Preset *:
-              <select
-                value={presetId}
-                onChange={(e) => setPresetId(parseInt(e.target.value))}
-                required
-                disabled={loadingLookups || (templateId > 0)}
-                title={templateId > 0 ? "Preset is automatically selected based on the chosen template" : ""}
-              >
-                <option value="0">-- Select Preset --</option>
-                {presets.map((p) => (
-                  <option key={p.PresetId} value={p.PresetId}>
-                    {p.PresetName}
-                  </option>
-                ))}
-              </select>
-              {templateId > 0 && (
-                <small className="form-hint">Preset is automatically set based on the selected template</small>
-              )}
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Interface *:
-              <div className="searchable-select">
-                <input
-                  type="text"
-                  placeholder="Search interfaces..."
-                  value={interfaceSearch}
-                  onChange={(e) => handleSearchInterfaces(e.target.value)}
-                  className="search-input"
-                />
-                <select
-                  value={interfaceId}
-                  onChange={(e) => setInterfaceId(parseInt(e.target.value))}
-                  required
-                  disabled={loadingLookups}
-                >
-                  <option value="0">-- Select Interface --</option>
-                  {interfaces.map((i) => (
-                    <option key={i.InterfaceID} value={i.InterfaceID}>
-                      {i.InterfaceName} {i.ModuleCode ? `(${i.ModuleCode})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Department:
-              <select
-                value={departmentId || ''}
-                onChange={(e) => {
-                  const deptId = e.target.value ? parseInt(e.target.value) : null;
-                  setDepartmentId(deptId);
-                  setShopId(null); // Reset shop when department changes
-                }}
-                disabled={loadingLookups}
-              >
-                <option value="">-- Select Department (Optional) --</option>
-                {departments.map((d) => (
-                  <option key={d.DepartmentID} value={d.DepartmentID}>
-                    {d.DepartmentName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Shop:
-              <select
-                value={shopId || ''}
-                onChange={(e) => setShopId(e.target.value ? parseInt(e.target.value) : null)}
-                disabled={!departmentId || loadingLookups}
-              >
-                <option value="">-- Select Shop (Optional) --</option>
-                {shops.map((s) => (
-                  <option key={s.ShopID} value={s.ShopID}>
-                    {s.ShopName} {s.ShopLocation ? `(${s.ShopLocation})` : ''}
-                  </option>
-                ))}
-              </select>
-              {!departmentId && (
-                <small className="form-hint">Please select a department first</small>
-              )}
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Type *:
-              <input
-                type="text"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                placeholder="Enter type"
-                required
-                maxLength={100}
-              />
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label>
-              Description:
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter description (optional)"
-                rows={3}
-                maxLength={500}
-              />
-            </label>
-          </div>
-
-          <div className="form-actions">
-            <button onClick={handleSave} className="save-button" disabled={loading}>
-              {loading ? 'Saving...' : 'Save'}
-            </button>
-            <button onClick={handleCancel} className="cancel-button" disabled={loading}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
+      <TemplateConfigEditor
+        value={selectedConfig}
+        onCancel={() => setIsEditing(false)}
+        onSaved={() => {
+          setIsEditing(false);
+          setSelectedConfig(null);
+          loadConfigs();
+        }}
+      />
     );
   }
+  
+  
 
   return (
-    <div className="template-config-manager">
-      <div className="config-header">
-        <h2>Template Configurations</h2>
-        <button onClick={handleCreateNew} className="create-button">
-          Create New Config
-        </button>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Template Configurations</h2>
+            <p className="text-blue-100 text-sm mt-1">
+              Manage template ↔ interface mappings and scope
+            </p>
+          </div>
+          <button
+            onClick={handleCreateNew}
+            className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-4 py-2 rounded-md shadow transition"
+          >
+            + Create New Config
+          </button>
+        </div>
       </div>
-
-      {error && <div className="error-message">{error}</div>}
-      {loading && <div className="loading-message">Loading...</div>}
-
-      <div className="config-list">
-        {configs.length === 0 ? (
-          <div className="empty-state">No template configs found. Create one to get started.</div>
-        ) : (
+  
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+  
+        {/* Error */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+  
+        {/* Loading */}
+        {loading && (
+          <div className="bg-white rounded-lg shadow border p-12 flex flex-col items-center text-slate-500">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4" />
+            Loading template configs…
+          </div>
+        )}
+  
+        {/* Empty */}
+        {!loading && configs.length === 0 && (
+          <div className="bg-white rounded-lg shadow border p-12 text-center">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              No template configurations
+            </h3>
+            <p className="text-slate-600 mb-6">
+              Create your first template configuration to get started.
+            </p>
+            <button
+              onClick={handleCreateNew}
+              className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700"
+            >
+              + Create First Config
+            </button>
+          </div>
+        )}
+  
+        {/* Desktop Table */}
+        {!loading && configs.length > 0 && (
           <>
-            {/* Desktop table view */}
-            <table className="config-table desktop-only">
-              <thead>
-                <tr>
-                  <th>Template</th>
-                  <th>Preset</th>
-                  <th>Interface</th>
-                  <th>Department</th>
-                  <th>Shop</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {configs.map((config) => {
-                  const template = templates.find((t) => t.TemplateId === config.TemplateId);
-                  const preset = presets.find((p) => p.PresetId === config.PresetId);
-                  const interfaceItem = interfaces.find((i) => i.InterfaceID === config.InterfaceId);
-                  const department = departments.find((d) => d.DepartmentID === config.DepartmentId);
-                  const shop = shops.find((s) => s.ShopID === config.ShopId);
+            <div className="hidden md:block bg-white rounded-lg shadow border overflow-hidden">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                      Template
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                      Preset
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                      Interface
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                      Scope
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+  
+                <tbody className="divide-y divide-slate-200">
+                  {configs.map((config) => {
+                    const template = templates.find(t => t.TemplateId === config.TemplateId);
+                    const preset = presets.find(p => p.PresetId === config.PresetId);
+                    const interfaceItem = allInterfaces.find(i => i.InterfaceID === config.InterfaceId);
+                    const department = departments.find(d => d.DepartmentID === config.DepartmentId);
+                    const shop = shops.find(s => s.ShopID === config.ShopId);
+  
+                    return (
+                      <tr key={config.ConfigId} className="hover:bg-slate-50">
+                        <td className="px-6 py-4 font-medium text-slate-900">
+                          {template?.TemplateName || `Template ${config.TemplateId}`}
+                        </td>
+                        <td className="px-6 py-4 text-slate-700">
+                          {preset?.PresetName || `Preset ${config.PresetId}`}
+                        </td>
+                        <td className="px-6 py-4 text-slate-700">
+                        
+  {interfaceItem ? (
+    <div className="leading-tight">
+      <div className="font-medium">
+        {interfaceItem.InterfaceName}
+      </div>
+      {interfaceItem.ModuleCode && (
+        <div className="text-xs text-slate-500">
+          {interfaceItem.ModuleCode}
+        </div>
+      )}
+    </div>
+  ) : (
+    <span className="text-slate-400">
+      Interface {config.InterfaceId}
+    </span>
+  )}
+</td>
 
-                  return (
-                    <tr key={config.ConfigId}>
-                      <td>{template?.TemplateName || `Template ${config.TemplateId}`}</td>
-                      <td>{preset?.PresetName || `Preset ${config.PresetId}`}</td>
-                      <td>{interfaceItem ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}` : `Interface ${config.InterfaceId}`}</td>
-                      <td>{department?.DepartmentName || (config.DepartmentId ? `Dept ${config.DepartmentId}` : '-')}</td>
-                      <td>{shop ? `${shop.ShopName}${shop.ShopLocation ? ` (${shop.ShopLocation})` : ''}` : (config.ShopId ? `Shop ${config.ShopId}` : '-')}</td>
-                      <td>{config.Type}</td>
-                      <td>{config.Description || '-'}</td>
-                      <td>
-                        <button
-                          onClick={() => handleEdit(config)}
-                          className="action-button edit-button"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(config.ConfigId)}
-                          className="action-button delete-button"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Mobile card view */}
-            <div className="config-cards mobile-only">
+                        <td className="px-6 py-4">
+                          {!config.DepartmentId && !config.ShopId && (
+                            <span className="px-2 py-1 text-xs rounded bg-slate-200 text-slate-700">
+                              Global
+                            </span>
+                          )}
+                          {config.DepartmentId && !config.ShopId && (
+                            <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">
+                              Dept: {department?.DepartmentName}
+                            </span>
+                          )}
+                          {config.ShopId && (
+                            <span className="px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-700">
+                              Shop: {shop?.ShopName}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700">
+                            {config.Type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button
+                            onClick={() => handleEdit(config)}
+                            className="px-3 py-1 text-sm rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(config.ConfigId)}
+                            className="px-3 py-1 text-sm rounded border border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+  
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4 mt-6">
               {configs.map((config) => {
-                const template = templates.find((t) => t.TemplateId === config.TemplateId);
-                const preset = presets.find((p) => p.PresetId === config.PresetId);
-                const interfaceItem = interfaces.find((i) => i.InterfaceID === config.InterfaceId);
-                const department = departments.find((d) => d.DepartmentID === config.DepartmentId);
-                const shop = shops.find((s) => s.ShopID === config.ShopId);
-
+                const template = templates.find(t => t.TemplateId === config.TemplateId);
+                const preset = presets.find(p => p.PresetId === config.PresetId);
+                const interfaceItem = allInterfaces.find(i => i.InterfaceID === config.InterfaceId);
+  
                 return (
-                  <div key={config.ConfigId} className="config-card">
-                    <div className="config-card-header">
-                      <h3 className="config-card-title">
-                        {template?.TemplateName || `Template ${config.TemplateId}`}
-                      </h3>
-                      <span className="config-card-type">{config.Type}</span>
+                  <div
+                    key={config.ConfigId}
+                    className="bg-white rounded-lg shadow border p-4"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold text-slate-900">
+                          {template?.TemplateName}
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {preset?.PresetName}
+                        </p>
+                      </div>
+                      <span className="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700">
+                        {config.Type}
+                      </span>
                     </div>
-                    <div className="config-card-meta">
-                      <div className="config-card-info">
-                        <span className="config-card-label">Preset:</span>
-                        <span className="config-card-value">{preset?.PresetName || `Preset ${config.PresetId}`}</span>
-                      </div>
-                      <div className="config-card-info">
-                        <span className="config-card-label">Interface:</span>
-                        <span className="config-card-value">
-                          {interfaceItem ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}` : `Interface ${config.InterfaceId}`}
-                        </span>
-                      </div>
-                      <div className="config-card-info">
-                        <span className="config-card-label">Department:</span>
-                        <span className="config-card-value">{department?.DepartmentName || (config.DepartmentId ? `Dept ${config.DepartmentId}` : '-')}</span>
-                      </div>
-                      <div className="config-card-info">
-                        <span className="config-card-label">Shop:</span>
-                        <span className="config-card-value">{shop ? `${shop.ShopName}${shop.ShopLocation ? ` (${shop.ShopLocation})` : ''}` : (config.ShopId ? `Shop ${config.ShopId}` : '-')}</span>
-                      </div>
-                      {config.Description && (
-                        <div className="config-card-info">
-                          <span className="config-card-label">Description:</span>
-                          <span className="config-card-value">{config.Description}</span>
-                        </div>
-                      )}
+  
+                    <div className="text-sm text-slate-700 mb-3">
+                      {interfaceItem?.InterfaceName}
                     </div>
-                    <div className="config-card-actions">
+  
+                    <div className="flex gap-2 pt-3 border-t">
                       <button
                         onClick={() => handleEdit(config)}
-                        className="action-button edit-button"
+                        className="flex-1 px-3 py-2 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(config.ConfigId)}
-                        className="action-button delete-button"
+                        className="flex-1 px-3 py-2 rounded border border-red-200 text-red-600 hover:bg-red-50"
                       >
                         Delete
                       </button>
@@ -575,6 +569,9 @@ const TemplateConfigList: React.FC = () => {
       </div>
     </div>
   );
+  
+  
+
 };
 
 export default TemplateConfigList;

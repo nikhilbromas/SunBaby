@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../services/api';
 import type { Preset, Template } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import './PresetSelector.css';
 
 interface PresetSelectorProps {

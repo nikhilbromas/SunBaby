@@ -1,187 +1,304 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ParameterForm from './ParameterForm';
-import apiClient from '../../services/api';
-import type { Template } from '../../services/types';
-import './BillPreview.css';
+import apiClient from '@/services/api';
+import type { Template } from '@/services/types';
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+
+const MIN_SIDEBAR = 280;
+const MAX_SIDEBAR = 480;
 
 const BillPreview: React.FC = () => {
+  /* -------------------- State -------------------- */
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [parameters, setParameters] = useState<Record<string, any>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  const [parameters, setParameters] = useState<Record<string, any>>({});
+  const [missingParams, setMissingParams] = useState<string[]>([]);
+
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [zoom, setZoom] = useState(1);
+
+  const [sidebarWidth, setSidebarWidth] = useState(
+    Number(localStorage.getItem('bp_sidebar_width')) || 360
+  );
+  const [collapsed, setCollapsed] = useState(false);
+
+  const resizingRef = useRef(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  /* -------------------- Load Templates -------------------- */
   useEffect(() => {
-    loadTemplates();
+    apiClient.getTemplates().then(res => {
+      setTemplates(res.templates);
+      setSelectedTemplate(res.templates[0] || null);
+    });
   }, []);
 
-  const loadTemplates = async () => {
-    try {
-      const response = await apiClient.getTemplates();
-      setTemplates(response.templates);
-      if (response.templates.length > 0) {
-        setSelectedTemplate(response.templates[0]);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load templates');
-    }
+  /* -------------------- Restore Params -------------------- */
+  useEffect(() => {
+    if (!selectedTemplate) return;
+
+    const saved = localStorage.getItem(
+      `bp_params_${selectedTemplate.TemplateId}`
+    );
+
+    setParameters(saved ? JSON.parse(saved) : {});
+    setMissingParams([]);
+    setPdfBase64(null);
+    setError(null);
+  }, [selectedTemplate]);
+
+  /* -------------------- Sidebar Resize (FIXED) -------------------- */
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current || !sidebarRef.current) return;
+
+      const rect = sidebarRef.current.getBoundingClientRect();
+      const newWidth = e.clientX - rect.left;
+
+      const width = Math.min(
+        MAX_SIDEBAR,
+        Math.max(MIN_SIDEBAR, newWidth)
+      );
+
+      setSidebarWidth(width);
+      localStorage.setItem('bp_sidebar_width', String(width));
+    };
+
+    const onUp = () => (resizingRef.current = false);
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  /* -------------------- Validation -------------------- */
+  const validateParams = (params: Record<string, any>) => {
+    const missing = Object.entries(params)
+      .filter(([_, v]) => v === '' || v === null || v === undefined)
+      .map(([k]) => k);
+
+    setMissingParams(missing);
+    return missing.length === 0;
   };
 
-  const handleGeneratePreview = async (params: Record<string, any>) => {
-    if (!selectedTemplate) {
-      setError('Please select a template');
-      return;
-    }
+  /* -------------------- Generate PDF -------------------- */
+  const generatePdf = async () => {
+    if (!selectedTemplate) return;
+    if (!validateParams(parameters)) return;
 
-    setParameters(params);
+    setLoading(true);
     setError(null);
-    
-    // Auto-generate PDF when parameters are submitted
-    await handleGeneratePdf(params);
-  };
 
-  const handleGeneratePdf = async (params?: Record<string, any>) => {
-    const paramsToUse = params || parameters;
-    
-    if (!selectedTemplate || Object.keys(paramsToUse).length === 0) {
-      setError('Please select a template and enter parameters');
-      return;
-    }
-
-    setIsGeneratingPdf(true);
-    setError(null);
+    localStorage.setItem(
+      `bp_params_${selectedTemplate.TemplateId}`,
+      JSON.stringify(parameters)
+    );
 
     try {
-      const pdfBase64String = await apiClient.generatePreviewPdf({
+      const pdf = await apiClient.generatePreviewPdf({
         templateId: selectedTemplate.TemplateId,
-        parameters: paramsToUse,
+        parameters,
       });
-      setPdfBase64(pdfBase64String);
+      setPdfBase64(pdf);
     } catch (err: any) {
       setError(err.message || 'Failed to generate PDF');
     } finally {
-      setIsGeneratingPdf(false);
+      setLoading(false);
     }
   };
 
-  const handleDownloadPdf = () => {
+  const pdfUrl = pdfBase64
+    ? `data:application/pdf;base64,${pdfBase64}`
+    : null;
+
+  /* -------------------- Download -------------------- */
+  const downloadPdf = () => {
     if (!pdfBase64 || !selectedTemplate) return;
 
-    const byteCharacters = atob(pdfBase64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const bytes = atob(pdfBase64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
 
+    const blob = new Blob([arr], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${selectedTemplate.TemplateName || 'bill'}_${Date.now()}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedTemplate.TemplateName}_${Date.now()}.pdf`;
+    a.click();
+
     URL.revokeObjectURL(url);
   };
 
-  const getPdfUrl = (): string | null => {
-    if (!pdfBase64) return null;
-    return `data:application/pdf;base64,${pdfBase64}`;
-  };
-
+  /* -------------------- UI -------------------- */
   return (
-    <div className="bill-preview">
-      <div className="preview-header">
-        <h2>Bill Preview</h2>
-        <div className="header-controls">
-          <div className="template-selector">
-            <label>
-              Select Template:
-              <select
-                value={selectedTemplate?.TemplateId || ''}
-                onChange={(e) => {
-                  const template = templates.find(
-                    (t) => t.TemplateId === parseInt(e.target.value)
-                  );
-                  setSelectedTemplate(template || null);
-                  setParameters({});
-                  setError(null);
-                  setPdfBase64(null);
-                }}
-              >
-                <option value="">-- Select Template --</option>
-                {templates.map((template) => (
-                  <option key={template.TemplateId} value={template.TemplateId}>
-                    {template.TemplateName}
-                  </option>
-                ))}
-              </select>
-            </label>
+    <div className="min-h-screen bg-slate-50 p-4">
+      <div className="max-w-[1700px] mx-auto space-y-4">
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Bill Preview Studio
+            </h1>
+            <p className="text-sm text-slate-500">
+              Generate and preview PDF bills
+            </p>
           </div>
-          
-          {selectedTemplate && Object.keys(parameters).length > 0 && (
-            <button
-              className="generate-pdf-button"
-              onClick={() => handleGeneratePdf()}
-              disabled={isGeneratingPdf}
+
+          <Button
+            onClick={generatePdf}
+            disabled={loading || !selectedTemplate}
+          >
+            {loading ? 'Generating…' : 'Generate PDF'}
+          </Button>
+        </div>
+
+        {/* Template Selector */}
+        <Card>
+  <CardContent className="pt-6">
+    <div className="flex items-center gap-4">
+      <span className="text-sm font-medium text-slate-700">
+        Template
+      </span>
+
+      <select
+        className="border rounded-md px-3 py-2 text-sm w-[260px]"
+        value={selectedTemplate?.TemplateId || ''}
+        onChange={(e) => {
+          const t = templates.find(
+            x => x.TemplateId === Number(e.target.value)
+          );
+          setSelectedTemplate(t || null);
+        }}
+      >
+        <option value="">Select Template</option>
+        {templates.map(t => (
+          <option key={t.TemplateId} value={t.TemplateId}>
+            {t.TemplateName}
+          </option>
+        ))}
+      </select>
+    </div>
+  </CardContent>
+</Card>
+
+
+        {/* Main Layout */}
+        <div className="flex h-[calc(100vh-190px)]">
+
+          {/* Sidebar */}
+          {!collapsed && (
+            <div
+              ref={sidebarRef}
+              style={{ width: sidebarWidth }}
+              className="relative bg-white border-r"
             >
-              {isGeneratingPdf ? 'Generating PDF...' : 'Generate PDF'}
-            </button>
-          )}
-        </div>
-      </div>
+              <div
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize"
+                onMouseDown={() => (resizingRef.current = true)}
+              />
 
-      <div className="preview-content">
-        <div className="preview-left">
-          <ParameterForm
-            template={selectedTemplate}
-            onSubmit={handleGeneratePreview}
-          />
-          {selectedTemplate && Object.keys(parameters).length > 0 && pdfBase64 && (
-            <div className="pdf-download-controls">
-              <button onClick={handleDownloadPdf} className="download-pdf-button" title="Download PDF">
-                📥 Download PDF
-              </button>
-              <p className="download-hint">
-                💡 Click to download the PDF file.
-              </p>
+              <Card className="h-full rounded-none">
+                <CardHeader className="flex-row justify-between">
+                  <CardTitle>Parameters</CardTitle>
+                  <Button size="sm" onClick={() => setCollapsed(true)}>
+                    ◀
+                  </Button>
+                </CardHeader>
+
+                <CardContent className="p-0 h-[calc(100%-64px)]">
+                  <ScrollArea className="h-full px-4 py-4">
+                    <ParameterForm
+                      template={selectedTemplate}
+                      onSubmit={generatePdf}
+                    
+                     // missingFields={missingParams}
+                    />
+
+                    {pdfBase64 && (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-4"
+                        onClick={downloadPdf}
+                      >
+                        Download PDF
+                      </Button>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             </div>
           )}
-        </div>
 
-        <div className="preview-right">
-          {error && <div className="error-message">{error}</div>}
-          {selectedTemplate && Object.keys(parameters).length > 0 && (
-            <>
-              {pdfBase64 && (
-                <div className="pdf-preview-container">
-                  <iframe
-                    src={getPdfUrl() || undefined}
-                    title="PDF Preview"
-                    className="pdf-preview-iframe"
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                  />
-                </div>
-              )}
-              {isGeneratingPdf && (
-                <div className="preview-placeholder">
-                  <p>Generating PDF preview...</p>
-                </div>
-              )}
-              {!pdfBase64 && !isGeneratingPdf && (
-                <div className="preview-placeholder">
-                  <p>Enter parameters and submit to generate PDF preview</p>
-                </div>
-              )}
-            </>
+          {collapsed && (
+            <Button
+              className="h-full rounded-none"
+              onClick={() => setCollapsed(false)}
+            >
+              ▶
+            </Button>
           )}
-          {(!selectedTemplate || Object.keys(parameters).length === 0) && !error && (
-            <div className="preview-placeholder">
-              <p>Select a template and enter parameters to generate preview</p>
-            </div>
-          )}
+
+          {/* Preview */}
+          <div className="flex-1 px-4">
+            <Card className="h-full">
+              <CardHeader className="flex-row justify-between">
+                <CardTitle>PDF Preview</CardTitle>
+
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => setZoom(z => z + 0.1)}>+</Button>
+                  <Button size="sm" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}>-</Button>
+                  <Button size="sm" onClick={() => setZoom(1)}>Reset</Button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="h-[calc(100%-64px)] p-2">
+                {error && (
+                  <div className="text-sm text-red-600 mb-2">{error}</div>
+                )}
+
+                {pdfUrl ? (
+                  <div className="w-full h-full overflow-auto">
+                    <div
+                      style={{
+                        transform: `scale(${zoom})`,
+                        transformOrigin: 'top left',
+                      }}
+                      className="w-full h-full"
+                    >
+                      <iframe
+                        src={pdfUrl}
+                        title="PDF Preview"
+                        className="w-full h-full border rounded"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400">
+                    Generate PDF to preview
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
         </div>
       </div>
     </div>
@@ -189,4 +306,3 @@ const BillPreview: React.FC = () => {
 };
 
 export default BillPreview;
-

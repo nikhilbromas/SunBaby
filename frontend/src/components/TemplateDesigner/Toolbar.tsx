@@ -1,6 +1,9 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
 import { useMobile } from '../../contexts/MobileContext';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { FileText, Table, File, Files } from 'lucide-react';
 import './Toolbar.css';
 
 const Toolbar: React.FC = () => {
@@ -34,7 +37,7 @@ const Toolbar: React.FC = () => {
         role={isMobile ? 'button' : undefined}
         tabIndex={isMobile ? 0 : undefined}
       >
-        <span className="toolbar-icon">📝</span>
+        <span className="toolbar-icon"><FileText size={16} /></span>
         <span>{label || 'Text Field'}</span>
       </div>
     );
@@ -66,7 +69,7 @@ const Toolbar: React.FC = () => {
         role={isMobile ? 'button' : undefined}
         tabIndex={isMobile ? 0 : undefined}
       >
-        <span className="toolbar-icon">📊</span>
+        <span className="toolbar-icon"><Table size={16} /></span>
         <span>{label || 'Items Table'}</span>
       </div>
     );
@@ -97,7 +100,7 @@ const Toolbar: React.FC = () => {
         role={isMobile ? 'button' : undefined}
         tabIndex={isMobile ? 0 : undefined}
       >
-        <span className="toolbar-icon">📄</span>
+        <span className="toolbar-icon"><File size={16} /></span>
         <span>Page Number</span>
       </div>
     );
@@ -128,7 +131,7 @@ const Toolbar: React.FC = () => {
         role={isMobile ? 'button' : undefined}
         tabIndex={isMobile ? 0 : undefined}
       >
-        <span className="toolbar-icon">📑</span>
+        <span className="toolbar-icon"><Files size={16} /></span>
         <span>Total Pages</span>
       </div>
     );

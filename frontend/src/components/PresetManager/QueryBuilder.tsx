@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { QueryState, SimpleColumn, ColumnInfo, CalculatedColumn, WindowFunction } from '../../services/types';
 import { generateSQL } from '../../utils/sqlGenerator';
 import { parseSQL } from '../../utils/sqlParser';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import apiClient from '../../services/api';
 import TableSelector from './TableSelector';
 import ColumnSelector from './ColumnSelector';
@@ -11,7 +15,8 @@ import GroupByBuilder from './GroupByBuilder';
 import OrderByBuilder from './OrderByBuilder';
 import ExpressionBuilder from './ExpressionBuilder';
 import WindowFunctionBuilder from './WindowFunctionBuilder';
-import './QueryBuilder.css';
+import { Table, Columns, Link2, Filter } from "lucide-react";
+
 
 interface QueryBuilderProps {
   initialSQL?: string;
@@ -33,7 +38,7 @@ const TABS: Tab[] = [
   { id: 'columns', label: 'Choose Fields', icon: '✏️', description: 'Select the fields (columns) you want to display' },
   { id: 'links', label: 'Link Data', icon: '🔗', description: 'Connect related tables together' },
   { id: 'filters', label: 'Add Filters', icon: '🔍', description: 'Filter and sort your results' },
-  { id: 'preview', label: 'Preview', icon: '👁️', description: 'Review and apply your selection' },
+  { id: 'preview', label: 'Preview', icon: '', description: 'Review and apply your selection' },
 ];
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
@@ -282,84 +287,153 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const currentTab = TABS[currentTabIndex];
 
   return (
-    <div className="query-builder">
-      {/* Header */}
-      <div className="query-builder-header">
-        <h2>Query Builder</h2>
-        <div className="query-builder-actions">
-          <button onClick={onCancel} className="cancel-btn">Cancel</button>
-          <button onClick={() => onApply(generatedSQL)} className="apply-btn">
-            ✓ Apply Query
-          </button>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Query Builder</h2>
+                <p className="text-blue-100 text-sm">Build your SQL query step by step</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={onCancel}
+                variant="outline"
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => onApply(generatedSQL)}
+                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold shadow-md"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Apply Query
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Parse Warnings */}
       {parseWarnings.length > 0 && (
-        <div className="parse-warnings">
-          <div className="parse-warnings-header">
-            <span>⚠️ Some parts of the existing query couldn't be fully parsed:</span>
-            <button onClick={() => setParseWarnings([])} className="dismiss-btn">✕</button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="font-medium text-amber-900 text-sm mb-2">Some parts of the existing query couldn't be fully parsed:</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                    {parseWarnings.slice(0, 3).map((warning, i) => (
+                      <li key={i}>{warning}</li>
+                    ))}
+                    {parseWarnings.length > 3 && (
+                      <li>...and {parseWarnings.length - 3} more</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+              <button
+                onClick={() => setParseWarnings([])}
+                className="flex-shrink-0 text-amber-600 hover:text-amber-900 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <ul>
-            {parseWarnings.slice(0, 3).map((warning, i) => (
-              <li key={i}>{warning}</li>
-            ))}
-            {parseWarnings.length > 3 && (
-              <li>...and {parseWarnings.length - 3} more</li>
-            )}
-          </ul>
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="query-tabs">
-        {TABS.map((tab, index) => {
-          const status = getTabStatus(tab.id);
-          return (
-            <button
-              key={tab.id}
-              className={`query-tab ${status === 'active' ? 'active' : ''} ${status === 'completed' ? 'completed' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <span className="tab-number">
-                {status === 'completed' ? '' : index + 1}
-              </span>
-              <span className="tab-icon">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      <div className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex gap-1 overflow-x-auto">
+            {TABS.map((tab, index) => {
+              const status = getTabStatus(tab.id);
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap relative",
+                    status === 'active'
+                      ? "border-blue-600 text-blue-600 bg-blue-50"
+                      : status === 'completed'
+                      ? "border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                      : "border-transparent text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  {status === 'completed' ? (
+                    <div className="w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  ) : tab.id === 'preview' ? (
+                    <svg className={cn("w-5 h-5 flex-shrink-0", status === 'active' ? "text-blue-600" : "text-slate-600")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <div className={cn(
+                      "w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",
+                      status === 'active'
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-200 text-slate-600"
+                    )}>
+                      {index + 1}
+                    </div>
+                  )}
+                  <span className="text-sm font-medium">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="query-builder-content">
-        <div className="query-builder-left">
-          {/* Tab Header */}
-          <div className="tab-panel-header">
-            <h3>{currentTab.icon} {currentTab.label}</h3>
-            <p>{currentTab.description}</p>
-          </div>
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-1">{currentTab.label}</h3>
+              <p className="text-sm text-slate-600">{currentTab.description}</p>
+            </div>
 
-          {/* Tab: Select Tables */}
-          {activeTab === 'tables' && (
-            <div className="builder-section">
+            {activeTab === 'tables' && (
               <TableSelector
                 selectedTables={availableTables}
                 onTableSelect={handleTableSelect}
                 onTableDeselect={handleTableDeselect}
               />
-            </div>
-          )}
+            )}
 
-          {/* Tab: Choose Columns */}
-          {activeTab === 'columns' && (
-            <div className="builder-section">
-              {columnsLoading && (
-                <div className="columns-loading-indicator">Loading columns...</div>
-              )}
-              {showExpressionBuilder ? (
-                <ExpressionBuilder
+            {activeTab === 'columns' && !showExpressionBuilder && !showWindowBuilder && columnsLoading && (
+              <div className="flex items-center justify-center py-8 text-slate-500">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="text-sm font-medium">Loading columns...</p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'columns' && (
+              <>
+                {showExpressionBuilder ? (
+                  <ExpressionBuilder
                   availableColumns={allAvailableColumns}
                   initialValue={editingCalculated?.column}
                   onAdd={(col) => {
@@ -492,161 +566,156 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                   }}
                 />
               )}
-            </div>
-          )}
+            </>
+            )}
 
-          {/* Tab: Link Tables */}
-          {activeTab === 'links' && (
-            <div className="builder-section">
+            {activeTab === 'links' && (
               <JoinBuilder
                 joins={queryState.joins}
                 availableTables={availableTables}
                 availableColumns={allAvailableColumns}
                 onChange={(joins) => setQueryState(prev => ({ ...prev, joins }))}
               />
-            </div>
-          )}
+            )}
 
-          {/* Tab: Filters */}
-          {activeTab === 'filters' && (
-            <>
-              <div className="builder-section" style={{ marginBottom: '16px' }}>
+            {activeTab === 'filters' && (
+              <div className="space-y-6">
                 <WhereBuilder
                   conditions={queryState.where}
                   availableColumns={allAvailableColumns}
                   onChange={(where) => setQueryState(prev => ({ ...prev, where }))}
                 />
-              </div>
 
-              <div className="builder-section" style={{ marginBottom: '16px' }}>
                 <GroupByBuilder
                   groupBy={queryState.groupBy}
                   availableColumns={allAvailableColumns}
                   onChange={(groupBy) => setQueryState(prev => ({ ...prev, groupBy }))}
                 />
-              </div>
 
-              <div className="builder-section">
                 <OrderByBuilder
                   orderBy={queryState.orderBy}
                   availableColumns={allAvailableColumns}
                   onChange={(orderBy) => setQueryState(prev => ({ ...prev, orderBy }))}
                 />
               </div>
-            </>
-          )}
+            )}
 
-          {/* Tab: Preview */}
-          {activeTab === 'preview' && (
-            <div className="builder-section">
-              <div className="builder-section-content">
-                <div style={{ marginBottom: '20px' }}>
-                  <h4 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>📊 Summary</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
-                    <div className="item-card">
-                      <span className="item-icon">📋</span>
-                      <span className="item-name">Tables: {queryState.tables.length}</span>
+            {activeTab === 'preview' && (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-base font-semibold text-slate-900 mb-4">Summary</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 text-center">
+                    <Table className="mx-auto mb-2 h-7 w-7 text-slate-600" />
+                      <div className="text-2xl font-bold text-slate-900">{queryState.tables.length}</div>
+                      <div className="text-xs text-slate-600 mt-1">Tables</div>
                     </div>
-                    <div className="item-card">
-                      <span className="item-icon">✏️</span>
-                      <span className="item-name">Fields: {queryState.columns.length}</span>
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 text-center">
+                    <Columns className="mx-auto mb-2 h-7 w-7 text-slate-600" />
+                      <div className="text-2xl font-bold text-slate-900">{queryState.columns.length}</div>
+                      <div className="text-xs text-slate-600 mt-1">Fields</div>
                     </div>
-                    <div className="item-card">
-                      <span className="item-icon">🔗</span>
-                      <span className="item-name">Links: {queryState.joins.length}</span>
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 text-center">
+                    <Link2 className="mx-auto mb-2 h-7 w-7 text-slate-600" />
+                      <div className="text-2xl font-bold text-slate-900">{queryState.joins.length}</div>
+                      <div className="text-xs text-slate-600 mt-1">Links</div>
                     </div>
-                    <div className="item-card">
-                      <span className="item-icon">🔍</span>
-                      <span className="item-name">Filters: {queryState.where.length}</span>
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 text-center">
+                    <Filter className="mx-auto mb-2 h-7 w-7 text-slate-600" />
+                      <div className="text-2xl font-bold text-slate-900">{queryState.where.length}</div>
+                      <div className="text-xs text-slate-600 mt-1">Filters</div>
                     </div>
                   </div>
                 </div>
 
                 {queryParameters.length > 0 && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <h4 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>🔑 Required Parameters</h4>
-                    <div style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}>
-                      {queryParameters.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {queryParameters.map((param: string) => (
-                            <span
-                              key={param}
-                              style={{
-                                background: '#3b82f6',
-                                color: 'white',
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '500'
-                              }}
-                            >
-                              @{param}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ color: '#64748b', fontSize: '13px' }}>No parameters required</span>
-                      )}
+                  <div>
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">Required Parameters</h4>
+                    <div className="bg-white border border-slate-200 rounded-lg p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {queryParameters.map((param: string) => (
+                          <span key={param} className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium">
+                            @{param}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <h4 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>📄 Generated Query</h4>
-                <pre style={{
-                  background: '#1e293b',
-                  color: '#e2e8f0',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  lineHeight: '1.6',
-                  overflow: 'auto',
-                  maxHeight: '300px'
-                }}>
-                  {generatedSQL || 'SELECT *'}
-                </pre>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-base font-semibold text-slate-900">Generated Query</h4>
+                    <Button
+                      onClick={() => navigator.clipboard.writeText(generatedSQL)}
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-300 text-slate-700"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </Button>
+                  </div>
+                  <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg text-sm overflow-auto max-h-96 font-mono leading-relaxed">
+                    {generatedSQL || 'SELECT *'}
+                  </pre>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="tab-navigation">
-            <button
-              className="nav-btn prev"
-              onClick={goToPrevTab}
-              disabled={currentTabIndex === 0}
-            >
-              ← Previous
-            </button>
-            {currentTabIndex < TABS.length - 1 ? (
-              <button className="nav-btn next" onClick={goToNextTab}>
-                Next →
-              </button>
-            ) : (
-              <button className="nav-btn next" onClick={() => onApply(generatedSQL)}>
-                ✓ Apply Query
-              </button>
             )}
+
+            <div className="flex gap-3 mt-8 pt-6 border-t border-slate-200">
+              <Button
+                onClick={goToPrevTab}
+                disabled={currentTabIndex === 0}
+                variant="outline"
+                className="border-slate-300 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Previous
+              </Button>
+              {currentTabIndex < TABS.length - 1 ? (
+                <Button onClick={goToNextTab} className="ml-auto bg-blue-600 text-white hover:bg-blue-700">
+                  Next
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </Button>
+              ) : (
+                <Button onClick={() => onApply(generatedSQL)} className="ml-auto bg-blue-600 text-white hover:bg-blue-700 font-semibold">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Apply Query
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* SQL Preview Panel */}
-        <div className="query-builder-right">
-          <div className="sql-preview">
-            <div className="sql-preview-header">
-              <h3>Live Preview</h3>
-              <button
+        <div className="hidden lg:block w-96 border-l border-slate-200 bg-white overflow-y-auto">
+          <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900">Live Preview</h3>
+              <Button
                 onClick={() => navigator.clipboard.writeText(generatedSQL)}
-                className="copy-btn"
+                variant="outline"
+                size="sm"
+                className="border-slate-300 text-slate-700"
               >
-                📋 Copy
-              </button>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </Button>
             </div>
-            <pre className="sql-preview-content">{generatedSQL || 'SELECT *'}</pre>
+          </div>
+          <div className="p-4">
+            <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg text-xs overflow-auto font-mono leading-relaxed">
+              {generatedSQL || 'SELECT *'}
+            </pre>
           </div>
         </div>
       </div>

@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import Toolbar from './Toolbar';
 import ImageGallery from './ImageGallery';
 import DataPreview from './DataPreview';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { Puzzle, BarChart } from 'lucide-react';
 import './SidePanel.css';
 
 interface SidePanelProps {
@@ -21,45 +25,43 @@ const SidePanel: React.FC<SidePanelProps> = ({
 
   return (
     <div className="side-panel">
-      <div className="side-panel-tabs">
-        <button
-          className={`tab-button ${activeTab === 'elements' ? 'active' : ''}`}
-          onClick={() => setActiveTab('elements')}
-        >
-          <span className="tab-icon">🧩</span>
-          Elements
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'data' ? 'active' : ''}`}
-          onClick={() => setActiveTab('data')}
-          disabled={!sampleData}
-        >
-          <span className="tab-icon">📊</span>
-          Data Fields
-        </button>
-      </div>
-      <div className="side-panel-content">
-        {activeTab === 'elements' && (
-          <>
-            <ImageGallery />
-            <Toolbar />
-          </>
-        )}
-        {activeTab === 'data' && sampleData && (
-          <DataPreview
-            headerData={sampleData.header.data}
-            headerFields={sampleData.header.fields}
-            itemsData={sampleData.items.data}
-            itemsFields={sampleData.items.fields}
-            contentDetails={sampleData.contentDetails}
-          />
-        )}
-        {activeTab === 'data' && !sampleData && (
-          <div className="no-data-message">
-            <p>Execute query to see available data fields</p>
-          </div>
-        )}
-      </div>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full h-full flex flex-col">
+        <TabsList className="side-panel-tabs flex-shrink-0">
+          <TabsTrigger value="elements" className="tab-button">
+            <span className="tab-icon"><Puzzle size={16} /></span>
+            Elements
+          </TabsTrigger>
+          <TabsTrigger value="data" className="tab-button" disabled={!sampleData}>
+            <span className="tab-icon"><BarChart size={16} /></span>
+            Data Fields
+          </TabsTrigger>
+        </TabsList>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <TabsContent value="elements" className="side-panel-content h-full m-0">
+            <ScrollArea className="h-full">
+              <ImageGallery />
+              <Toolbar />
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="data" className="side-panel-content h-full m-0">
+            <ScrollArea className="h-full">
+              {sampleData ? (
+                <DataPreview
+                  headerData={sampleData.header.data}
+                  headerFields={sampleData.header.fields}
+                  itemsData={sampleData.items.data}
+                  itemsFields={sampleData.items.fields}
+                  contentDetails={sampleData.contentDetails}
+                />
+              ) : (
+                <div className="no-data-message">
+                  <p>Execute query to see available data fields</p>
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 };

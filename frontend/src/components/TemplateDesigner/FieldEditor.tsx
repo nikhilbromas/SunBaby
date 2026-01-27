@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import type { TextFieldConfig } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import './FieldEditor.css';
 
 interface FieldEditorProps {

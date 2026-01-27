@@ -1,5 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import type { Template, Preset } from '../../services/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import './ParameterCopyModal.css';
 import '../TemplateDesigner/SetupPanel.css';
 

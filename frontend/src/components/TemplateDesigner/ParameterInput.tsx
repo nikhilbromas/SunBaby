@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../services/api';
 import type { Preset } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Play, Save, RotateCcw, CheckCircle2, Loader2 } from 'lucide-react';
 import './ParameterInput.css';
 
 interface ParameterInputProps {
@@ -292,78 +298,111 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
   const paramNames = Object.keys(parameters);
 
   return (
-    <div className="parameter-input">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h4 style={{ margin: 0 }}>Query Parameters</h4>
-        {templateId && (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {hasDefaults && defaultParameters && Object.keys(defaultParameters).length > 0 && (
-              <button
-                onClick={handleLoadDefaults}
-                disabled={loading || saving}
-                className="load-defaults-button"
-                title="Load saved default values"
-              >
-                Load Defaults
-              </button>
-            )}
-            {onSaveParameters && (
-              <button
-                onClick={handleSaveDefaults}
-                disabled={loading || saving || paramNames.length === 0}
-                className="save-defaults-button"
-                title="Save current values as template defaults"
-              >
-                {saving ? 'Saving...' : 'Save as Default'}
-              </button>
-            )}
+    <Card className="parameter-input">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-lg font-semibold">Query Parameters</CardTitle>
+          {templateId && (
+            <div className="flex gap-2">
+              {hasDefaults && defaultParameters && Object.keys(defaultParameters).length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadDefaults}
+                  disabled={loading || saving}
+                  title="Load saved default values"
+                >
+                  <RotateCcw size={14} className="mr-1.5" />
+                  Load Defaults
+                </Button>
+              )}
+              {onSaveParameters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveDefaults}
+                  disabled={loading || saving || paramNames.length === 0}
+                  title="Save current values as template defaults"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 size={14} className="mr-1.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} className="mr-1.5" />
+                      Save as Default
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {error && (
+          <div className="error-message flex items-start gap-2">
+            <span className="text-sm">{error}</span>
           </div>
         )}
-      </div>
-      {error && <div className="error-message">{error}</div>}
-      {hasDefaults && (
-        <div style={{ 
-          fontSize: '0.875rem', 
-          color: '#28a745', 
-          marginBottom: '0.5rem',
-          padding: '0.5rem',
-          background: '#f0f9ff',
-          borderRadius: '4px'
-        }}>
-          ✓ Default parameters loaded
-        </div>
-      )}
+        
+        {hasDefaults && (
+          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+            <CheckCircle2 size={16} />
+            <span>Default parameters loaded</span>
+          </div>
+        )}
 
-      {paramNames.length === 0 ? (
-        <p className="no-params">No parameters required for this preset</p>
-      ) : (
-        <>
-          <div className="parameter-inputs">
-            {paramNames.map((paramName) => (
-              <div key={paramName} className="parameter-input-group">
-                <label>
-                  {paramName}:
-                  <input
+        {paramNames.length === 0 ? (
+          <p className="no-params text-muted-foreground text-sm italic text-center py-4">
+            No parameters required for this preset
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-3">
+              {paramNames.map((paramName) => (
+                <div key={paramName} className="space-y-2">
+                  <Label htmlFor={`param-${paramName}`} className="text-sm font-medium">
+                    {paramName}
+                  </Label>
+                  <Input
+                    id={`param-${paramName}`}
                     type="text"
                     value={parameters[paramName] || ''}
                     onChange={(e) => handleParameterChange(paramName, e.target.value)}
                     placeholder={`Enter ${paramName}`}
                     required
+                    className="w-full"
                   />
-                </label>
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
+            
+            <Button
+              onClick={handleExecute}
+              disabled={loading || saving}
+              className="w-full execute-button"
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="mr-2 animate-spin" />
+                  Executing...
+                </>
+              ) : (
+                <>
+                  <Play size={18} className="mr-2" />
+                  Execute Query & Load Data
+                </>
+              )}
+            </Button>
           </div>
-          <button
-            onClick={handleExecute}
-            disabled={loading || saving}
-            className="execute-button"
-          >
-            {loading ? 'Executing...' : 'Execute Query & Load Data'}
-          </button>
-        </>
-      )}
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

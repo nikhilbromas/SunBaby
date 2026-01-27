@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { ItemsTableConfig, ContentDetailsTableConfig } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import './TableEditor.css';
 
 interface TableEditorProps {
@@ -360,7 +362,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
       onDoubleClick={handleDoubleClick}
     >
       {label && (
-        <div className="table-label" style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>
+        <div className={cn("mb-1.5 font-bold text-xs text-foreground")}>
           {label}
         </div>
       )}
@@ -512,16 +514,25 @@ const TableEditor: React.FC<TableEditorProps> = ({
       </table>
       {isSelected && (
         <>
-          <button className="table-delete" onClick={(e) => {
-            e.stopPropagation();
-            if (onDelete) {
-              onDelete();
-            } else {
-              onUpdate({ ...table, columns: [] });
-            }
-          }} title="Delete table">
+          <Button 
+            variant="destructive" 
+            size="icon" 
+            className={cn(
+              "absolute -top-2.5 -right-2.5 h-7 w-7 rounded-full shadow-lg border-2 border-white",
+              "hover:scale-110 transition-transform"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onDelete) {
+                onDelete();
+              } else {
+                onUpdate({ ...table, columns: [] });
+              }
+            }} 
+            title="Delete table"
+          >
             ×
-          </button>
+          </Button>
           {isResizingWidth && (
             <div 
               className="table-width-resize-handle"

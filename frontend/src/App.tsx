@@ -10,7 +10,11 @@ import TemplateConfigList from './components/TemplateConfig/TemplateConfigList';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MobileProvider } from './contexts/MobileContext';
+import { Palette, Eye, Settings ,Menu, LogOut } from 'lucide-react';
 import './styles/App.css';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Multi-backend configuration for touch and mouse support
 const HTML5toTouch = {
@@ -85,140 +89,86 @@ function AppInner() {
 
   return (
     <DndProvider backend={MultiBackend} options={HTML5toTouch}>
-      <MobileProvider>
-      <div className="app">
-        <header className="app-header">
-          <div className="app-topbar">
-            <h1 className="app-title">Dynamic Bill Preview System</h1>
-
-            {/* Mobile hamburger menu button */}
-            <button
-              className="mobile-nav-toggle"
-              onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-              aria-label="Toggle navigation menu"
-              aria-expanded={isMobileNavOpen}
-            >
-              <span className={`hamburger ${isMobileNavOpen ? 'open' : ''}`}>
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-            </button>
-
-            <div 
-              ref={mobileNavRef}
-              className={`nav-container ${isMobileNavOpen ? 'mobile-open' : ''}`}
-            >
-              <nav className="app-nav" aria-label="Primary navigation">
-                {canPreset && (
-                  <button
-                    className={currentView === 'presets' ? 'active' : ''}
-                    onClick={() => handleViewChange('presets')}
-                  >
-                    <span className="nav-icon">📋</span>
-                    <span className="nav-label">Presets</span>
-                  </button>
-                )}
-                {canTemplate && (
-                  <button
-                    className={currentView === 'designer' ? 'active' : ''}
-                    onClick={() => handleViewChange('designer')}
-                  >
-                    <span className="nav-icon">🎨</span>
-                    <span className="nav-label">Template Designer</span>
-                  </button>
-                )}
-                {canPreview && (
-                  <button
-                    className={currentView === 'preview' ? 'active' : ''}
-                    onClick={() => handleViewChange('preview')}
-                  >
-                    <span className="nav-icon">👁️</span>
-                    <span className="nav-label">Preview</span>
-                  </button>
-                )}
-                {canTemplateConfig && (
-                  <button
-                    className={currentView === 'templateConfig' ? 'active' : ''}
-                    onClick={() => handleViewChange('templateConfig')}
-                  >
-                    <span className="nav-icon">⚙️</span>
-                    <span className="nav-label">Template Config</span>
-                  </button>
-                )}
-              </nav>
-            </div>
-
-            <div className="user-menu-container" ref={userMenuRef}>
-              <button
-                className="user-icon-btn"
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                aria-label="User menu"
-                aria-expanded={isUserMenuOpen}
-              >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              {isUserMenuOpen && (
-                <div className="user-menu-dropdown">
-                  {companyName && (
-                    <div className="user-menu-item">
-                      <span className="user-menu-label">Company:</span>
-                      <span className="user-menu-value">{companyName}</span>
-                    </div>
-                  )}
-                  {email && (
-                    <div className="user-menu-item">
-                      <span className="user-menu-label">User:</span>
-                      <span className="user-menu-value">{email}</span>
-                    </div>
-                  )}
-                  <div className="user-menu-divider"></div>
-                  <button
-                    className="user-menu-logout"
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      void logout();
-                    }}
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-        <main className="app-main">
-          {currentView === 'presets' && canPreset && <PresetManager />}
-          {currentView === 'designer' && canTemplate && <TemplateDesigner />}
-          {currentView === 'preview' && canPreview && <Preview />}
-          {currentView === 'templateConfig' && canTemplateConfig && <TemplateConfigList />}
-        </main>
-      </div>
-      </MobileProvider>
+    <MobileProvider>
+    <div className="min-h-screen bg-muted/40">
+    <header className="sticky top-0 z-50 border-b bg-background">
+    <div className="mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4">
+    <h1 className="text-lg font-semibold tracking-tight">Dynamic Bill Preview System</h1>
+    
+    
+    <div className="flex items-center gap-2">
+    <div className="hidden md:flex gap-1">
+    {canPreset && (
+    <Button variant={currentView === 'presets' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('presets')}>
+    Presets
+    </Button>
+    )}
+    {canTemplate && (
+    <Button variant={currentView === 'designer' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('designer')}>
+    <Palette className="mr-2 h-4 w-4" /> Designer
+    </Button>
+    )}
+    {canPreview && (
+    <Button variant={currentView === 'preview' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('preview')}>
+    <Eye className="mr-2 h-4 w-4" /> Preview
+    </Button>
+    )}
+    {canTemplateConfig && (
+    <Button variant={currentView === 'templateConfig' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('templateConfig')}>
+    <Settings className="mr-2 h-4 w-4" /> Config
+    </Button>
+    )}
+    </div>
+    
+    
+    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}>
+    <Menu className="h-5 w-5" />
+    </Button>
+    
+    
+    <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+    <Button variant="outline" size="sm">Account</Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-56">
+    {companyName && <DropdownMenuLabel>{companyName}</DropdownMenuLabel>}
+    {email && <DropdownMenuItem disabled>{email}</DropdownMenuItem>}
+    <DropdownMenuSeparator />
+    <DropdownMenuItem onClick={() => void logout()} className="text-destructive">
+    <LogOut className="mr-2 h-4 w-4" /> Logout
+    </DropdownMenuItem>
+    </DropdownMenuContent>
+    </DropdownMenu>
+    </div>
+    </div>
+    
+    
+    {isMobileNavOpen && (
+    <div className="border-t bg-background md:hidden">
+    <div className="flex flex-col gap-1 p-2">
+    {canPreset && <Button variant="ghost" onClick={() => handleViewChange('presets')}>Presets</Button>}
+    {canTemplate && <Button variant="ghost" onClick={() => handleViewChange('designer')}>Template Designer</Button>}
+    {canPreview && <Button variant="ghost" onClick={() => handleViewChange('preview')}>Preview</Button>}
+    {canTemplateConfig && <Button variant="ghost" onClick={() => handleViewChange('templateConfig')}>Template Config</Button>}
+    </div>
+    </div>
+    )}
+    </header>
+    
+    
+    <main className="mx-auto max-w-screen-2xl p-4">
+    <Card className="p-4">
+    {currentView === 'presets' && canPreset && <PresetManager />}
+    {currentView === 'designer' && canTemplate && <TemplateDesigner />}
+    {currentView === 'preview' && canPreview && <Preview />}
+    {currentView === 'templateConfig' && canTemplateConfig && <TemplateConfigList />}
+    </Card>
+    </main>
+    </div>
+    </MobileProvider>
     </DndProvider>
-  );
-}
+    );
+    }
 
 function App() {
   return (
