@@ -522,7 +522,7 @@
   font-size: 12px;
 }
 
-/* Responsive */
+/* Responsive - Tablet */
 @media (max-width: 1024px) {
   .query-builder-right {
     display: none;
@@ -531,10 +531,204 @@
   .query-tabs {
     overflow-x: auto;
     padding: 0 12px;
+    -webkit-overflow-scrolling: touch;
   }
   
   .query-tab {
     padding: 12px 16px;
     white-space: nowrap;
+  }
+  
+  .query-builder-left {
+    padding: 16px;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+  .query-builder-header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .query-builder-header h2 {
+    font-size: 18px;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .query-builder-actions {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .cancel-btn,
+  .apply-btn {
+    flex: 1;
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+  
+  /* Mobile tabs - horizontal scroll with better touch targets */
+  .query-tabs {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  
+  .query-tab {
+    padding: 10px 14px;
+    min-height: 44px;
+    border-radius: 22px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  
+  .query-tab .tab-number {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+  
+  .query-tab .tab-icon {
+    font-size: 16px;
+  }
+  
+  /* Content area */
+  .query-builder-left {
+    padding: 12px;
+  }
+  
+  .tab-panel-header h3 {
+    font-size: 18px;
+  }
+  
+  .tab-panel-header p {
+    font-size: 13px;
+  }
+  
+  /* Builder sections */
+  .builder-section {
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .builder-section-header {
+    padding: 12px 14px;
+  }
+  
+  .builder-section-header h4 {
+    font-size: 14px;
+  }
+  
+  .builder-section-content {
+    padding: 12px 14px;
+  }
+  
+  /* Item cards - larger touch targets */
+  .item-card {
+    padding: 14px 16px;
+    min-height: 48px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .item-card .item-icon {
+    font-size: 18px;
+    margin-right: 10px;
+  }
+  
+  .item-card .item-name {
+    font-size: 14px;
+  }
+  
+  /* Search input */
+  .search-input {
+    padding: 14px 16px 14px 44px;
+    font-size: 16px; /* Prevents iOS zoom */
+    min-height: 48px;
+    border-radius: 12px;
+  }
+  
+  /* Navigation buttons */
+  .tab-navigation {
+    flex-direction: column-reverse;
+    gap: 10px;
+    padding: 16px 0;
+    margin-top: 16px;
+  }
+  
+  .nav-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+  
+  /* Add button */
+  .add-btn-large {
+    min-height: 48px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+  
+  /* Copy button */
+  .copy-btn {
+    min-height: 40px;
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  
+  /* SQL Preview - when shown */
+  .sql-preview-header {
+    padding: 12px 14px;
+  }
+  
+  .sql-preview-content {
+    padding: 14px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  
+  /* Empty state */
+  .empty-state {
+    padding: 30px 16px;
+  }
+  
+  .empty-state .empty-icon {
+    font-size: 40px;
+  }
+  
+  .empty-state h4 {
+    font-size: 15px;
+  }
+  
+  .empty-state p {
+    font-size: 13px;
+  }
+  
+  /* Parse warnings */
+  .parse-warnings {
+    margin: 0 0 12px 0;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 375px) {
+  .query-builder-header h2 {
+    font-size: 16px;
+  }
+  
+  .query-tab {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .tab-panel-header h3 {
+    font-size: 16px;
   }
 }

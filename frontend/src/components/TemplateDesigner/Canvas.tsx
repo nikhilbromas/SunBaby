@@ -10,6 +10,7 @@ import SetupPanel from './SetupPanel';
 import TableEditorModal from './TableEditorModal';
 import ZoneConfigModal from './ZoneConfigModal';
 import apiClient from '../../services/api';
+import { useMobile } from '../../contexts/MobileContext';
 import './Canvas.css';
 
 interface ResizableSectionZoneProps {
@@ -38,6 +39,7 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
   const [startHeight, setStartHeight] = useState(height);
   const zoneRef = useRef<HTMLDivElement>(null);
 
+  // Mouse event handler
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -46,8 +48,21 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
     setStartHeight(height);
   };
 
+  // Touch event handler for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      const touch = e.touches[0];
+      setIsResizing(true);
+      setStartY(touch.clientY);
+      setStartHeight(height);
+    }
+  };
+
   React.useEffect(() => {
     if (isResizing) {
+      // Mouse handlers
       const handleMouseMove = (e: MouseEvent) => {
         const deltaY = isBottom ? startY - e.clientY : e.clientY - startY;
         const newHeight = Math.max(40, startHeight + deltaY);
@@ -56,11 +71,34 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
       const handleMouseUp = () => {
         setIsResizing(false);
       };
+      
+      // Touch handlers
+      const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          const deltaY = isBottom ? startY - touch.clientY : touch.clientY - startY;
+          const newHeight = Math.max(40, startHeight + deltaY);
+          onHeightChange(newHeight);
+        }
+      };
+      const handleTouchEnd = () => {
+        setIsResizing(false);
+      };
+      
+      // Add all event listeners
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+      document.addEventListener('touchcancel', handleTouchEnd);
+      
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+        document.removeEventListener('touchcancel', handleTouchEnd);
       };
     }
   }, [isResizing, startY, startHeight, isBottom, onHeightChange]);
@@ -83,15 +121,18 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
       <div
         className={`section-resize-handle ${isBottom ? 'resize-handle-top' : 'resize-handle-bottom'}`}
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         style={{
           cursor: 'row-resize',
           position: 'absolute',
           [isBottom ? 'top' : 'bottom']: 0,
           left: 0,
           right: 0,
-          height: '8px',
-          backgroundColor: isResizing ? '#007bff' : 'transparent',
+          height: '16px',
+          minHeight: '16px',
+          backgroundColor: isResizing ? 'rgba(11, 99, 255, 0.3)' : 'transparent',
           zIndex: 100,
+          touchAction: 'none',
         }}
       />
       <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto',top: '-40px' }}>
@@ -107,6 +148,20 @@ interface CanvasProps {
 }
 
 const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId: initialPresetId }) => {
+  // Mobile context for responsive behavior
+  const { 
+    isMobile, 
+    activeDesignerTab, 
+    setActiveDesignerTab, 
+    isPlacementMode, 
+    placementItem, 
+    exitPlacementMode, 
+    canvasZoom,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+  } = useMobile();
+  
   const [selectedPresetId, setSelectedPresetId] = useState<number | undefined>(initialPresetId);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(initialTemplateId);
   const [template, setTemplate] = useState<TemplateJson>({
@@ -1584,10 +1639,159 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     }
   };
 
+  // Handle canvas click/tap for placement mode and element deselection
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    // If in placement mode on mobile, handle element placement
+    if (isMobile && isPlacementMode && placementItem) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Get click position relative to canvas
+      const canvas = e.currentTarget as HTMLElement;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / canvasZoom;
+      const y = (e.clientY - rect.top) / canvasZoom;
+      
+      // Create element at click position based on type
+      if (placementItem.type === 'text') {
+        // Add a text field at position
+        const targetSection = placementItem.targetSection || 'header';
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: 'New Text Field',
+          bind: '',
+          x: x,
+          y: y,
+          visible: true,
+          fontSize: 12,
+          fontWeight: 'normal',
+          color: '#000000',
+        };
+        setTemplate(prev => {
+          const sectionKey = targetSection === 'header' ? 'header' : targetSection;
+          const currentFields = (prev[sectionKey as keyof TemplateJson] as TextFieldConfig[]) || [];
+          return {
+            ...prev,
+            [sectionKey]: [...currentFields, newField],
+          };
+        });
+      } else if (placementItem.type === 'data-field' && placementItem.field) {
+        const targetSection = placementItem.targetSection || 'header';
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: placementItem.field,
+          bind: placementItem.field,
+          x: x,
+          y: y,
+          visible: true,
+          fontSize: 12,
+          fontWeight: 'normal',
+          color: '#000000',
+        };
+        setTemplate(prev => {
+          const sectionKey = targetSection === 'header' ? 'header' : targetSection;
+          const currentFields = (prev[sectionKey as keyof TemplateJson] as TextFieldConfig[]) || [];
+          return {
+            ...prev,
+            [sectionKey]: [...currentFields, newField],
+          };
+        });
+      } else if (placementItem.type === 'image' && placementItem.imageId) {
+        const targetSection = placementItem.targetSection || 'header';
+        const newImage: ImageFieldConfig = {
+          type: 'image',
+          imageId: placementItem.imageId,
+          x: x,
+          y: y,
+          width: 100,
+          height: 100,
+          visible: true,
+        };
+        setTemplate(prev => {
+          const sectionKey = targetSection === 'pageHeader' ? 'pageHeaderImages' :
+                           targetSection === 'pageFooter' ? 'pageFooterImages' :
+                           targetSection === 'header' ? 'headerImages' :
+                           targetSection === 'billContent' ? 'billContentImages' :
+                           'billFooterImages';
+          const currentImages = (prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+          return {
+            ...prev,
+            [sectionKey]: [...currentImages, newImage],
+          };
+        });
+      } else if (placementItem.type === 'table') {
+        // Add items table
+        if (!template.itemsTable) {
+          setTemplate(prev => ({
+            ...prev,
+            itemsTable: {
+              x: x,
+              y: y,
+              columns: [{ bind: '', label: 'Column 1', visible: true, width: 100 }],
+              style: {
+                headerBackground: '#f0f0f0',
+                headerTextColor: '#000000',
+                rowBackground: '#ffffff',
+                alternateRowBackground: '#f9f9f9',
+                borderColor: '#cccccc',
+                fontSize: 10,
+              },
+            },
+          }));
+        }
+      } else if (placementItem.type === 'pageNumber' || placementItem.type === 'totalPages') {
+        const targetSection = placementItem.targetSection || 'pageFooter';
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: placementItem.type === 'pageNumber' ? 'Page Number' : 'Total Pages',
+          bind: '',
+          x: x,
+          y: y,
+          visible: true,
+          fontSize: 10,
+          fontWeight: 'normal',
+          color: '#000000',
+          fieldType: placementItem.type,
+        };
+        setTemplate(prev => {
+          const currentFields = (prev[targetSection as keyof TemplateJson] as TextFieldConfig[]) || [];
+          return {
+            ...prev,
+            [targetSection]: [...currentFields, newField],
+          };
+        });
+      }
+      
+      exitPlacementMode();
+      return;
+    }
+    
+    // Clear selection when clicking on canvas, section zones, or canvas header
+    const target = e.target as HTMLElement;
+    if (
+      e.target === e.currentTarget ||
+      target.classList.contains('canvas-header') ||
+      target.classList.contains('section-zone') ||
+      target.classList.contains('section-label')
+    ) {
+      setSelectedElement(null);
+    }
+  }, [isMobile, isPlacementMode, placementItem, canvasZoom, exitPlacementMode, template.itemsTable]);
+
   return (
-    <div className="template-designer">
+    <div className={`template-designer ${isMobile ? 'template-designer-mobile' : ''}`}>
+      {/* Mobile Placement Mode Banner */}
+      {isMobile && isPlacementMode && (
+        <div className="placement-mode-banner">
+          <span className="placement-icon">📍</span>
+          <span>Tap on canvas to place {placementItem?.type === 'data-field' ? placementItem.field : placementItem?.type}</span>
+          <button onClick={exitPlacementMode} className="cancel-placement-btn">✕</button>
+        </div>
+      )}
+      
       <div className="designer-content">
-        <div className="properties-panel-container">
+        {/* Properties Panel - hidden on mobile when not on properties tab */}
+        <div className={`properties-panel-container ${isMobile && activeDesignerTab !== 'properties' ? 'mobile-hidden' : ''}`}>
           <PropertyPanel
             selectedElement={selectedElement}
             template={template}
@@ -1617,27 +1821,28 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
           />
         </div>
         <div className="designer-content-wrapper">
-          <div className="canvas-container">
+          {/* Canvas Container - hidden on mobile when not on canvas tab */}
+          <div className={`canvas-container ${isMobile && activeDesignerTab !== 'canvas' ? 'mobile-hidden' : ''}`}>
+          {/* Mobile Zoom Controls */}
+          {isMobile && activeDesignerTab === 'canvas' && (
+            <div className="mobile-zoom-controls">
+              <button onClick={zoomOut} className="zoom-btn" aria-label="Zoom out">−</button>
+              <button onClick={resetZoom} className="zoom-btn zoom-reset" aria-label="Reset zoom">
+                {Math.round(canvasZoom * 100)}%
+              </button>
+              <button onClick={zoomIn} className="zoom-btn" aria-label="Zoom in">+</button>
+            </div>
+          )}
           <div
             ref={drop}
-            className={`canvas ${isOver ? 'drag-over' : ''}`}
+            className={`canvas ${isOver ? 'drag-over' : ''} ${isPlacementMode ? 'placement-mode' : ''}`}
             style={{
               width: template.page.orientation === 'landscape' ? '1123px' : '794px',
               minHeight: template.page.orientation === 'landscape' ? '794px' : '1123px',
+              transform: isMobile ? `scale(${canvasZoom})` : undefined,
+              transformOrigin: 'top left',
             }}
-            onClick={(e) => {
-              // Clear selection when clicking on canvas, section zones, or canvas header
-              // But not when clicking on fields/tables (they stop propagation)
-              const target = e.target as HTMLElement;
-              if (
-                e.target === e.currentTarget ||
-                target.classList.contains('canvas-header') ||
-                target.classList.contains('section-zone') ||
-                target.classList.contains('section-label')
-              ) {
-                setSelectedElement(null);
-              }
-            }}
+            onClick={handleCanvasClick}
           >
             <div className="canvas-header">
               <h3>Template Canvas ({template.page.size} - {template.page.orientation})</h3>
@@ -1919,11 +2124,50 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             )}
           </div>
         </div>
-          <SidePanel
-            sampleData={sampleData}
-          />
+          {/* Side Panel - hidden on mobile when not on elements tab */}
+          <div className={`side-panel-wrapper ${isMobile && activeDesignerTab !== 'elements' ? 'mobile-hidden' : ''}`}>
+            <SidePanel
+              sampleData={sampleData}
+            />
+          </div>
         </div>
       </div>
+      
+      {/* Mobile Tab Bar */}
+      {isMobile && (
+        <div className="mobile-tab-bar">
+          <button
+            className={`mobile-tab-btn ${activeDesignerTab === 'canvas' ? 'active' : ''}`}
+            onClick={() => setActiveDesignerTab('canvas')}
+          >
+            <span className="mobile-tab-icon">🎨</span>
+            <span className="mobile-tab-label">Canvas</span>
+          </button>
+          <button
+            className={`mobile-tab-btn ${activeDesignerTab === 'elements' ? 'active' : ''}`}
+            onClick={() => setActiveDesignerTab('elements')}
+          >
+            <span className="mobile-tab-icon">🧩</span>
+            <span className="mobile-tab-label">Elements</span>
+          </button>
+          <button
+            className={`mobile-tab-btn ${activeDesignerTab === 'properties' ? 'active' : ''}`}
+            onClick={() => setActiveDesignerTab('properties')}
+          >
+            <span className="mobile-tab-icon">⚙️</span>
+            <span className="mobile-tab-label">Properties</span>
+          </button>
+          <button
+            className="mobile-tab-btn save-btn"
+            onClick={saveTemplate}
+            disabled={isSaving}
+          >
+            <span className="mobile-tab-icon">{isSaving ? '⏳' : '💾'}</span>
+            <span className="mobile-tab-label">{isSaving ? 'Saving' : 'Save'}</span>
+          </button>
+        </div>
+      )}
+      
       <SetupPanel
         isOpen={isSetupPanelOpen}
         onClose={() => setIsSetupPanelOpen(false)}

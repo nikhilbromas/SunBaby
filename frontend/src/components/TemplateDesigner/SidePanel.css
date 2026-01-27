@@ -83,6 +83,7 @@
   margin: 0;
 }
 
+/* Tablet responsive */
 @media (max-width: 1024px) {
   .side-panel {
     width: 100%;
@@ -97,6 +98,98 @@
   
   .tab-button {
     min-width: 100px;
+  }
+}
+
+/* Mobile responsive - fullscreen mode in tabbed layout */
+@media (max-width: 768px) {
+  /* When used in regular mode (not mobile designer tabs) */
+  .side-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 60vh;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 200;
+    transform: translateY(calc(100% - 60px));
+    transition: transform 300ms ease;
+  }
+  
+  .side-panel.expanded {
+    transform: translateY(0);
+  }
+  
+  /* When used in mobile designer fullscreen tabs */
+  .template-designer-mobile .side-panel {
+    position: static;
+    transform: none;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  .side-panel-tabs {
+    padding: 12px;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    background: white;
+  }
+  
+  .tab-button {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 10px;
+    font-size: 0.8rem;
+    min-height: 48px;
+    border-radius: 12px;
+    gap: 0.375rem;
+  }
+  
+  .tab-button .tab-icon {
+    font-size: 1.25rem;
+  }
+  
+  /* Keep text visible on mobile */
+  .tab-button span:not(.tab-icon) {
+    font-size: 0.7rem;
+    display: block;
+  }
+  
+  .side-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 70px; /* Space for mobile tab bar */
+  }
+  
+  .template-designer-mobile .side-panel-content {
+    max-height: none;
+    padding-bottom: 80px;
+  }
+  
+  .no-data-message {
+    padding: 2rem 1.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 375px) {
+  .side-panel {
+    max-height: 50vh;
+  }
+  
+  .tab-button {
+    padding: 10px 8px;
+    min-height: 44px;
+  }
+  
+  .tab-button span:not(.tab-icon) {
+    font-size: 0.65rem;
   }
 }
 

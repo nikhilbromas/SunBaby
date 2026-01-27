@@ -457,20 +457,60 @@ const TemplateConfigList: React.FC = () => {
         {configs.length === 0 ? (
           <div className="empty-state">No template configs found. Create one to get started.</div>
         ) : (
-          <table className="config-table">
-            <thead>
-              <tr>
-                <th>Template</th>
-                <th>Preset</th>
-                <th>Interface</th>
-                <th>Department</th>
-                <th>Shop</th>
-                <th>Type</th>
-                <th>Description</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table view */}
+            <table className="config-table desktop-only">
+              <thead>
+                <tr>
+                  <th>Template</th>
+                  <th>Preset</th>
+                  <th>Interface</th>
+                  <th>Department</th>
+                  <th>Shop</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {configs.map((config) => {
+                  const template = templates.find((t) => t.TemplateId === config.TemplateId);
+                  const preset = presets.find((p) => p.PresetId === config.PresetId);
+                  const interfaceItem = interfaces.find((i) => i.InterfaceID === config.InterfaceId);
+                  const department = departments.find((d) => d.DepartmentID === config.DepartmentId);
+                  const shop = shops.find((s) => s.ShopID === config.ShopId);
+
+                  return (
+                    <tr key={config.ConfigId}>
+                      <td>{template?.TemplateName || `Template ${config.TemplateId}`}</td>
+                      <td>{preset?.PresetName || `Preset ${config.PresetId}`}</td>
+                      <td>{interfaceItem ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}` : `Interface ${config.InterfaceId}`}</td>
+                      <td>{department?.DepartmentName || (config.DepartmentId ? `Dept ${config.DepartmentId}` : '-')}</td>
+                      <td>{shop ? `${shop.ShopName}${shop.ShopLocation ? ` (${shop.ShopLocation})` : ''}` : (config.ShopId ? `Shop ${config.ShopId}` : '-')}</td>
+                      <td>{config.Type}</td>
+                      <td>{config.Description || '-'}</td>
+                      <td>
+                        <button
+                          onClick={() => handleEdit(config)}
+                          className="action-button edit-button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(config.ConfigId)}
+                          className="action-button delete-button"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Mobile card view */}
+            <div className="config-cards mobile-only">
               {configs.map((config) => {
                 const template = templates.find((t) => t.TemplateId === config.TemplateId);
                 const preset = presets.find((p) => p.PresetId === config.PresetId);
@@ -479,15 +519,40 @@ const TemplateConfigList: React.FC = () => {
                 const shop = shops.find((s) => s.ShopID === config.ShopId);
 
                 return (
-                  <tr key={config.ConfigId}>
-                    <td>{template?.TemplateName || `Template ${config.TemplateId}`}</td>
-                    <td>{preset?.PresetName || `Preset ${config.PresetId}`}</td>
-                    <td>{interfaceItem ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}` : `Interface ${config.InterfaceId}`}</td>
-                    <td>{department?.DepartmentName || (config.DepartmentId ? `Dept ${config.DepartmentId}` : '-')}</td>
-                    <td>{shop ? `${shop.ShopName}${shop.ShopLocation ? ` (${shop.ShopLocation})` : ''}` : (config.ShopId ? `Shop ${config.ShopId}` : '-')}</td>
-                    <td>{config.Type}</td>
-                    <td>{config.Description || '-'}</td>
-                    <td>
+                  <div key={config.ConfigId} className="config-card">
+                    <div className="config-card-header">
+                      <h3 className="config-card-title">
+                        {template?.TemplateName || `Template ${config.TemplateId}`}
+                      </h3>
+                      <span className="config-card-type">{config.Type}</span>
+                    </div>
+                    <div className="config-card-meta">
+                      <div className="config-card-info">
+                        <span className="config-card-label">Preset:</span>
+                        <span className="config-card-value">{preset?.PresetName || `Preset ${config.PresetId}`}</span>
+                      </div>
+                      <div className="config-card-info">
+                        <span className="config-card-label">Interface:</span>
+                        <span className="config-card-value">
+                          {interfaceItem ? `${interfaceItem.InterfaceName}${interfaceItem.ModuleCode ? ` (${interfaceItem.ModuleCode})` : ''}` : `Interface ${config.InterfaceId}`}
+                        </span>
+                      </div>
+                      <div className="config-card-info">
+                        <span className="config-card-label">Department:</span>
+                        <span className="config-card-value">{department?.DepartmentName || (config.DepartmentId ? `Dept ${config.DepartmentId}` : '-')}</span>
+                      </div>
+                      <div className="config-card-info">
+                        <span className="config-card-label">Shop:</span>
+                        <span className="config-card-value">{shop ? `${shop.ShopName}${shop.ShopLocation ? ` (${shop.ShopLocation})` : ''}` : (config.ShopId ? `Shop ${config.ShopId}` : '-')}</span>
+                      </div>
+                      {config.Description && (
+                        <div className="config-card-info">
+                          <span className="config-card-label">Description:</span>
+                          <span className="config-card-value">{config.Description}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="config-card-actions">
                       <button
                         onClick={() => handleEdit(config)}
                         className="action-button edit-button"
@@ -500,12 +565,12 @@ const TemplateConfigList: React.FC = () => {
                       >
                         Delete
                       </button>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>

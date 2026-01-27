@@ -206,6 +206,7 @@
   background-color: rgba(11, 99, 255, 0.25) !important;
 }
 
+/* Tablet responsive */
 @media (max-width: 1024px) {
   .designer-content {
     flex-direction: column;
@@ -214,6 +215,403 @@
   .canvas {
     width: 100% !important;
     max-width: 100%;
+  }
+  
+  .canvas-container {
+    padding: 1rem;
+  }
+  
+  .designer-footer {
+    padding: 1rem;
+    flex-wrap: wrap;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .template-designer {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+  }
+  
+  .designer-content-wrapper {
+    flex-direction: column;
+  }
+  
+  .properties-panel-container {
+    max-height: 180px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .canvas-container {
+    padding: 0.75rem;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  
+  /* Scale canvas for mobile viewing */
+  .canvas {
+    transform-origin: top left;
+    transform: scale(0.5);
+    margin: 0;
+    padding: 20px;
+  }
+  
+  /* Wrapper to maintain scroll area after scaling */
+  .canvas-container::after {
+    content: '';
+    display: block;
+    min-height: 50vh;
+  }
+  
+  .canvas-header {
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+  }
+  
+  .canvas-header h3 {
+    font-size: 1rem;
+  }
+  
+  .section-zone .section-label {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+  }
+  
+  /* Footer - mobile optimized */
+  .designer-footer {
+    padding: 0.875rem 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+  }
+  
+  .designer-footer button {
+    width: 100%;
+    min-height: 48px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+  
+  /* Touch-friendly resize handles */
+  .section-resize-handle {
+    min-height: 16px !important;
+    cursor: row-resize;
+    touch-action: none;
+  }
+}
+
+/* Very small screens - further scale down */
+@media (max-width: 480px) {
+  .canvas {
+    transform: scale(0.35);
+  }
+  
+  .properties-panel-container {
+    max-height: 150px;
+  }
+  
+  .designer-footer button {
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* ============================================
+   MOBILE TABBED LAYOUT STYLES
+   ============================================ */
+
+/* Mobile-specific class for template designer */
+.template-designer-mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  padding-bottom: 70px; /* Space for mobile tab bar */
+}
+
+/* Hide elements based on active tab */
+.template-designer-mobile .mobile-hidden {
+  display: none !important;
+}
+
+/* Placement mode banner */
+.placement-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 1000;
+  box-shadow: 0 2px 12px rgba(11, 99, 255, 0.3);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.placement-mode-banner .placement-icon {
+  font-size: 1.25rem;
+}
+
+.placement-mode-banner span {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.cancel-placement-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  transition: background 0.2s ease;
+}
+
+.cancel-placement-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Canvas in placement mode */
+.canvas.placement-mode {
+  cursor: crosshair;
+  border: 3px dashed var(--brand-600) !important;
+  background: rgba(11, 99, 255, 0.05) !important;
+}
+
+/* Mobile Tab Bar */
+.mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 4px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 500;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 54px;
+  max-width: 80px;
+  color: var(--muted, #64748b);
+}
+
+.mobile-tab-btn:hover {
+  background: rgba(11, 99, 255, 0.06);
+}
+
+.mobile-tab-btn.active {
+  background: rgba(11, 99, 255, 0.1);
+  color: var(--brand-600, #0B63FF);
+}
+
+.mobile-tab-btn .mobile-tab-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.mobile-tab-btn .mobile-tab-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mobile-tab-btn.save-btn {
+  background: linear-gradient(135deg, var(--brand-500, #0B63FF) 0%, var(--brand-600, #1E88E5) 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(11, 99, 255, 0.3);
+}
+
+.mobile-tab-btn.save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(11, 99, 255, 0.4);
+}
+
+.mobile-tab-btn.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Side panel wrapper for mobile visibility control */
+.side-panel-wrapper {
+  display: contents;
+}
+
+/* Mobile Zoom Controls */
+.mobile-zoom-controls {
+  position: fixed;
+  top: 70px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  z-index: 200;
+}
+
+.zoom-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: white;
+  color: var(--text, #1e293b);
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.zoom-btn:hover {
+  background: var(--brand-50, #eff6ff);
+  color: var(--brand-600, #0B63FF);
+}
+
+.zoom-btn:active {
+  transform: scale(0.95);
+}
+
+.zoom-btn.zoom-reset {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+/* Mobile-specific adjustments for side panel in fullscreen mode */
+@media (max-width: 768px) {
+  .template-designer-mobile .designer-content {
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  .template-designer-mobile .designer-content-wrapper {
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  .template-designer-mobile .canvas-container {
+    flex: 1;
+    height: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem;
+  }
+  
+  /* When canvas tab is active, make canvas fill the screen */
+  .template-designer-mobile .canvas-container:not(.mobile-hidden) {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* When elements tab is active, side panel becomes fullscreen */
+  .template-designer-mobile .side-panel-wrapper:not(.mobile-hidden) .side-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 70px;
+    width: 100%;
+    max-height: none;
+    border-radius: 0;
+    transform: none;
+    z-index: 100;
+  }
+  
+  /* When properties tab is active, property panel becomes fullscreen */
+  .template-designer-mobile .properties-panel-container:not(.mobile-hidden) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 70px;
+    max-height: none;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  
+  .template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-panel {
+    flex-direction: column;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    overflow-x: hidden;
+    white-space: normal;
+    min-height: auto;
+    max-height: none;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  
+  /* Remove CSS scaling - use JavaScript controlled zoom */
+  .template-designer-mobile .canvas {
+    transform-origin: top left;
+    /* Transform is controlled by JavaScript */
+  }
+  
+  /* Hide footer on mobile - actions are in tab bar */
+  .template-designer-mobile .designer-footer {
+    display: none;
   }
 }
 

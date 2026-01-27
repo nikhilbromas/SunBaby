@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useDrag } from 'react-dnd';
+import { useMobile } from '../../contexts/MobileContext';
 import './DataPreview.css';
 
 interface DataPreviewProps {
@@ -15,6 +16,8 @@ const DraggableHeaderField: React.FC<{
   sampleValue: any;
   targetSection?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
 }> = ({ field, sampleValue, targetSection }) => {
+  const { isMobile, enterPlacementMode } = useMobile();
+  
   const [{ isDragging }, drag] = useDrag({
     type: 'data-field',
     item: {
@@ -29,11 +32,24 @@ const DraggableHeaderField: React.FC<{
     }),
   });
 
+  const handleTap = () => {
+    if (isMobile) {
+      enterPlacementMode({ 
+        type: 'data-field', 
+        field: `header.${field}`,
+        targetSection 
+      });
+    }
+  };
+
   return (
     <div
-      ref={drag}
+      ref={!isMobile ? drag : undefined}
       className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
-      title="Drag to canvas to add field"
+      title={isMobile ? "Tap to add field" : "Drag to canvas to add field"}
+      onClick={isMobile ? handleTap : undefined}
+      role={isMobile ? 'button' : undefined}
+      tabIndex={isMobile ? 0 : undefined}
     >
       <code>header.{field}</code>
       {sampleValue !== null && sampleValue !== undefined && (
@@ -49,6 +65,8 @@ const DraggableItemField: React.FC<{
   field: string;
   sampleValue: any;
 }> = ({ field, sampleValue }) => {
+  const { isMobile, enterPlacementMode } = useMobile();
+  
   const [{ isDragging }, drag] = useDrag({
     type: 'data-field',
     item: {
@@ -62,11 +80,24 @@ const DraggableItemField: React.FC<{
     }),
   });
 
+  const handleTap = () => {
+    if (isMobile) {
+      enterPlacementMode({ 
+        type: 'data-field', 
+        field: field,
+        targetSection: 'billContent' 
+      });
+    }
+  };
+
   return (
     <div
-      ref={drag}
+      ref={!isMobile ? drag : undefined}
       className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
-      title="Drag to canvas to add field"
+      title={isMobile ? "Tap to add field" : "Drag to canvas to add field"}
+      onClick={isMobile ? handleTap : undefined}
+      role={isMobile ? 'button' : undefined}
+      tabIndex={isMobile ? 0 : undefined}
     >
       <code>{field}</code>
       {sampleValue !== null && sampleValue !== undefined && (
@@ -86,6 +117,8 @@ const DraggableContentDetailField: React.FC<{
   label?: string;
   dataType?: 'array' | 'object';
 }> = ({ contentName, field, sampleValue, bind, label, dataType }) => {
+  const { isMobile, enterPlacementMode } = useMobile();
+  
   const displayLabel = label || field;
   const bindPath = bind || field;
   const isObjectType = dataType === 'object';
@@ -104,15 +137,30 @@ const DraggableContentDetailField: React.FC<{
     }),
   });
 
-  const tooltipText = isObjectType 
-    ? `Drag to canvas to add field (Object type: ${contentName})`
-    : "Drag to content detail table to add column (Array type)";
+  const handleTap = () => {
+    if (isMobile) {
+      enterPlacementMode({ 
+        type: 'data-field', 
+        field: bindPath,
+        targetSection: isObjectType ? 'header' : 'billContent'
+      });
+    }
+  };
+
+  const tooltipText = isMobile
+    ? "Tap to add field"
+    : isObjectType 
+      ? `Drag to canvas to add field (Object type: ${contentName})`
+      : "Drag to content detail table to add column (Array type)";
 
   return (
     <div
-      ref={drag}
+      ref={!isMobile ? drag : undefined}
       className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
       title={tooltipText}
+      onClick={isMobile ? handleTap : undefined}
+      role={isMobile ? 'button' : undefined}
+      tabIndex={isMobile ? 0 : undefined}
     >
       <code>{displayLabel}</code>
       {sampleValue !== null && sampleValue !== undefined && (

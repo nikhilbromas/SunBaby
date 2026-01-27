@@ -3,14 +3,56 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { Company } from '../../services/types';
 import './Auth.css';
 
-function permSummary(c: Company): string {
-  const p = c.Permissions;
-  const parts: string[] = [];
-  if (p.AllowPreset) parts.push('Presets');
-  if (p.AllowTemplate) parts.push('Templates');
-  if (p.AllowPreview) parts.push('Preview');
-  if (p.AllowTemplateConfig) parts.push('Template Config');
-  return parts.length ? parts.join(', ') : 'No permissions';
+interface PermissionBadgeProps {
+  icon: string;
+  label: string;
+  enabled: boolean;
+}
+
+function PermissionBadge({ icon, label, enabled }: PermissionBadgeProps) {
+  return (
+    <span
+      className={`auth-permission-badge ${enabled ? 'active' : 'disabled'}`}
+      title={label}
+      aria-label={`${label}: ${enabled ? 'enabled' : 'disabled'}`}
+    >
+      <span className="auth-permission-icon">{icon}</span>
+      <span className="auth-permission-label">{label}</span>
+    </span>
+  );
+}
+
+function PermissionBadges({ permissions }: { permissions: Company['Permissions'] }) {
+  const badges = [
+    { icon: '📋', label: 'Presets', enabled: permissions.AllowPreset },
+    { icon: '📝', label: 'Templates', enabled: permissions.AllowTemplate },
+    { icon: '👁️', label: 'Preview', enabled: permissions.AllowPreview },
+    { icon: '⚙️', label: 'Template Config', enabled: permissions.AllowTemplateConfig },
+  ].filter(badge => badge.enabled);
+
+  if (badges.length === 0) {
+    return (
+      <div className="auth-permissions" role="group" aria-label="Company permissions">
+        <span className="auth-permission-badge disabled" title="No permissions">
+          <span className="auth-permission-icon">🔒</span>
+          <span className="auth-permission-label">No permissions</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-permissions" role="group" aria-label="Company permissions">
+      {badges.map((badge) => (
+        <PermissionBadge
+          key={badge.label}
+          icon={badge.icon}
+          label={badge.label}
+          enabled={badge.enabled}
+        />
+      ))}
+    </div>
+  );
 }
 
 function formatPhone(c: Company): string | null {
@@ -58,7 +100,7 @@ export default function CompanySelector() {
                 {c.PermanentAddress && <div className="auth-company-meta">{c.PermanentAddress}</div>}
                 {c.CompanyDescription && <div className="auth-company-meta">{c.CompanyDescription}</div>}
                 {formatPhone(c) && <div className="auth-company-meta">{formatPhone(c)}</div>}
-                <div className="auth-company-meta">{permSummary(c)}</div>
+                <PermissionBadges permissions={c.Permissions} />
                 {loadingId === c.CompanyId && <div className="auth-company-status">Connecting…</div>}
               </button>
             ))}

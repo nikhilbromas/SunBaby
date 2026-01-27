@@ -95,22 +95,60 @@ const PresetList: React.FC = () => {
             <p>No presets found. Create your first preset to get started.</p>
           </div>
         ) : (
-          <table className="preset-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Created By</th>
-                <th>Created On</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table view */}
+            <table className="preset-table desktop-only">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Created By</th>
+                  <th>Created On</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {presets.map((preset) => (
+                  <tr key={preset.PresetId}>
+                    <td>{preset.PresetName}</td>
+                    <td>{preset.CreatedBy || 'N/A'}</td>
+                    <td>{new Date(preset.CreatedOn).toLocaleDateString()}</td>
+                    <td>
+                      <button
+                        onClick={() => handleEdit(preset)}
+                        className="action-button edit-button"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(preset.PresetId)}
+                        className="action-button delete-button"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Mobile card view */}
+            <div className="preset-cards mobile-only">
               {presets.map((preset) => (
-                <tr key={preset.PresetId}>
-                  <td>{preset.PresetName}</td>
-                  <td>{preset.CreatedBy || 'N/A'}</td>
-                  <td>{new Date(preset.CreatedOn).toLocaleDateString()}</td>
-                  <td>
+                <div key={preset.PresetId} className="preset-card">
+                  <div className="preset-card-header">
+                    <h3 className="preset-card-title">{preset.PresetName}</h3>
+                  </div>
+                  <div className="preset-card-meta">
+                    <div className="preset-card-info">
+                      <span className="preset-card-label">Created by:</span>
+                      <span className="preset-card-value">{preset.CreatedBy || 'N/A'}</span>
+                    </div>
+                    <div className="preset-card-info">
+                      <span className="preset-card-label">Date:</span>
+                      <span className="preset-card-value">{new Date(preset.CreatedOn).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="preset-card-actions">
                     <button
                       onClick={() => handleEdit(preset)}
                       className="action-button edit-button"
@@ -123,11 +161,11 @@ const PresetList: React.FC = () => {
                     >
                       Delete
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>

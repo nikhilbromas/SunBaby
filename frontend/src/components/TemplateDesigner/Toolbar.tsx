@@ -1,9 +1,12 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
+import { useMobile } from '../../contexts/MobileContext';
 import './Toolbar.css';
 
 const Toolbar: React.FC = () => {
   type TargetSection = 'pageHeader' | 'header' | 'billContent' | 'billFooter' | 'pageFooter';
+  
+  const { isMobile, enterPlacementMode } = useMobile();
 
   const TextFieldDraggable: React.FC<{ targetSection: TargetSection; label?: string }> = ({
     targetSection,
@@ -17,10 +20,19 @@ const Toolbar: React.FC = () => {
       }),
     });
 
+    const handleTap = () => {
+      if (isMobile) {
+        enterPlacementMode({ type: 'text', targetSection });
+      }
+    };
+
     return (
       <div
-        ref={drag}
+        ref={!isMobile ? drag : undefined}
         className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
+        onClick={isMobile ? handleTap : undefined}
+        role={isMobile ? 'button' : undefined}
+        tabIndex={isMobile ? 0 : undefined}
       >
         <span className="toolbar-icon">📝</span>
         <span>{label || 'Text Field'}</span>
@@ -40,10 +52,19 @@ const Toolbar: React.FC = () => {
       }),
     });
 
+    const handleTap = () => {
+      if (isMobile) {
+        enterPlacementMode({ type: 'table', targetSection: targetSection as any });
+      }
+    };
+
     return (
       <div
-        ref={drag}
+        ref={!isMobile ? drag : undefined}
         className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
+        onClick={isMobile ? handleTap : undefined}
+        role={isMobile ? 'button' : undefined}
+        tabIndex={isMobile ? 0 : undefined}
       >
         <span className="toolbar-icon">📊</span>
         <span>{label || 'Items Table'}</span>
@@ -62,10 +83,19 @@ const Toolbar: React.FC = () => {
       }),
     });
 
+    const handleTap = () => {
+      if (isMobile) {
+        enterPlacementMode({ type: 'pageNumber', targetSection });
+      }
+    };
+
     return (
       <div
-        ref={drag}
+        ref={!isMobile ? drag : undefined}
         className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
+        onClick={isMobile ? handleTap : undefined}
+        role={isMobile ? 'button' : undefined}
+        tabIndex={isMobile ? 0 : undefined}
       >
         <span className="toolbar-icon">📄</span>
         <span>Page Number</span>
@@ -84,10 +114,19 @@ const Toolbar: React.FC = () => {
       }),
     });
 
+    const handleTap = () => {
+      if (isMobile) {
+        enterPlacementMode({ type: 'totalPages', targetSection });
+      }
+    };
+
     return (
       <div
-        ref={drag}
+        ref={!isMobile ? drag : undefined}
         className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
+        onClick={isMobile ? handleTap : undefined}
+        role={isMobile ? 'button' : undefined}
+        tabIndex={isMobile ? 0 : undefined}
       >
         <span className="toolbar-icon">📑</span>
         <span>Total Pages</span>
