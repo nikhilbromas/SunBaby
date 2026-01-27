@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useDrop } from 'react-dnd';
 import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig } from '../../services/types';
 import FieldEditor from './FieldEditor';
@@ -9,9 +9,24 @@ import PropertyPanel from './PropertyPanel';
 import SetupPanel from './SetupPanel';
 import TableEditorModal from './TableEditorModal';
 import ZoneConfigModal from './ZoneConfigModal';
+import DataPreview from './DataPreview';
 import apiClient from '../../services/api';
 import { useMobile } from '../../contexts/MobileContext';
 import './Canvas.css';
+
+// Page dimensions in pixels (at 96 DPI)
+const PAGE_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  'A4': { width: 794, height: 1123 },      // 210mm x 297mm
+  'Letter': { width: 816, height: 1056 },  // 8.5" x 11"
+  'Legal': { width: 816, height: 1344 },   // 8.5" x 14"
+};
+
+const getPageDimensions = (size: string, orientation: 'portrait' | 'landscape') => {
+  const dims = PAGE_DIMENSIONS[size] || PAGE_DIMENSIONS['A4'];
+  return orientation === 'landscape' 
+    ? { width: dims.height, height: dims.width }
+    : dims;
+};
 
 interface ResizableSectionZoneProps {
   className: string;
@@ -176,6 +191,12 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Calculate page dimensions based on size and orientation
+  const pageDimensions = useMemo(() => 
+    getPageDimensions(template.page.size, template.page.orientation),
+    [template.page.size, template.page.orientation]
+  );
   const [isSetupPanelOpen, setIsSetupPanelOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<{
@@ -1823,23 +1844,22 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         <div className="designer-content-wrapper">
           {/* Canvas Container - hidden on mobile when not on canvas tab */}
           <div className={`canvas-container ${isMobile && activeDesignerTab !== 'canvas' ? 'mobile-hidden' : ''}`}>
-          {/* Mobile Zoom Controls */}
-          {isMobile && activeDesignerTab === 'canvas' && (
-            <div className="mobile-zoom-controls">
-              <button onClick={zoomOut} className="zoom-btn" aria-label="Zoom out">−</button>
-              <button onClick={resetZoom} className="zoom-btn zoom-reset" aria-label="Reset zoom">
-                {Math.round(canvasZoom * 100)}%
-              </button>
-              <button onClick={zoomIn} className="zoom-btn" aria-label="Zoom in">+</button>
-            </div>
-          )}
+          {/* Canvas Scroll Wrapper - provides correct scroll dimensions for scaled canvas */}
+          {/* Canvas has 40px padding on each side = 80px total, must be included before scaling */}
+          <div 
+            className="canvas-scroll-wrapper"
+            style={{
+              width: `${(pageDimensions.width + 80) * canvasZoom}px`,
+              height: `${(pageDimensions.height + 80) * canvasZoom}px`,
+            }}
+          >
           <div
             ref={drop}
             className={`canvas ${isOver ? 'drag-over' : ''} ${isPlacementMode ? 'placement-mode' : ''}`}
             style={{
-              width: template.page.orientation === 'landscape' ? '1123px' : '794px',
-              minHeight: template.page.orientation === 'landscape' ? '794px' : '1123px',
-              transform: isMobile ? `scale(${canvasZoom})` : undefined,
+              width: `${pageDimensions.width * canvasZoom}px`,
+              minHeight: `${pageDimensions.height }px`,
+              transform: `scale(${canvasZoom* canvasZoom})`,
               transformOrigin: 'top left',
             }}
             onClick={handleCanvasClick}
@@ -2123,6 +2143,17 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
               />
             )}
           </div>
+          </div>
+          {/* Zoom Controls - positioned at bottom-right of canvas container */}
+          {(!isMobile || activeDesignerTab === 'canvas') && (
+            <div className="canvas-zoom-controls">
+              <button onClick={zoomOut} className="zoom-btn" aria-label="Zoom out">−</button>
+              <button onClick={resetZoom} className="zoom-btn zoom-reset" aria-label="Reset zoom">
+                {Math.round(canvasZoom * 100)}%
+              </button>
+              <button onClick={zoomIn} className="zoom-btn" aria-label="Zoom in">+</button>
+            </div>
+          )}
         </div>
           {/* Side Panel - hidden on mobile when not on elements tab */}
           <div className={`side-panel-wrapper ${isMobile && activeDesignerTab !== 'elements' ? 'mobile-hidden' : ''}`}>
@@ -2130,6 +2161,25 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
               sampleData={sampleData}
             />
           </div>
+          
+          {/* Data Preview Panel - only on mobile when data tab is active */}
+          {isMobile && activeDesignerTab === 'data' && (
+            <div className="data-panel-wrapper">
+              {sampleData ? (
+                <DataPreview
+                  headerData={sampleData.header.data}
+                  headerFields={sampleData.header.fields}
+                  itemsData={sampleData.items.data}
+                  itemsFields={sampleData.items.fields}
+                  contentDetails={sampleData.contentDetails}
+                />
+              ) : (
+                <div className="no-data-message">
+                  <p>Execute query to see available data fields</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       
@@ -2149,6 +2199,14 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
           >
             <span className="mobile-tab-icon">🧩</span>
             <span className="mobile-tab-label">Elements</span>
+          </button>
+          <button
+            className={`mobile-tab-btn ${activeDesignerTab === 'data' ? 'active' : ''}`}
+            onClick={() => setActiveDesignerTab('data')}
+            disabled={!sampleData}
+          >
+            <span className="mobile-tab-icon">📊</span>
+            <span className="mobile-tab-label">Data</span>
           </button>
           <button
             className={`mobile-tab-btn ${activeDesignerTab === 'properties' ? 'active' : ''}`}

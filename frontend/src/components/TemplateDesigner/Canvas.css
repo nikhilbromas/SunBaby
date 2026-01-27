@@ -39,6 +39,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  position: relative;
 }
 
 .designer-content-wrapper {
@@ -251,10 +252,9 @@
     touch-action: pan-x pan-y;
   }
   
-  /* Scale canvas for mobile viewing */
+  /* Canvas styles for mobile - transform is controlled by JavaScript */
   .canvas {
     transform-origin: top left;
-    transform: scale(0.5);
     margin: 0;
     padding: 20px;
   }
@@ -306,11 +306,9 @@
   }
 }
 
-/* Very small screens - further scale down */
+/* Very small screens */
 @media (max-width: 480px) {
-  .canvas {
-    transform: scale(0.35);
-  }
+  /* Canvas transform is controlled by JavaScript - no CSS override */
   
   .properties-panel-container {
     max-height: 150px;
@@ -484,31 +482,37 @@
   display: contents;
 }
 
-/* Mobile Zoom Controls */
-.mobile-zoom-controls {
-  position: fixed;
-  top: 70px;
-  right: 12px;
+/* Canvas Scroll Wrapper - provides correct scroll dimensions for scaled canvas */
+.canvas-scroll-wrapper {
+  display: inline-block;
+  position: relative;
+}
+
+/* Canvas Zoom Controls */
+.canvas-zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
-  border-radius: 12px;
-  padding: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 28px;
+  padding: 6px 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(226, 232, 240, 0.8);
   z-index: 200;
 }
 
 .zoom-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 10px;
+  border-radius: 50%;
   background: white;
   color: var(--text, #1e293b);
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -543,6 +547,7 @@
   .template-designer-mobile .designer-content-wrapper {
     flex: 1;
     overflow: hidden;
+    position: relative;
   }
   
   .template-designer-mobile .canvas-container {
@@ -550,13 +555,26 @@
     height: 100%;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 1rem;
+    padding: 12px;
+    position: relative;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   }
   
-  /* When canvas tab is active, make canvas fill the screen */
+  /* Canvas scroll wrapper - inline-block allows scroll based on content */
+  .template-designer-mobile .canvas-scroll-wrapper {
+    display: inline-block;
+    position: relative;
+  }
+  
+  /* Canvas styling for mobile */
+  .template-designer-mobile .canvas {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+  }
+  
+  /* When canvas tab is active */
   .template-designer-mobile .canvas-container:not(.mobile-hidden) {
-    display: flex;
-    flex-direction: column;
+    display: block;
   }
   
   /* When elements tab is active, side panel becomes fullscreen */
@@ -606,12 +624,88 @@
   /* Remove CSS scaling - use JavaScript controlled zoom */
   .template-designer-mobile .canvas {
     transform-origin: top left;
-    /* Transform is controlled by JavaScript */
+    transform: unset !important; /* Override generic .canvas media query transform */
+    /* Actual transform is controlled by JavaScript via inline style */
+  }
+  
+  /* Ensure canvas container allows scrolling for full canvas height */
+  .template-designer-mobile .canvas-container {
+    min-height: 0;
+    overflow: auto;
   }
   
   /* Hide footer on mobile - actions are in tab bar */
   .template-designer-mobile .designer-footer {
     display: none;
+  }
+  
+  /* Data Panel Wrapper for mobile data tab */
+  .data-panel-wrapper {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 70px; /* Space for tab bar */
+    background: var(--surface);
+    z-index: 100;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem;
+  }
+  
+  .no-data-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 1rem;
+    padding: 2rem;
+  }
+  
+  .no-data-message p {
+    margin: 0;
+  }
+  
+  /* Improve section zone visibility on mobile */
+  .template-designer-mobile .section-zone {
+    border-width: 3px;
+    min-height: 50px;
+  }
+  
+  .template-designer-mobile .section-zone .section-label {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    font-weight: 700;
+    background: rgba(11, 99, 255, 0.15);
+  }
+  
+  .template-designer-mobile .page-header-zone {
+    border-color: rgba(11, 99, 255, 0.9);
+    background: rgba(11, 99, 255, 0.08);
+  }
+  
+  .template-designer-mobile .bill-header-zone {
+    border-color: rgba(37, 99, 235, 0.7);
+    background: rgba(37, 99, 235, 0.06);
+  }
+  
+  .template-designer-mobile .bill-content-zone {
+    border-color: rgba(16, 185, 129, 0.7);
+    background: rgba(16, 185, 129, 0.06);
+  }
+  
+  .template-designer-mobile .bill-footer-zone {
+    border-color: rgba(245, 158, 11, 0.7);
+    background: rgba(245, 158, 11, 0.06);
+  }
+  
+  .template-designer-mobile .page-footer-zone {
+    border-color: rgba(139, 92, 246, 0.7);
+    background: rgba(139, 92, 246, 0.06);
   }
 }
 
