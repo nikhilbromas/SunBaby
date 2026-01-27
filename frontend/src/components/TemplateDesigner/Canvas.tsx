@@ -511,8 +511,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const absoluteX = clientOffset.x - canvasRect.left;
-          const absoluteY = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const absoluteX = (clientOffset.x - canvasRect.left) / zoom;
+          const absoluteY = (clientOffset.y - canvasRect.top) / zoom;
           
           baseX = absoluteX - 20;
           
@@ -528,10 +530,12 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             baseY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
           } else if (targetSection === 'billFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            baseY = absoluteY - (canvasRect.height - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+            const canvasHeight = canvasRect.height / zoom;
+            baseY = absoluteY - (canvasHeight - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
           } else if (targetSection === 'pageFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            baseY = absoluteY - (canvasRect.height - pageFooterHeight);
+            const canvasHeight = canvasRect.height / zoom;
+            baseY = absoluteY - (canvasHeight - pageFooterHeight);
           }
           baseY = Math.max(0, baseY);
         }
@@ -745,7 +749,9 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const y = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const y = (clientOffset.y - canvasRect.top) / zoom;
           const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
           
           // Calculate section boundaries
@@ -786,7 +792,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         let relativeY = 20;
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const absoluteY = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const absoluteY = (clientOffset.y - canvasRect.top) / zoom;
+          const scaledCanvasHeight = canvasRect.height / zoom;
           
           if (section === 'pageHeader') {
             relativeY = absoluteY - 40 - 10;
@@ -799,10 +808,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             relativeY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
           } else if (section === 'billFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            relativeY = absoluteY - (canvasRect.height - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+            relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
           } else if (section === 'pageFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            relativeY = absoluteY - (canvasRect.height - pageFooterHeight);
+            relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight);
           }
           relativeY = Math.max(0, relativeY);
         }
@@ -873,7 +882,9 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const y = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const y = (clientOffset.y - canvasRect.top) / zoom;
           
           // Calculate section boundaries
           const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
@@ -906,8 +917,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             if (billContentTables.length === 0) {
               // Create new table in bill-content
               const canvasElement = document.querySelector('.canvas');
-              const relativeY = clientOffset && canvasElement ? 
-                clientOffset.y - canvasElement.getBoundingClientRect().top - 
+              const canvasRect = canvasElement?.getBoundingClientRect();
+              const zoom = canvasZoom || 1;
+              const relativeY = clientOffset && canvasRect ? 
+                ((clientOffset.y - canvasRect.top) / zoom) - 
                 (40 + (template.sectionHeights?.pageHeader || 60) + 10 + 
                  (template.sectionHeights?.billHeader || 200) + 10) - 10 : 20;
               
@@ -917,7 +930,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   columns: [
                     { bind: bindValue, label: labelValue, visible: true },
                   ],
-                  x: clientOffset && canvasElement ? clientOffset.x - canvasElement.getBoundingClientRect().left - 20 : 20,
+                  x: clientOffset && canvasRect ? ((clientOffset.x - canvasRect.left) / zoom) - 20 : 20,
                   y: Math.max(0, relativeY),
                 }],
               };
@@ -1011,7 +1024,9 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
           // Determine target section based on drop position or explicit target
           if (clientOffset && canvasElement) {
             const canvasRect = canvasElement.getBoundingClientRect();
-            const y = clientOffset.y - canvasRect.top;
+            const zoom = canvasZoom || 1;
+            // Convert screen coordinates to canvas coordinates by dividing by zoom
+            const y = (clientOffset.y - canvasRect.top) / zoom;
             const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
             
             // Calculate section boundaries
@@ -1047,9 +1062,14 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
           
           // Calculate Y position relative to section
           let relativeY = 20;
+          let relativeX = 20;
           if (clientOffset && canvasElement) {
             const canvasRect = canvasElement.getBoundingClientRect();
-            const absoluteY = clientOffset.y - canvasRect.top;
+            const zoom = canvasZoom || 1;
+            // Convert screen coordinates to canvas coordinates by dividing by zoom
+            const absoluteY = (clientOffset.y - canvasRect.top) / zoom;
+            const scaledCanvasHeight = canvasRect.height / zoom;
+            relativeX = ((clientOffset.x - canvasRect.left) / zoom) - 20;
             
             if (section === 'pageHeader') {
               relativeY = absoluteY - 40 - 10;
@@ -1062,10 +1082,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
               relativeY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
             } else if (section === 'billFooter') {
               const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-              relativeY = absoluteY - (canvasRect.height - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+              relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
             } else if (section === 'pageFooter') {
               const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-              relativeY = absoluteY - (canvasRect.height - pageFooterHeight);
+              relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight);
             }
             relativeY = Math.max(0, relativeY);
           }
@@ -1091,7 +1111,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             type: 'text',
             label: labelValue,
             bind: bindValue,
-            x: clientOffset && canvasElement ? clientOffset.x - canvasElement.getBoundingClientRect().left - 20 : 20,
+            x: relativeX,
             y: relativeY,
             visible: true,
           };
@@ -1191,7 +1211,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         }
       }
     },
-    [template.header.length, template.itemsTable]
+    [template.header.length, template.itemsTable, template.sectionHeights, template.page.orientation, template.pageHeader, template.pageFooter, template.billFooter, template.billContent, canvasZoom]
   );
 
   const handleDrop = useCallback(
