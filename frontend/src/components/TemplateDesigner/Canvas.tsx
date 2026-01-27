@@ -166,16 +166,26 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
   // Mobile context for responsive behavior
   const { 
     isMobile, 
+    isTouchDevice,
     activeDesignerTab, 
     setActiveDesignerTab, 
     isPlacementMode, 
     placementItem, 
     exitPlacementMode, 
     canvasZoom,
+    setCanvasZoom,
     zoomIn,
     zoomOut,
     resetZoom,
   } = useMobile();
+  
+  // Refs for pinch-to-zoom
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const pinchStateRef = useRef<{
+    initialDistance: number;
+    initialZoom: number;
+    isPinching: boolean;
+  }>({ initialDistance: 0, initialZoom: 1, isPinching: false });
   
   const [selectedPresetId, setSelectedPresetId] = useState<number | undefined>(initialPresetId);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(initialTemplateId);
@@ -1660,6 +1670,59 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     }
   };
 
+  // Calculate distance between two touch points
+  const getTouchDistance = (touch1: Touch, touch2: Touch): number => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Pinch-to-zoom handlers
+  const handlePinchStart = useCallback((e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      pinchStateRef.current = {
+        initialDistance: distance,
+        initialZoom: canvasZoom,
+        isPinching: true,
+      };
+    }
+  }, [canvasZoom]);
+
+  const handlePinchMove = useCallback((e: TouchEvent) => {
+    if (e.touches.length === 2 && pinchStateRef.current.isPinching) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      const scale = distance / pinchStateRef.current.initialDistance;
+      const newZoom = Math.max(0.2, Math.min(2, pinchStateRef.current.initialZoom * scale));
+      setCanvasZoom(newZoom);
+    }
+  }, [setCanvasZoom]);
+
+  const handlePinchEnd = useCallback(() => {
+    pinchStateRef.current.isPinching = false;
+  }, []);
+
+  // Set up pinch-to-zoom event listeners on canvas container
+  React.useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container || !isTouchDevice) return;
+
+    // Use passive: false to allow preventDefault for pinch gestures
+    container.addEventListener('touchstart', handlePinchStart, { passive: false });
+    container.addEventListener('touchmove', handlePinchMove, { passive: false });
+    container.addEventListener('touchend', handlePinchEnd);
+    container.addEventListener('touchcancel', handlePinchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handlePinchStart);
+      container.removeEventListener('touchmove', handlePinchMove);
+      container.removeEventListener('touchend', handlePinchEnd);
+      container.removeEventListener('touchcancel', handlePinchEnd);
+    };
+  }, [isTouchDevice, handlePinchStart, handlePinchMove, handlePinchEnd]);
+
   // Handle canvas click/tap for placement mode and element deselection
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     // If in placement mode on mobile, handle element placement
@@ -1843,7 +1906,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         </div>
         <div className="designer-content-wrapper">
           {/* Canvas Container - hidden on mobile when not on canvas tab */}
-          <div className={`canvas-container ${isMobile && activeDesignerTab !== 'canvas' ? 'mobile-hidden' : ''}`}>
+          <div 
+            ref={canvasContainerRef}
+            className={`canvas-container ${isMobile && activeDesignerTab !== 'canvas' ? 'mobile-hidden' : ''}`}
+          >
           {/* Canvas Scroll Wrapper - provides correct scroll dimensions for scaled canvas */}
           {/* Canvas has 40px padding on each side = 80px total, must be included before scaling */}
           <div 
@@ -1857,9 +1923,9 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             ref={drop}
             className={`canvas ${isOver ? 'drag-over' : ''} ${isPlacementMode ? 'placement-mode' : ''}`}
             style={{
-              width: `${pageDimensions.width * canvasZoom}px`,
-              minHeight: `${pageDimensions.height }px`,
-              transform: `scale(${canvasZoom* canvasZoom})`,
+              width: `${pageDimensions.width}px`,
+              minHeight: `${pageDimensions.height}px`,
+              transform: `scale(${canvasZoom})`,
               transformOrigin: 'top left',
             }}
             onClick={handleCanvasClick}
@@ -1893,6 +1959,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="pageHeader"
+                  canvasZoom={canvasZoom}
                 />
               ))}
               {(template.pageHeaderImages || []).map((imageField, index) => (
@@ -1905,6 +1972,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   onUpdate={(updates) => updateImage(index, updates, 'pageHeader')}
                   onDelete={() => deleteImage(index, 'pageHeader')}
                   section="pageHeader"
+                  canvasZoom={canvasZoom}
                 />
               ))}
             </ResizableSectionZone>
@@ -1934,6 +2002,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="header"
+                  canvasZoom={canvasZoom}
                 />
               ))}
               {(template.headerImages || []).map((imageField, index) => (
@@ -1946,6 +2015,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   onUpdate={(updates) => updateImage(index, updates, 'header')}
                   onDelete={() => deleteImage(index, 'header')}
                   section="header"
+                  canvasZoom={canvasZoom}
                 />
               ))}
             </ResizableSectionZone>
@@ -1975,6 +2045,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="billContent"
+                  canvasZoom={canvasZoom}
                 />
               ))}
               {(template.billContentImages || []).map((imageField, index) => (
@@ -1987,6 +2058,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   onUpdate={(updates) => updateImage(index, updates, 'billContent')}
                   onDelete={() => deleteImage(index, 'billContent')}
                   section="billContent"
+                  canvasZoom={canvasZoom}
                 />
               ))}
               {(template.billContentTables || []).map((table, index) => {
@@ -2010,6 +2082,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     onDelete={() => deleteBillContentTable(index)}
                     relativeToSection={true}
                     sampleData={sampleData?.items?.data || null}
+                    canvasZoom={canvasZoom}
                   />
                 );
               })}
@@ -2038,6 +2111,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     label={`Content: ${cdTable.contentName}`}
                     relativeToSection={true}
                     sampleData={contentDetailData}
+                    canvasZoom={canvasZoom}
                   />
                 );
               })}
@@ -2070,6 +2144,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     sampleData={sampleData?.header?.data || null}
                     fullSampleData={sampleData}
                     section="billFooter"
+                    canvasZoom={canvasZoom}
                   />
                 ))}
                 {(template.billFooterImages || []).map((imageField, index) => (
@@ -2082,6 +2157,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     onUpdate={(updates) => updateImage(index, updates, 'billFooter')}
                     onDelete={() => deleteImage(index, 'billFooter')}
                     section="billFooter"
+                    canvasZoom={canvasZoom}
                   />
                 ))}
               </ResizableSectionZone>
@@ -2113,6 +2189,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="pageFooter"
+                  canvasZoom={canvasZoom}
                 />
               ))}
               {(template.pageFooterImages || []).map((imageField, index) => (
@@ -2125,6 +2202,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   onUpdate={(updates) => updateImage(index, updates, 'pageFooter')}
                   onDelete={() => deleteImage(index, 'pageFooter')}
                   section="pageFooter"
+                  canvasZoom={canvasZoom}
                 />
               ))}
             </ResizableSectionZone>
@@ -2140,6 +2218,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   updateTable({ ...template.itemsTable!, x, y });
                 }}
                 sampleData={sampleData?.items?.data || null}
+                canvasZoom={canvasZoom}
               />
             )}
           </div>

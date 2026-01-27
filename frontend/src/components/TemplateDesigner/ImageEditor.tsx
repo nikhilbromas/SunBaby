@@ -11,6 +11,7 @@ interface ImageEditorProps {
   onUpdate: (updates: Partial<ImageFieldConfig>) => void;
   onDelete: () => void;
   section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
+  canvasZoom?: number;
 }
 
 const ImageEditor: React.FC<ImageEditorProps> = ({
@@ -19,6 +20,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
   onSelect,
   onUpdate,
   onDelete,
+  canvasZoom = 1,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -94,33 +96,58 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
     };
   }, [shouldLoadImage, imageField.imageId]);
 
+  // Helper function to get parent section zone
+  const getParentSectionZone = (): HTMLElement | null => {
+    if (!imageRef.current) return null;
+    let parent = imageRef.current.parentElement;
+    while (parent && !parent.classList.contains('section-zone')) {
+      parent = parent.parentElement;
+    }
+    return parent;
+  };
+
+  // Shared drag start logic for both mouse and touch
+  const startDrag = (clientX: number, clientY: number) => {
+    const parent = getParentSectionZone();
+    const zoom = canvasZoom || 1;
+    if (parent) {
+      const parentRect = parent.getBoundingClientRect();
+      setIsDragging(true);
+      // Account for zoom: screen coordinates to canvas coordinates
+      setDragStart({ 
+        x: (clientX - parentRect.left) / zoom - imageField.x, 
+        y: (clientY - parentRect.top) / zoom - imageField.y 
+      });
+      onSelect();
+    } else {
+      // Fallback
+      setIsDragging(true);
+      setDragStart({ x: clientX / zoom - imageField.x, y: clientY / zoom - imageField.y });
+      onSelect();
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLButtonElement) {
       return;
     }
     if (imageRef.current) {
-      // Find the section zone container
-      let parent = imageRef.current.parentElement;
-      while (parent && !parent.classList.contains('section-zone')) {
-        parent = parent.parentElement;
-      }
-      
-      if (parent) {
-        const parentRect = parent.getBoundingClientRect();
-        setIsDragging(true);
-        setDragStart({ 
-          x: e.clientX - parentRect.left - imageField.x, 
-          y: e.clientY - parentRect.top - imageField.y 
-        });
-        onSelect();
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
-        // Fallback
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - imageField.x, y: e.clientY - imageField.y });
-        onSelect();
-      }
+      startDrag(e.clientX, e.clientY);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  // Touch event handler for mobile drag
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.target instanceof HTMLButtonElement) {
+      return;
+    }
+    if (e.touches.length === 1 && imageRef.current) {
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+      e.stopPropagation();
     }
   };
 
@@ -128,34 +155,46 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
     if (isDragging) {
       let animationFrameId: number | null = null;
       
-      const handleGlobalMouseMove = (e: MouseEvent) => {
+      // Shared move logic for both mouse and touch
+      const handleMove = (clientX: number, clientY: number) => {
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId);
         }
         
+        const zoom = canvasZoom || 1;
         animationFrameId = requestAnimationFrame(() => {
-          if (imageRef.current) {
-            let parent = imageRef.current.parentElement;
-            while (parent && !parent.classList.contains('section-zone')) {
-              parent = parent.parentElement;
-            }
-            
-            if (parent) {
-              const parentRect = parent.getBoundingClientRect();
-              const newX = e.clientX - parentRect.left - dragStart.x;
-              const newY = e.clientY - parentRect.top - dragStart.y;
-              const clampedX = Math.max(0, Math.min(newX, parentRect.width - (imageField.width || 100)));
-              const clampedY = Math.max(0, Math.min(newY, parentRect.height - (imageField.height || 100)));
-              setPosition({ x: clampedX, y: clampedY });
-              onUpdate({ x: clampedX, y: clampedY });
-            } else {
-              const newX = e.clientX - dragStart.x;
-              const newY = e.clientY - dragStart.y;
-              setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
-              onUpdate({ x: Math.max(0, newX), y: Math.max(0, newY) });
-            }
+          const parent = getParentSectionZone();
+          if (parent) {
+            const parentRect = parent.getBoundingClientRect();
+            // Convert screen coordinates to canvas coordinates
+            const newX = (clientX - parentRect.left) / zoom - dragStart.x;
+            const newY = (clientY - parentRect.top) / zoom - dragStart.y;
+            // Clamp using canvas dimensions (not screen dimensions)
+            const parentWidth = parentRect.width / zoom;
+            const parentHeight = parentRect.height / zoom;
+            const clampedX = Math.max(0, Math.min(newX, parentWidth - (imageField.width || 100)));
+            const clampedY = Math.max(0, Math.min(newY, parentHeight - (imageField.height || 100)));
+            setPosition({ x: clampedX, y: clampedY });
+            onUpdate({ x: clampedX, y: clampedY });
+          } else {
+            const newX = clientX / zoom - dragStart.x;
+            const newY = clientY / zoom - dragStart.y;
+            setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
+            onUpdate({ x: Math.max(0, newX), y: Math.max(0, newY) });
           }
         });
+      };
+
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        handleMove(e.clientX, e.clientY);
+      };
+      
+      const handleGlobalTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault(); // Prevent scrolling while dragging
+          const touch = e.touches[0];
+          handleMove(touch.clientX, touch.clientY);
+        }
       };
       
       const handleGlobalMouseUp = () => {
@@ -165,17 +204,32 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
         setIsDragging(false);
       };
       
+      const handleGlobalTouchEnd = () => {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
+        setIsDragging(false);
+      };
+      
+      // Add mouse and touch event listeners
       document.addEventListener('mousemove', handleGlobalMouseMove, { passive: true });
       document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+      document.addEventListener('touchend', handleGlobalTouchEnd);
+      document.addEventListener('touchcancel', handleGlobalTouchEnd);
+      
       return () => {
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId);
         }
         document.removeEventListener('mousemove', handleGlobalMouseMove);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.removeEventListener('touchmove', handleGlobalTouchMove);
+        document.removeEventListener('touchend', handleGlobalTouchEnd);
+        document.removeEventListener('touchcancel', handleGlobalTouchEnd);
       };
     }
-  }, [isDragging, dragStart, onUpdate, imageField.width, imageField.height]);
+  }, [isDragging, dragStart, onUpdate, imageField.width, imageField.height, canvasZoom]);
 
   if (!imageField.visible) {
     return null;
@@ -196,6 +250,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({
         opacity: imageField.watermark ? 0.3 : 1,
       }}
       onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
       onClick={(e) => {
         if (e.target instanceof HTMLButtonElement) {
           return;

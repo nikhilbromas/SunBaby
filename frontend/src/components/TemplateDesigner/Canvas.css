@@ -40,6 +40,8 @@
   justify-content: center;
   align-items: flex-start;
   position: relative;
+  /* Prevent browser's default pinch-to-zoom on touch devices */
+  touch-action: pan-x pan-y;
 }
 
 .designer-content-wrapper {

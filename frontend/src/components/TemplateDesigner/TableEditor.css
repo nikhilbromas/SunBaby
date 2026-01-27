@@ -9,6 +9,9 @@
   min-width: 300px;
   box-shadow: var(--shadow-sm);
   will-change: transform;
+  touch-action: none; /* Prevent scrolling while dragging on touch devices */
+  -webkit-touch-callout: none; /* Disable iOS callout */
+  user-select: none;
 }
 
 .table-editor.dragging {

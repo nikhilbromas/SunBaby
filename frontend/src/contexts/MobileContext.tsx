@@ -93,7 +93,7 @@ export const MobileProvider: React.FC<MobileProviderProps> = ({ children }) => {
 
   // Zoom controls
   const zoomIn = useCallback(() => {
-    setCanvasZoom(prev => Math.min(1.5, prev + 0.1));
+    setCanvasZoom(prev => Math.min(2, prev + 0.1));
   }, []);
 
   const zoomOut = useCallback(() => {

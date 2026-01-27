@@ -6,6 +6,8 @@
   transition: border-color 120ms ease;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--shadow-sm);
+  touch-action: none; /* Prevent scrolling while dragging on touch devices */
+  -webkit-touch-callout: none; /* Disable iOS callout */
 }
 
 .image-editor:hover {
