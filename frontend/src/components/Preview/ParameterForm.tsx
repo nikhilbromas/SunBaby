@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../services/api';
 import type { Preset, Template } from '../../services/types';
 import './ParameterForm.css';
@@ -13,6 +13,31 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ template, onSubmit }) => 
   const [parameters, setParameters] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedParameterNames, setSavedParameterNames] = useState<Set<string>>(new Set());
+
+  // Load saved template parameters when template is available
+  useEffect(() => {
+    const loadSavedParameters = async () => {
+      if (template && template.TemplateId) {
+        try {
+          const response = await apiClient.getTemplateParameters(template.TemplateId);
+          // Create a case-insensitive set of saved parameter names
+          const savedNames = new Set<string>();
+          response.parameters.forEach((param) => {
+            savedNames.add(param.ParameterName.toLowerCase());
+          });
+          setSavedParameterNames(savedNames);
+        } catch (err: any) {
+          // If template parameters don't exist or error, use empty set
+          console.warn('Failed to load template parameters:', err);
+          setSavedParameterNames(new Set());
+        }
+      } else {
+        setSavedParameterNames(new Set());
+      }
+    };
+    loadSavedParameters();
+  }, [template]);
 
   useEffect(() => {
     if (template) {
@@ -20,7 +45,59 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ template, onSubmit }) => 
     }
   }, [template]);
 
-  const loadPreset = async (presetId: number) => {
+  const extractParameters = useCallback((sqlJson: any): string[] => {
+    // Use Map to track unique parameters case-insensitively
+    // Key: lowercase name, Value: original name (first occurrence)
+    const paramMap = new Map<string, string>();
+    const paramRegex = /@(\w+)/g;
+    
+    // Helper function to extract params from a query string
+    const extractFromQuery = (query: string) => {
+      if (!query) return;
+      const matches = query.matchAll(paramRegex);
+      for (const match of matches) {
+        const paramName = match[1];
+        const lowerName = paramName.toLowerCase();
+        // Only add if not already present (case-insensitive)
+        if (!paramMap.has(lowerName)) {
+          paramMap.set(lowerName, paramName);
+        }
+      }
+    };
+    
+    if (sqlJson.headerQuery) {
+      extractFromQuery(sqlJson.headerQuery);
+    }
+    
+    if (sqlJson.itemQuery) {
+      extractFromQuery(sqlJson.itemQuery);
+    }
+    
+    // Extract parameters from contentDetails
+    if (sqlJson.contentDetails && Array.isArray(sqlJson.contentDetails)) {
+      sqlJson.contentDetails.forEach((contentDetail: any) => {
+        if (contentDetail.query) {
+          extractFromQuery(contentDetail.query);
+        }
+      });
+    }
+    
+    // Get all unique parameter names (using original case from first occurrence)
+    const allUniqueParams = Array.from(paramMap.values());
+    
+    // Filter to only show parameters that are saved in the database (if template exists)
+    let uniqueParams: string[] = allUniqueParams;
+    if (template && template.TemplateId && savedParameterNames.size > 0) {
+      // Only include parameters that are saved in the database (case-insensitive)
+      uniqueParams = allUniqueParams.filter((param) => 
+        savedParameterNames.has(param.toLowerCase())
+      );
+    }
+    
+    return uniqueParams;
+  }, [template, savedParameterNames]);
+
+  const loadPreset = useCallback(async (presetId: number) => {
     try {
       setLoading(true);
       const loaded = await apiClient.getPreset(presetId);
@@ -41,40 +118,31 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ template, onSubmit }) => 
     } finally {
       setLoading(false);
     }
-  };
-
-  const extractParameters = (sqlJson: any): string[] => {
-    const params = new Set<string>();
-    const paramRegex = /@(\w+)/g;
-    
-    if (sqlJson.headerQuery) {
-      let match;
-      while ((match = paramRegex.exec(sqlJson.headerQuery)) !== null) {
-        params.add(match[1]);
-      }
-    }
-    
-    if (sqlJson.itemQuery) {
-      let match;
-      while ((match = paramRegex.exec(sqlJson.itemQuery)) !== null) {
-        params.add(match[1]);
-      }
-    }
-    
-    // Extract parameters from contentDetails
-    if (sqlJson.contentDetails && Array.isArray(sqlJson.contentDetails)) {
-      sqlJson.contentDetails.forEach((contentDetail: any) => {
-        if (contentDetail.query) {
-          let match;
-          while ((match = paramRegex.exec(contentDetail.query)) !== null) {
-            params.add(match[1]);
-          }
-        }
+  }, [extractParameters]);
+  
+  // Reload preset when savedParameterNames changes (to re-filter parameters)
+  useEffect(() => {
+    if (template && preset && savedParameterNames.size >= 0) {
+      // Re-extract parameters with updated savedParameterNames filter
+      const sqlJson = JSON.parse(preset.SqlJson);
+      const paramNames = extractParameters(sqlJson);
+      
+      // Update parameters state with filtered list
+      setParameters((prevParams) => {
+        const newParams: Record<string, any> = {};
+        // Preserve existing values for parameters that are still in the filtered list
+        paramNames.forEach((param) => {
+          const lowerParam = param.toLowerCase();
+          // Find existing value (case-insensitive)
+          const existingKey = Object.keys(prevParams).find(
+            k => k.toLowerCase() === lowerParam
+          );
+          newParams[param] = existingKey ? prevParams[existingKey] : '';
+        });
+        return newParams;
       });
     }
-    
-    return Array.from(params);
-  };
+  }, [savedParameterNames, preset, extractParameters, template]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

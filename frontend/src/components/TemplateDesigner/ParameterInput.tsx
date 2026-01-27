@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../services/api';
 import type { Preset } from '../../services/types';
 import './ParameterInput.css';
@@ -30,19 +30,32 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [lastPresetId, setLastPresetId] = useState<number | null>(null);
   const [hasDefaults, setHasDefaults] = useState(false);
+  const [savedParameterNames, setSavedParameterNames] = useState<Set<string>>(new Set());
 
+  // Load saved template parameters when templateId is available
   useEffect(() => {
-    if (preset) {
-      // Only reset parameters if preset actually changed
-      if (preset.PresetId !== lastPresetId) {
-        extractParameters();
-        setLastPresetId(preset.PresetId);
+    const loadSavedParameters = async () => {
+      if (templateId) {
+        try {
+          const response = await apiClient.getTemplateParameters(templateId);
+          // Create a case-insensitive set of saved parameter names
+          const savedNames = new Set<string>();
+          response.parameters.forEach((param) => {
+            savedNames.add(param.ParameterName.toLowerCase());
+          });
+          setSavedParameterNames(savedNames);
+        } catch (err: any) {
+          // If template parameters don't exist or error, use empty set
+          console.warn('Failed to load template parameters:', err);
+          setSavedParameterNames(new Set());
+        }
+      } else {
+        setSavedParameterNames(new Set());
       }
-    } else {
-      setParameters({});
-      setLastPresetId(null);
-    }
-  }, [preset, lastPresetId]);
+    };
+    loadSavedParameters();
+  }, [templateId]);
+
 
   // Load default parameters when they're provided
   useEffect(() => {
@@ -73,7 +86,7 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
     }
   }, [defaultParameters]);
 
-  const extractParameters = () => {
+  const extractParameters = useCallback(() => {
     if (!preset) return;
 
     try {
@@ -108,7 +121,16 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
       }
 
       // Get unique parameter names (using original case from first occurrence)
-      const uniqueParams = Array.from(paramMap.values());
+      const allUniqueParams = Array.from(paramMap.values());
+
+      // Filter to only show parameters that are saved in the database (if templateId exists)
+      let uniqueParams: string[] = allUniqueParams;
+      if (templateId && savedParameterNames.size > 0) {
+        // Only include parameters that are saved in the database (case-insensitive)
+        uniqueParams = allUniqueParams.filter((param) => 
+          savedParameterNames.has(param.toLowerCase())
+        );
+      }
 
       // Preserve existing parameter values, only initialize new ones
       setParameters((prevParams) => {
@@ -136,7 +158,24 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
     } catch (e) {
       setError('Invalid SQL JSON format');
     }
-  };
+  }, [preset, templateId, savedParameterNames]);
+  
+  // Re-extract parameters when preset or savedParameterNames changes
+  useEffect(() => {
+    if (preset) {
+      // Only reset parameters if preset actually changed
+      if (preset.PresetId !== lastPresetId) {
+        extractParameters();
+        setLastPresetId(preset.PresetId);
+      } else {
+        // Re-extract to apply savedParameterNames filter
+        extractParameters();
+      }
+    } else {
+      setParameters({});
+      setLastPresetId(null);
+    }
+  }, [preset, lastPresetId, extractParameters]);
 
   const handleParameterChange = (paramName: string, value: any) => {
     setParameters((prev) => ({
