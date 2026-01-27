@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { QueryState, SimpleColumn, ColumnInfo, CalculatedColumn, WindowFunction } from '../../services/types';
 import { generateSQL } from '../../utils/sqlGenerator';
 import { parseSQL } from '../../utils/sqlParser';
@@ -58,6 +58,25 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   const [generatedSQL, setGeneratedSQL] = useState('');
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const parsedInitial = useRef(false);
+  
+  // Extract parameters from generated SQL (only those actually used)
+  const extractParametersFromSQL = useCallback((sql: string): string[] => {
+    if (!sql) return [];
+    const paramMap = new Map<string, string>(); // lowercase -> original case
+    const matches = sql.matchAll(/@(\w+)/g);
+    for (const match of matches) {
+      const paramName = match[1];
+      const lowerName = paramName.toLowerCase();
+      if (!paramMap.has(lowerName)) {
+        paramMap.set(lowerName, paramName);
+      }
+    }
+    return Array.from(paramMap.values());
+  }, []);
+  
+  const queryParameters = useMemo(() => {
+    return extractParametersFromSQL(generatedSQL);
+  }, [generatedSQL, extractParametersFromSQL]);
   
   // Centralized column storage for ALL tables (FROM + JOINed tables)
   const [allTableColumns, setAllTableColumns] = useState<Record<string, ColumnInfo[]>>({});
@@ -542,6 +561,40 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {queryParameters.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>🔑 Required Parameters</h4>
+                    <div style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '12px'
+                    }}>
+                      {queryParameters.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {queryParameters.map((param: string) => (
+                            <span
+                              key={param}
+                              style={{
+                                background: '#3b82f6',
+                                color: 'white',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              @{param}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>No parameters required</span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <h4 style={{ margin: '0 0 12px 0', color: '#1e293b' }}>📄 Generated Query</h4>
                 <pre style={{
