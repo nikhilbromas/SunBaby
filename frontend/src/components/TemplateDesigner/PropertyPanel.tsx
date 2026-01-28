@@ -1139,7 +1139,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
            <button
            className="open-modal-button"
            onClick={() =>
-             onOpenTableModal('contentDetailTable', selectedElement.index)
+             onOpenTableModal('billContentTable', selectedElement.index)
            }
            style={{
              marginTop: '0.5rem',
@@ -1831,7 +1831,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <button
             className="open-modal-button"
             onClick={() =>
-              onOpenTableModal('contentDetailTable', selectedElement.index)
+              onOpenTableModal('itemsTable', selectedElement.index)
             }
             style={{
               marginTop: '0.5rem',
