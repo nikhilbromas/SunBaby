@@ -83,83 +83,87 @@ export default function CompanySelector() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center px-6 py-8">
-      <Card className="w-full max-w-6xl shadow-md">
-        <CardHeader className="border-b">
-          <CardTitle className="text-2xl font-semibold">
-            Select Company
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Choose the company you want to work with
-          </p>
-        </CardHeader>
-
-        <CardContent className="pt-6">
-          {/* Error */}
-          {error && (
-            <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {companies.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No companies assigned to your account
-            </div>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {companies.map(company => (
-                <button
-                  key={company.CompanyId}
-                  onClick={() => onSelect(company.CompanyId)}
-                  disabled={loadingId !== null}
-                  className={cn(
-                    'group relative rounded-xl border bg-background p-5 text-left transition-all',
-                    'hover:shadow-lg hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring',
-                    loadingId === company.CompanyId &&
-                      'opacity-60 pointer-events-none'
-                  )}
-                >
-                  {/* Top accent */}
-                  <div className="absolute inset-x-0 top-0 h-[3px] rounded-t-xl bg-primary/70" />
-
-                  {/* Company info */}
-                  <div className="space-y-2">
-                    <div className="text-lg font-semibold leading-tight">
-                      {company.CompanyName || 'Company'}
-                    </div>
-
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      {company.PermanentAddress && (
-                        <div>{company.PermanentAddress}</div>
-                      )}
-                      {company.CompanyDescription && (
-                        <div>{company.CompanyDescription}</div>
-                      )}
-                      {formatPhone(company) && (
-                        <div>{formatPhone(company)}</div>
-                      )}
-                    </div>
+    <div className="min-h-screen  flex items-center justify-center px-6 py-8">
+    <Card className="w-full max-w-6xl  border border-neutral-800 shadow-xl">
+      
+      <CardHeader className="border-b border-neutral-800 bg-neutral-950 text-white">
+        <CardTitle className="text-2xl font-semibold text-white">
+          Select Company
+        </CardTitle>
+        <p className="text-sm text-neutral-400">
+          Choose the company you want to work with
+        </p>
+      </CardHeader>
+  
+      <CardContent className="pt-6">
+  
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-md border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+  
+        {/* Empty state */}
+        {companies.length === 0 ? (
+          <div className="py-12 text-center text-sm text-neutral-500">
+            No companies assigned to your account
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {companies.map(company => (
+              <button
+                key={company.CompanyId}
+                onClick={() => onSelect(company.CompanyId)}
+                disabled={loadingId !== null}
+                className={cn(
+                  'group relative rounded-xl border border-neutral-800 bg-black p-5 text-left transition-all',
+                  'hover:border-white hover:bg-neutral-900 hover:shadow-lg',
+                  'focus:outline-none focus:ring-2 focus:ring-white',
+                  loadingId === company.CompanyId &&
+                    'opacity-60 pointer-events-none'
+                )}
+              >
+                {/* Top accent */}
+                <div className="absolute inset-x-0 top-0 h-[2px] rounded-t-xl bg-white" />
+  
+                {/* Company info */}
+                <div className="space-y-2">
+                  <div className="text-lg font-semibold leading-tight text-white">
+                    {company.CompanyName || 'Company'}
                   </div>
-
-                  {/* Permissions */}
-                  <div className="mt-4">
-                    <PermissionBadges permissions={company.Permissions} />
+  
+                  <div className="space-y-1 text-xs text-neutral-400">
+                    {company.PermanentAddress && (
+                      <div>{company.PermanentAddress}</div>
+                    )}
+                    {company.CompanyDescription && (
+                      <div>{company.CompanyDescription}</div>
+                    )}
+                    {formatPhone(company) && (
+                      <div>{formatPhone(company)}</div>
+                    )}
                   </div>
-
-                  {/* Loading */}
-                  {loadingId === company.CompanyId && (
-                    <div className="mt-3 text-xs font-medium text-primary">
-                      Connecting…
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                </div>
+  
+                {/* Permissions */}
+                <div className="mt-4">
+                  <PermissionBadges permissions={company.Permissions} />
+                </div>
+  
+                {/* Loading */}
+                {loadingId === company.CompanyId && (
+                  <div className="mt-3 text-xs font-medium text-white">
+                    Connecting…
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  </div>
+  
   );
 }

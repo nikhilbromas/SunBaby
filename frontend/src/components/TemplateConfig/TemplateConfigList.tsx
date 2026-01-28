@@ -356,22 +356,37 @@ setFilteredInterfaces(allInterfaces);
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Template Configurations</h2>
-            <p className="text-blue-100 text-sm mt-1">
-              Manage template ↔ interface mappings and scope
-            </p>
-          </div>
-          <button
-            onClick={handleCreateNew}
-            className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-4 py-2 rounded-md shadow transition"
-          >
-            + Create New Config
-          </button>
-        </div>
-      </div>
+      <div className="bg-black text-white shadow-lg">
+  <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h2 className="text-2xl font-bold">
+        Template Configurations
+      </h2>
+      <p className="text-neutral-300 text-sm mt-1">
+        Manage template ↔ interface mappings and scope
+      </p>
+    </div>
+
+    <button
+      onClick={handleCreateNew}
+      className="
+        bg-white 
+        text-black 
+        font-semibold 
+        px-4 py-2 
+        rounded-md 
+        border border-white
+        transition
+        hover:bg-black 
+        hover:text-white
+        hover:border-white
+      "
+    >
+      + Create New Config
+    </button>
+  </div>
+</div>
+
   
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -414,28 +429,29 @@ setFilteredInterfaces(allInterfaces);
           <>
             <div className="hidden md:block bg-white rounded-lg shadow border overflow-hidden">
               <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
-                      Template
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
-                      Preset
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
-                      Interface
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
-                      Scope
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
+              <thead className="bg-black border-b border-neutral-800">
+  <tr>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">
+      Template
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">
+      Preset
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">
+      Interface
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">
+      Scope
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase">
+      Type
+    </th>
+    <th className="px-6 py-3 text-right text-xs font-semibold text-white uppercase">
+      Actions
+    </th>
+  </tr>
+</thead>
+
   
                 <tbody className="divide-y divide-slate-200">
                   {configs.map((config) => {
@@ -446,70 +462,130 @@ setFilteredInterfaces(allInterfaces);
                     const shop = shops.find(s => s.ShopID === config.ShopId);
   
                     return (
-                      <tr key={config.ConfigId} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-medium text-slate-900">
-                          {template?.TemplateName || `Template ${config.TemplateId}`}
-                        </td>
-                        <td className="px-6 py-4 text-slate-700">
-                          {preset?.PresetName || `Preset ${config.PresetId}`}
-                        </td>
-                        <td className="px-6 py-4 text-slate-700">
-                        
-  {interfaceItem ? (
-    <div className="leading-tight">
-      <div className="font-medium">
-        {interfaceItem.InterfaceName}
-      </div>
-      {interfaceItem.ModuleCode && (
-        <div className="text-xs text-slate-500">
-          {interfaceItem.ModuleCode}
-        </div>
-      )}
-    </div>
-  ) : (
-    <span className="text-slate-400">
-      Interface {config.InterfaceId}
-    </span>
-  )}
-</td>
-
-                        <td className="px-6 py-4">
-                          {!config.DepartmentId && !config.ShopId && (
-                            <span className="px-2 py-1 text-xs rounded bg-slate-200 text-slate-700">
-                              Global
-                            </span>
-                          )}
-                          {config.DepartmentId && !config.ShopId && (
-                            <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">
-                              Dept: {department?.DepartmentName}
-                            </span>
-                          )}
-                          {config.ShopId && (
-                            <span className="px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-700">
-                              Shop: {shop?.ShopName}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700">
-                            {config.Type}
+                      <tr
+                      key={config.ConfigId}
+                      className="bg-black text-white hover:bg-neutral-900 transition-colors"
+                    >
+                      {/* Template */}
+                      <td className="px-6 py-4 font-medium text-white">
+                        {template?.TemplateName || `Template ${config.TemplateId}`}
+                      </td>
+                    
+                      {/* Preset */}
+                      <td className="px-6 py-4 text-neutral-200">
+                        {preset?.PresetName || `Preset ${config.PresetId}`}
+                      </td>
+                    
+                      {/* Interface */}
+                      <td className="px-6 py-4 text-neutral-200">
+                        {interfaceItem ? (
+                          <div className="leading-tight">
+                            <div className="font-medium text-white">
+                              {interfaceItem.InterfaceName}
+                            </div>
+                            {interfaceItem.ModuleCode && (
+                              <div className="text-xs text-neutral-400">
+                                {interfaceItem.ModuleCode}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-neutral-400">
+                            Interface {config.InterfaceId}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          <button
-                            onClick={() => handleEdit(config)}
-                            className="px-3 py-1 text-sm rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(config.ConfigId)}
-                            className="px-3 py-1 text-sm rounded border border-red-200 text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
+                        )}
+                      </td>
+                    
+                      {/* Scope */}
+                      <td className="px-6 py-4">
+                        {!config.DepartmentId && !config.ShopId && (
+                          <span className="px-2 py-1 text-xs rounded border border-white text-white">
+                            Global
+                          </span>
+                        )}
+                        {config.DepartmentId && !config.ShopId && (
+                          <span className="px-2 py-1 text-xs rounded border border-white text-white">
+                            Dept: {department?.DepartmentName}
+                          </span>
+                        )}
+                        {config.ShopId && (
+                          <span className="px-2 py-1 text-xs rounded border border-white text-white">
+                            Shop: {shop?.ShopName}
+                          </span>
+                        )}
+                      </td>
+                    
+                      {/* Type */}
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 text-xs rounded border border-white text-white">
+                          {config.Type}
+                        </span>
+                      </td>
+                    
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end gap-2">
+                        <Button
+  onClick={() => handleEdit(config)}
+  size="sm"
+  variant="outline"
+  className="
+    border-white 
+    text-white 
+    bg-transparent
+    hover:bg-white 
+    hover:text-black
+  "
+>
+  <svg
+    className="w-4 h-4 mr-1"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+    />
+  </svg>
+  Edit
+</Button>
+
+                    
+<Button
+  onClick={() => handleDelete(config.ConfigId)}
+  size="sm"
+  variant="outline"
+  className="
+    border-white 
+    text-white 
+    bg-transparent
+    hover:bg-white 
+    hover:text-black
+  "
+>
+  <svg
+    className="w-4 h-4 mr-1"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    />
+  </svg>
+  Delete
+</Button>
+
+                        </div>
+                      </td>
+                    </tr>
+                    
                     );
                   })}
                 </tbody>

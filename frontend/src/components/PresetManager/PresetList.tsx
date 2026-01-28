@@ -82,23 +82,41 @@ const PresetList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold">SQL Presets</h2>
-              <p className="text-blue-100 text-sm mt-1">Manage your query templates and data configurations</p>
-            </div>
-            <Button
-              onClick={handleCreateNew}
-              className="bg-white text-blue-600 hover:bg-blue-50 font-semibold shadow-md transition-colors"
-            >
-              <span className="mr-2">+</span>
-              Create New Preset
-            </Button>
-          </div>
-        </div>
+     <div className="bg-black text-white shadow-lg border-b border-neutral-800">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      
+      <div>
+        <h2 className="text-2xl font-bold">
+          SQL Presets
+        </h2>
+        <p className="text-neutral-400 text-sm mt-1">
+          Manage your query templates and data configurations
+        </p>
       </div>
+
+      <button
+      onClick={handleCreateNew}
+      className="
+        bg-white 
+        text-black 
+        font-semibold 
+        px-4 py-2 
+        rounded-md 
+        border border-white
+        transition
+        hover:bg-black 
+        hover:text-white
+        hover:border-white
+      "
+    >
+      + Create New Preset
+    </button>
+
+    </div>
+  </div>
+</div>
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
@@ -141,68 +159,129 @@ const PresetList: React.FC = () => {
             {/* Desktop table view */}
             <div className="hidden md:block bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
               <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Preset Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Created By
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Created On
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
+              <thead className="bg-black border-b border-neutral-800">
+  <tr>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
+      Preset Name
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
+      Created By
+    </th>
+    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
+      Created On
+    </th>
+    <th className="px-6 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider">
+      Actions
+    </th>
+  </tr>
+</thead>
+
                 <tbody className="bg-white divide-y divide-slate-200">
                   {presets.map((preset) => (
-                    <tr key={preset.PresetId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <div className="text-sm font-medium text-slate-900">{preset.PresetName}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-slate-700">{preset.CreatedBy || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-slate-700">{new Date(preset.CreatedOn).toLocaleDateString()}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            onClick={() => handleEdit(preset)}
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+                    <tr
+                    key={preset.PresetId}
+                    className="bg-black text-white hover:bg-neutral-900 transition-colors"
+                  >
+                    {/* Preset Name */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-8 w-8 border border-white rounded-lg flex items-center justify-center mr-3">
+                          <svg
+                            className="w-5 h-5 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Edit
-                          </Button>
-                          <Button
-                            onClick={() => handleDelete(preset.PresetId)}
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Delete
-                          </Button>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
                         </div>
-                      </td>
-                    </tr>
+                        <div className="text-sm font-medium text-white">
+                          {preset.PresetName}
+                        </div>
+                      </div>
+                    </td>
+                  
+                    {/* Created By */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-neutral-200">
+                        {preset.CreatedBy || 'N/A'}
+                      </div>
+                    </td>
+                  
+                    {/* Created On */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-neutral-200">
+                        {new Date(preset.CreatedOn).toLocaleDateString()}
+                      </div>
+                    </td>
+                  
+                    {/* Actions */}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          onClick={() => handleEdit(preset)}
+                          size="sm"
+                          variant="outline"
+                          className="
+                            border-white 
+                            text-white 
+                            bg-transparent
+                            hover:bg-white 
+                            hover:text-black
+                          "
+                        >
+                          <svg
+                            className="w-4 h-4 mr-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                          Edit
+                        </Button>
+                  
+                        <Button
+                          onClick={() => handleDelete(preset.PresetId)}
+                          size="sm"
+                          variant="outline"
+                          className="
+                            border-white 
+                            text-white 
+                            bg-transparent
+                            hover:bg-white 
+                            hover:text-black
+                          "
+                        >
+                          <svg
+                            className="w-4 h-4 mr-1"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                  
                   ))}
                 </tbody>
               </table>

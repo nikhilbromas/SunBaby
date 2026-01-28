@@ -236,16 +236,16 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   }, [getTableColumns, filterColumns]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-black text-white p-2">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h3 className="text-base font-semibold text-slate-900">Choose Fields</h3>
+        <h3 className="text-base font-semibold text-white">Choose Fields</h3>
         <div className="flex gap-2">
           {onAddCalculated && (
             <Button
               onClick={onAddCalculated}
               size="sm"
               variant="outline"
-              className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+              className="border-blue-200 bg-white text-black hover:bg-black hover:text-white"
               title="Add a formula field"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +259,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
               onClick={onAddWindow}
               size="sm"
               variant="outline"
-              className="border-blue-200 text-blue-600 hover:bg-blue-50"
+              className="border-blue-200 bg-white text-black hover:bg-black hover:text-white"
               title="Add ranking or numbering"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,16 +283,16 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
             placeholder="Search fields, aliases, or data types..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full pl-10 pr-10 py-2.5 border border-slate-300 bg-black text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm('')}
               title="Clear search"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center bg-black text-white hover:text-slate-600"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -307,10 +307,10 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
             onClick={expandAll}
             variant="outline"
             size="sm"
-            className="flex-1 sm:flex-none border-slate-300 text-slate-700"
+            className="flex-1 sm:flex-none bg-white text-black hover:bg-black hover:text-white"
             title="Expand all tables"
           >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-1 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
             Expand All
@@ -320,10 +320,10 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
             onClick={collapseAll}
             variant="outline"
             size="sm"
-            className="flex-1 sm:flex-none border-slate-300 text-slate-700"
+            className="flex-1 sm:flex-none bg-white text-black hover:bg-black hover:text-white"
             title="Collapse all tables"
           >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-1 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
             </svg>
             Collapse All
@@ -341,7 +341,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
       )}
 
       {selectedTables.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-slate-200 rounded-lg bg-white">
+        <div className="flex flex-col items-center bg-black text-white justify-center py-12 px-4 text-center border border-slate-200 rounded-lg bg-white">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -363,17 +363,17 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
             const selectedCount = cols.filter(col => isColumnSelected(tableName, col.name)).length;
             
             return (
-              <Card key={tableName} className="border border-slate-200 shadow-sm bg-white overflow-hidden">
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
-                  <div className="flex items-center gap-3">
+              <Card key={tableName} className="border border-slate-200 shadow-sm bg-black text-white overflow-hidden">
+                <div className="bg-black border-b border-slate-200 px-4 py-3">
+                  <div className="flex items-center gap-3 bg-black text-white">
                     <button
                       type="button"
                       onClick={() => toggleCollapse(tableName)}
                       title={collapsed ? 'Expand' : 'Collapse'}
-                      className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"
+                      className="flex-shrink-0 w-6 h-6 flex items-center bg-white text-black justify-center text-slate-600 hover:text-slate-900 transition-colors"
                     >
                       <svg 
-                        className={cn("w-5 h-5 transition-transform", collapsed && "-rotate-90")} 
+                        className={cn("w-5 h-5 transition-transform bg-black text-black", collapsed && "-rotate-90")} 
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
@@ -381,9 +381,9 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    <span className="flex-1 font-semibold text-sm text-slate-900">{tableName}</span>
+                    <span className="flex-1 font-semibold text-white text-sm text-slate-900">{tableName}</span>
                     {collapsed ? (
-                      <span className="text-xs text-slate-600 bg-slate-200 px-2 py-1 rounded-full">
+                      <span className="text-xs text-slate-600 text-black bg-slate-200 px-2 py-1 rounded-full">
                         {selectedCount > 0 && `${selectedCount}/`}{matchCount.matching > 0 ? matchCount.matching : matchCount.total} fields
                       </span>
                     ) : (
@@ -392,7 +392,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                           onClick={() => selectAll(tableName)}
                           variant="outline"
                           size="sm"
-                          className="border-blue-200 text-blue-600 hover:bg-blue-50 text-xs"
+                          className="border-blue-200 text-blue-600 bg-white text-black hover:bg-white hover:text-black text-xs"
                           title="Select all fields"
                         >
                           Select All
@@ -429,34 +429,34 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                           
                           return (
                             <div key={col.name} className={cn(
-                              "border rounded-lg p-3 transition-colors",
-                              selected ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                              "border rounded-lg p-3 transition-colors ",
+                              selected ? "border-blue-300 bg-white text-black hover:bg-white hover:text-black" : "border-slate-200 bg-black text-white hover:bg-white hover:text-black"
                             )}>
-                              <label className="flex items-center gap-3 cursor-pointer">
+                              <label className="flex items-center gap-3 p-1 cursor-pointer bg-black text-white">
                                 <input
                                   type="checkbox"
                                   checked={selected}
                                   onChange={() => toggleColumn(tableName, col)}
-                                  className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-2 focus:ring-blue-500"
+                                  className="w-4 h-4 text-black bg-black  border-slate-300 rounded focus:ring-2"
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-sm text-slate-900">
+                                    <span className="font-medium bg-black text-white text-sm text-slate-900">
                                       {highlightName(col.name)}
                                     </span>
-                                    <span className="text-xs text-slate-500 font-mono">{col.dataType}</span>
+                                    <span className="text-xs bg-black text-white text-slate-500 font-mono">{col.dataType}</span>
                                     {col.isPrimaryKey && (
-                                      <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">Key</span>
+                                      <span className="text-xs  bg-amber-100 bg-black text-white text-amber-700 rounded-full font-medium">Key</span>
                                     )}
                                     {col.isForeignKey && (
-                                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">Link</span>
+                                      <span className="text-xs  bg-blue-100 bg-black text-white text-blue-700 rounded-full font-medium">Link</span>
                                     )}
                                   </div>
                                 </div>
                               </label>
                               {selected && (
-                                <div className="mt-2 ml-7 flex items-center gap-2">
-                                  <label className="text-xs font-medium text-slate-700 flex-shrink-0">Display Name:</label>
+                                <div className="mt-2 ml-7 flex items-center gap-2 bg-black text-white">
+                                  <label className="text-xs font-medium bg-black text-white text-slate-700 pl-2 flex-shrink-0">Display Name:</label>
                                   <input
                                     type="text"
                                     placeholder="Same as field name"
@@ -465,7 +465,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                                       c.column.toLowerCase() === col.name.toLowerCase()
                                     )?.alias || ''}
                                     onChange={(e) => updateAlias(tableName, col.name, e.target.value)}
-                                    className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="flex-1 px-2 text-white bg-black py-1 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   />
                                 </div>
                               )}
@@ -536,11 +536,11 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-base font-semibold text-slate-900">Formula Fields</h4>
-              <span className="text-sm text-slate-600">
+              <h4 className="text-base font-semibold text-white text-slate-900">Formula Fields</h4>
+              <span className="text-sm text-white text-slate-600">
                 {filteredCalculated.length + filteredWindow.length} formula{filteredCalculated.length + filteredWindow.length !== 1 ? 's' : ''}
                 {searchTerm.trim() && (calculatedColumns.length + windowColumns.length !== filteredCalculated.length + filteredWindow.length) && (
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-white text-slate-500">
                     {' '}(filtered from {calculatedColumns.length + windowColumns.length})
                   </span>
                 )}
@@ -569,17 +569,17 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                 const expressionText = getExpressionText(col.expression);
                 
                 return (
-                  <Card key={`calc-${index}`} className="border border-emerald-200 bg-emerald-50 shadow-sm">
+                  <Card key={`calc-${index}`} className="border bg-black text-white  shadow-sm">
                     <div className="p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-shrink-0 w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center gap-3 mb-2 bg-black text-white">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white hover:text-black">
+                          <svg className="w-5 h-5 text-white hover:text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-slate-900">{col.alias || 'Unnamed Formula'}</div>
-                          <span className="text-xs px-2 py-0.5 bg-emerald-200 text-emerald-800 rounded-full font-medium">Formula</span>
+                          <div className="font-medium text-sm text-white text-slate-900">{col.alias || 'Unnamed Formula'}</div>
+                          <span className="text-xs px-2 py-0.5 bg-emerald-200 bg-black text-white text-emerald-800 rounded-full font-medium">Formula</span>
                         </div>
                         <div className="flex gap-2">
                           {onEditCalculated && (
@@ -587,10 +587,10 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                               onClick={() => onEditCalculated(col, originalIndex >= 0 ? originalIndex : index)}
                               variant="outline"
                               size="sm"
-                              className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                              className=" bg-white text-black  hover:bg-black hover:text-white"
                               title="Edit formula"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-black hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </Button>
@@ -602,7 +602,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                             }}
                             variant="outline"
                             size="sm"
-                            className="border-red-200 text-red-600 hover:bg-red-50"
+                            className="border-red-200 bg-white text-black  hover:bg-black hover:text-white"
                             title="Delete formula"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -611,7 +611,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                           </Button>
                         </div>
                       </div>
-                      <div className="mt-2 p-2 bg-white rounded border border-emerald-200 font-mono text-xs text-slate-700">
+                      <div className="mt-2 p-2 rounded border  font-mono text-xs text-white bg-black">
                         {expressionText}
                       </div>
                     </div>

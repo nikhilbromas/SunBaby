@@ -288,11 +288,11 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg">
+      <div className="bg-gradient-to-r bg-black text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <div className="flex-shrink-0 w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -307,13 +307,13 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
               <Button
                 onClick={onCancel}
                 variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50"
+                className="bg-white text-black   hover:bg-black hover:text-white"
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => onApply(generatedSQL)}
-                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold shadow-md"
+                className="bg-white text-black hover:bg-black hover:text-white font-semibold shadow-md"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -358,7 +358,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         </div>
       )}
 
-      <div className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+      <div className="bg-black p-4 text-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-1 overflow-x-auto">
             {TABS.map((tab, index) => {
@@ -370,20 +370,20 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                   className={cn(
                     "flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap relative",
                     status === 'active'
-                      ? "border-blue-600 text-blue-600 bg-blue-50"
+                      ? "border-white text-black bg-white"
                       : status === 'completed'
-                      ? "border-emerald-500 text-emerald-600 hover:bg-emerald-50"
-                      : "border-transparent text-slate-600 hover:bg-slate-50"
+                      ? "border-white text-white bg-black hover:bg-black"
+                      : "border-transparent text-black bg-white hover:bg-white"
                   )}
                 >
                   {status === 'completed' ? (
-                    <div className="w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-5 h-5   rounded-full flex items-center justify-center flex-shrink-0">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   ) : tab.id === 'preview' ? (
-                    <svg className={cn("w-5 h-5 flex-shrink-0", status === 'active' ? "text-blue-600" : "text-slate-600")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={cn("w-5 h-5 flex-shrink-0", status === 'active' ? "text-black" : "text-white")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
@@ -391,8 +391,8 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                     <div className={cn(
                       "w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",
                       status === 'active'
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-200 text-slate-600"
+                        ? "bg-black text-white"
+                        : "bg-white text-black"
                     )}>
                       {index + 1}
                     </div>
@@ -407,10 +407,10 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-black text-white">
             <div className="mb-6">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">{currentTab.label}</h3>
-              <p className="text-sm text-slate-600">{currentTab.description}</p>
+              <h3 className="text-lg font-bold text-white mb-1">{currentTab.label}</h3>
+              <p className="text-sm text-white">{currentTab.description}</p>
             </div>
 
             {activeTab === 'tables' && (
@@ -670,7 +670,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 onClick={goToPrevTab}
                 disabled={currentTabIndex === 0}
                 variant="outline"
-                className="border-slate-300 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="border-slate-300 text-black bg-white hover:bg-black hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -678,7 +678,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 Previous
               </Button>
               {currentTabIndex < TABS.length - 1 ? (
-                <Button onClick={goToNextTab} className="ml-auto bg-blue-600 text-white hover:bg-blue-700">
+                <Button onClick={goToNextTab} className="ml-auto bg-white text-black hover:bg-black hover:text-white">
                   Next
                   <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -697,9 +697,9 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         </div>
 
         <div className="hidden lg:block w-96 border-l border-slate-200 bg-white overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3">
+          <div className="sticky top-0 bg-black border-b border-slate-200 px-4 py-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">Live Preview</h3>
+              <h3 className="font-semibold text-white">Live Preview</h3>
               <Button
                 onClick={() => navigator.clipboard.writeText(generatedSQL)}
                 variant="outline"
@@ -712,8 +712,8 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
               </Button>
             </div>
           </div>
-          <div className="p-4">
-            <pre className="bg-slate-900 text-slate-100 p-3 rounded-lg text-xs overflow-auto font-mono leading-relaxed">
+          <div className="p-4 bg-black text-white">
+            <pre className="bg-slate-900 text-black bg-white p-3 rounded-lg text-xs overflow-auto font-mono leading-relaxed">
               {generatedSQL || 'SELECT *'}
             </pre>
           </div>

@@ -219,23 +219,37 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-md border border-slate-200 mb-6 p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">
-                {initialValue ? 'Edit Formula Field' : 'Add Formula Field'}
-              </h3>
-              <p className="text-sm text-slate-600">
-                {initialValue ? 'Update your calculated field' : 'Create a calculated field using math, functions, or other fields'}
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="bg-black rounded-lg shadow-md border border-neutral-800 mb-6 p-6">
+  <div className="flex items-center gap-3 mb-2">
+    <div className="flex-shrink-0 w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+      <svg
+        className="w-6 h-6 text-black"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+        />
+      </svg>
+    </div>
+
+    <div>
+      <h3 className="text-xl font-bold text-white">
+        {initialValue ? 'Edit Formula Field' : 'Add Formula Field'}
+      </h3>
+      <p className="text-sm text-neutral-400">
+        {initialValue
+          ? 'Update your calculated field'
+          : 'Create a calculated field using math, functions, or other fields'}
+      </p>
+    </div>
+  </div>
+</div>
+
 
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
@@ -265,13 +279,13 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                   placeholder={`Click fields and functions below, or type your formula directly...
 
 Examples:
-• Price * Quantity
-• FirstName + ' ' + LastName  
-• ISNULL(Discount, 0)
-• CAST(Amount AS DECIMAL(18,2))
-• ROUND(Amount * 0.18, 2)`}
+                       • Price * Quantity
+                   • FirstName + ' ' + LastName  
+                   • ISNULL(Discount, 0)
+                  • CAST(Amount AS DECIMAL(18,2))
+                 • ROUND(Amount * 0.18, 2)`}
                   rows={6}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y bg-black text-white              "
                 />
                 <div className="mt-2 flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
                   <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

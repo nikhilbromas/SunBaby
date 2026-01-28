@@ -180,21 +180,41 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 h-12 w-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">{preset ? 'Edit Preset' : 'Create New Preset'}</h2>
-              <p className="text-blue-100 text-sm mt-1">Configure your SQL query template</p>
-            </div>
-          </div>
-        </div>
+      <div className="bg-black text-white shadow-lg border-b border-neutral-800">
+  <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="flex items-center gap-3">
+      
+      {/* Icon */}
+      <div className="flex-shrink-0 h-12 w-12 bg-white text-black rounded-lg flex items-center justify-center">
+        <svg
+          className="w-7 h-7"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
       </div>
+
+      {/* Text */}
+      <div>
+        <h2 className="text-2xl font-bold">
+          {preset ? 'Edit Preset' : 'Create New Preset'}
+        </h2>
+        <p className="text-neutral-400 text-sm mt-1">
+          Configure your SQL query template
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -207,330 +227,605 @@ const PresetEditor: React.FC<PresetEditorProps> = ({ preset, onSave, onCancel })
             </div>
           )}
 
-          <Card className="bg-white border border-slate-200 shadow-md">
-            <div className="p-6 space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Basic Information
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Preset Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      value={presetName}
-                      onChange={(e) => setPresetName(e.target.value)}
-                      required
-                      placeholder="e.g., Bill Preview"
-                      className="w-full"
-                    />
-                  </div>
+<Card className="bg-black border border-neutral-800 shadow-lg">
+  <div className="p-6 space-y-6">
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Created By
-                    </label>
-                    <Input
-                      type="text"
-                      value={createdBy}
-                      onChange={(e) => setCreatedBy(e.target.value)}
-                      placeholder="Your name"
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
+    {/* Section Header */}
+    <div>
+      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <svg
+          className="w-5 h-5 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 0 0118 0z"
+          />
+        </svg>
+        Basic Information
+      </h3>
 
-          <Card className="bg-white border border-slate-200 shadow-md">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  Header Query
-                </h3>
-                <Button
-                  type="button"
-                  onClick={() => setShowVisualBuilder('header')}
-                  variant="outline"
-                  size="sm"
-                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Visual Builder
-                </Button>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  SELECT statement with @ParameterName
-                </label>
-                <textarea
-                  value={headerQuery}
-                  onChange={(e) => setHeaderQuery(e.target.value)}
-                  placeholder={`SELECT h.*, o.*
+      <div className="space-y-4">
+
+        {/* Preset Name */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-300 mb-2">
+            Preset Name <span className="text-white">*</span>
+          </label>
+          <Input
+            type="text"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            required
+            placeholder="e.g., Bill Preview"
+            className="w-full bg-black text-white border-neutral-700 placeholder:text-neutral-500 focus:border-white focus:ring-white"
+          />
+        </div>
+
+        {/* Created By */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-300 mb-2">
+            Created By
+          </label>
+          <Input
+            type="text"
+            value={createdBy}
+            onChange={(e) => setCreatedBy(e.target.value)}
+            placeholder="Your name"
+            className="w-full bg-black text-white border-neutral-700 placeholder:text-neutral-500 focus:border-white focus:ring-white"
+          />
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</Card>
+
+
+<Card className="bg-black border border-neutral-800 shadow-lg">
+  <div className="p-6 space-y-4">
+
+    {/* Header */}
+    <div className="flex items-center justify-between">
+      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+        <svg
+          className="w-5 h-5 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+          />
+        </svg>
+        Header Query
+      </h3>
+
+      <Button
+        type="button"
+        onClick={() => setShowVisualBuilder('header')}
+        variant="outline"
+        size="sm"
+        className="
+          border-white text-white
+          transition-colors duration-200
+          bg-white text-black
+
+          hover:bg-black hover:text-white
+        "
+      >
+        <svg
+          className="w-4 h-4 mr-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+        Visual Builder
+      </Button>
+    </div>
+
+    {/* Query Editor */}
+    <div>
+      <label className="block text-sm font-medium text-neutral-300 mb-2">
+        SELECT statement with @ParameterName
+      </label>
+
+      <textarea
+        value={headerQuery}
+        onChange={(e) => setHeaderQuery(e.target.value)}
+        placeholder={`SELECT h.*, o.*
 FROM LOsPosHeader h
 LEFT JOIN orderheader o ON o.BillID = h.poshBillID
 WHERE h.poshBillID = @BillID`}
-                  rows={8}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS). Use table aliases for clarity.
-                </p>
-              </div>
-            </div>
-          </Card>
+        rows={8}
+        className="
+          w-full px-3 py-2
+          bg-black text-white
+          border border-neutral-700
+          rounded-md
+          font-mono text-sm resize-y
+          placeholder:text-neutral-500
+          focus:outline-none
+          focus:ring-2 focus:ring-white
+          focus:border-white
+        "
+      />
 
-          <Card className="bg-white border border-slate-200 shadow-md">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                  </svg>
-                  Item Query
-                </h3>
-                <Button
-                  type="button"
-                  onClick={() => setShowVisualBuilder('item')}
-                  variant="outline"
-                  size="sm"
-                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Visual Builder
-                </Button>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  SELECT statement with @ParameterName
-                </label>
-                <textarea
-                  value={itemQuery}
-                  onChange={(e) => setItemQuery(e.target.value)}
-                  placeholder={`SELECT i.*, p.ProductName
+      <p className="text-xs text-neutral-500 mt-2">
+        Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS).
+        Use table aliases for clarity.
+      </p>
+    </div>
+
+  </div>
+</Card>
+
+
+<Card className="bg-black border border-neutral-800 shadow-lg">
+  <div className="p-6 space-y-4">
+
+    {/* Header */}
+    <div className="flex items-center justify-between">
+      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+        <svg
+          className="w-5 h-5 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h16M4 10h16M4 14h16M4 18h16"
+          />
+        </svg>
+        Item Query
+      </h3>
+
+      <Button
+        type="button"
+        onClick={() => setShowVisualBuilder('item')}
+        variant="outline"
+        size="sm"
+        className="
+          border-white text-white
+          transition-colors duration-200
+          text-black
+          bg-white
+          text-black
+          hover:bg-black hover:text-white
+        "
+      >
+        <svg
+          className="w-4 h-4 mr-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+        Visual Builder
+      </Button>
+    </div>
+
+    {/* Query Editor */}
+    <div>
+      <label className="block text-sm font-medium text-neutral-300 mb-2">
+        SELECT statement with @ParameterName
+      </label>
+
+      <textarea
+        value={itemQuery}
+        onChange={(e) => setItemQuery(e.target.value)}
+        placeholder={`SELECT i.*, p.ProductName
 FROM BillItem i
 LEFT JOIN Products p ON p.ProductId = i.ItemProductId
 WHERE i.BillId = @BillId`}
-                  rows={8}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS). Use table aliases for clarity.
-                </p>
-              </div>
-            </div>
-          </Card>
+        rows={8}
+        className="
+          w-full px-3 py-2
+          bg-black text-white
+          border border-neutral-700
+          rounded-md
+          font-mono text-sm resize-y
+          placeholder:text-neutral-500
+          focus:outline-none
+          focus:ring-2 focus:ring-white
+          focus:border-white
+        "
+      />
 
-          <Card className="bg-white border border-slate-200 shadow-md">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    Content Details
-                  </h3>
-                  {contentDetails.length === 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      Optional: Add additional content sections with custom queries
-                    </p>
-                  )}
-                </div>
+      <p className="text-xs text-neutral-500 mt-2">
+        Supports multiple JOINs (LEFT, RIGHT, INNER, FULL OUTER, CROSS).
+        Use table aliases for clarity.
+      </p>
+    </div>
+
+  </div>
+</Card>
+
+
+<Card className="bg-black border border-neutral-800 shadow-lg">
+  <div className="p-6 space-y-4">
+
+    {/* Header */}
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <svg
+            className="w-5 h-5 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
+          </svg>
+          Content Details
+        </h3>
+
+        {contentDetails.length === 0 && (
+          <p className="text-xs text-neutral-500 mt-1">
+            Optional: Add additional content sections with custom queries
+          </p>
+        )}
+      </div>
+
+      <Button
+        type="button"
+        onClick={() =>
+          setContentDetails([
+            ...contentDetails,
+            { name: '', query: '', dataType: 'array' as 'array' | 'object' },
+          ])
+        }
+        variant="outline"
+        size="sm"
+        className="
+          border-white text-white
+          transition-colors duration-200
+          bg-white
+          text-black
+          hover:bg-white hover:text-black
+        "
+      >
+        + Add Content Detail
+      </Button>
+    </div>
+
+    {/* Content Detail Cards */}
+    {contentDetails.length > 0 && (
+      <div className="space-y-4">
+        {contentDetails.map((cd, index) => (
+          <div
+            key={index}
+            className="border border-neutral-800 rounded-lg p-4 bg-neutral-900 space-y-4"
+          >
+            {/* Row header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center text-xs font-semibold">
+                  {index + 1}
+                </span>
+                <span className="font-medium text-white">
+                  Content Detail {index + 1}
+                </span>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() =>
+                  setContentDetails(contentDetails.filter((_, i) => i !== index))
+                }
+                variant="outline"
+                size="sm"
+                className="
+                  border-white text-white
+                  transition-colors duration-200
+                  text-black
+                  bg-white
+                  hover:bg-black hover:text-white
+                  
+                "
+              >
+                Remove
+              </Button>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Name <span className="text-white">*</span>
+              </label>
+              <Input
+                value={cd.name}
+                onChange={(e) => {
+                  const updated = [...contentDetails];
+                  updated[index].name = e.target.value;
+                  setContentDetails(updated);
+                }}
+                placeholder="e.g., payments, notes"
+                required
+                className="bg-black text-white border-neutral-700 placeholder:text-neutral-500 focus:border-white focus:ring-white"
+              />
+            </div>
+
+            {/* Data Type */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Data Type <span className="text-white">*</span>
+              </label>
+              <select
+                value={cd.dataType || 'array'}
+                onChange={(e) => {
+                  const updated = [...contentDetails];
+                  updated[index].dataType = e.target.value as 'array' | 'object';
+                  setContentDetails(updated);
+                }}
+                className="
+                  w-full px-3 py-2 rounded-md
+                  bg-black text-white
+                  border border-neutral-700
+                  text-white
+                  bg-black
+                  hover:bg-black hover:text-white
+                  focus:ring-2 focus:ring-white focus:border-white
+                "
+              >
+                <option value="array">Array (Multiple Rows)</option>
+                <option value="object">Object (Single Row)</option>
+              </select>
+
+              <p className="text-xs text-neutral-500 mt-2">
+                {cd.dataType === 'array'
+                  ? 'Returns multiple rows, displayed as table data'
+                  : 'Returns single row, displayed as fields'}
+              </p>
+            </div>
+
+            {/* Query */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-neutral-300">
+                  Query <span className="text-white">*</span>
+                </label>
+
                 <Button
                   type="button"
-                  onClick={() => setContentDetails([...contentDetails, { name: '', query: '', dataType: 'array' as 'array' | 'object' }])}
+                  onClick={() => {
+                    setContentDetailIndex(index);
+                    setShowVisualBuilder('content');
+                  }}
                   variant="outline"
                   size="sm"
-                  className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                >
-                  <span className="mr-1">+</span>
-                  Add Content Detail
+                  className="
+                    border-white text-white
+                    transition-colors duration-200
+                    text-black
+                    bg-white
+                    hover:bg-black hover:text-white
+                  "
+                ><svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+                  Visual Builder
                 </Button>
               </div>
 
-              {contentDetails.length > 0 && (
-                <div className="space-y-4">
-                  {contentDetails.map((cd, index) => (
-                    <div key={index} className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-semibold">
-                            {index + 1}
-                          </span>
-                          <span className="font-medium text-slate-900">Content Detail {index + 1}</span>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={() => setContentDetails(contentDetails.filter((_, i) => i !== index))}
-                          variant="outline"
-                          size="sm"
-                          className="border-red-200 text-red-600 hover:bg-red-50"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Name <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          type="text"
-                          value={cd.name}
-                          onChange={(e) => {
-                            const updated = [...contentDetails];
-                            updated[index].name = e.target.value;
-                            setContentDetails(updated);
-                          }}
-                          placeholder="e.g., payments, notes"
-                          required
-                          className="w-full"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Data Type <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={cd.dataType || 'array'}
-                          onChange={(e) => {
-                            const updated = [...contentDetails];
-                            updated[index].dataType = e.target.value as 'array' | 'object';
-                            setContentDetails(updated);
-                          }}
-                          required
-                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="array">Array (Multiple Rows - like Items)</option>
-                          <option value="object">Object (Single Row - like Header)</option>
-                        </select>
-                        <p className="text-xs text-slate-500 mt-2">
-                          {cd.dataType === 'array' 
-                            ? 'Returns multiple rows, displayed as table data'
-                            : 'Returns single row, displayed as fields'}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-slate-700">
-                            Query <span className="text-red-500">*</span>
-                          </label>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              setContentDetailIndex(index);
-                              setShowVisualBuilder('content');
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Visual
-                          </Button>
-                        </div>
-                        <textarea
-                          value={cd.query}
-                          onChange={(e) => {
-                            const updated = [...contentDetails];
-                            updated[index].query = e.target.value;
-                            setContentDetails(updated);
-                          }}
-                          placeholder={`SELECT p.*, m.PaymentMethodName
-FROM Payments p
-LEFT JOIN PaymentMethods m ON m.MethodId = p.PaymentMethodId
-WHERE p.BillId = @BillId`}
-                          rows={6}
-                          required
-                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
-
-          <Card className="bg-white border border-slate-200 shadow-md">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-                Parameters
-              </h3>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Expected Parameters (comma-separated)
-                </label>
-                <Input
-                  type="text"
-                  value={expectedParams}
-                  onChange={(e) => setExpectedParams(e.target.value)}
-                  placeholder="BillId, CustomerId"
-                  className="w-full"
-                />
-                <p className="text-xs text-slate-500 mt-2">Optional: List of expected parameter names</p>
-              </div>
-            </div>
-          </Card>
-
-          <div className="sticky bottom-0 bg-white border-t border-slate-200 shadow-lg rounded-t-lg -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4">
-            <div className="max-w-5xl mx-auto flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
-              <Button
-                type="button"
-                onClick={onCancel}
-                variant="outline"
-                className="border-slate-300 text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={saving}
-                className="bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Save Preset
-                  </>
-                )}
-              </Button>
+              <textarea
+                value={cd.query}
+                onChange={(e) => {
+                  const updated = [...contentDetails];
+                  updated[index].query = e.target.value;
+                  setContentDetails(updated);
+                }}
+                rows={6}
+                required
+                className="
+                  w-full px-3 py-2
+                  bg-black text-white
+                  border border-neutral-700
+                  rounded-md
+                  font-mono text-sm resize-y
+                  placeholder:text-neutral-500
+                  focus:outline-none
+                  focus:ring-2 focus:ring-white
+                  focus:border-white
+                "
+              />
             </div>
           </div>
+        ))}
+      </div>
+    )}
+  </div>
+</Card>
+
+
+<Card className="bg-black border border-neutral-800 shadow-lg">
+  <div className="p-6">
+    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+      <svg
+        className="w-5 h-5 text-white"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+        />
+      </svg>
+      Parameters
+    </h3>
+
+    <div>
+      <label className="block text-sm font-medium text-neutral-300 mb-2">
+        Expected Parameters (comma-separated)
+      </label>
+
+      <Input
+        type="text"
+        value={expectedParams}
+        onChange={(e) => setExpectedParams(e.target.value)}
+        placeholder="BillId, CustomerId"
+        className="
+          w-full
+          bg-black text-white
+          border-neutral-700
+          placeholder:text-neutral-500
+          focus:border-white
+          focus:ring-white
+        "
+      />
+
+      <p className="text-xs text-neutral-500 mt-2">
+        Optional: List of expected parameter names
+      </p>
+    </div>
+  </div>
+</Card>
+
+
+<div className="
+  sticky bottom-0
+  bg-black border-t border-neutral-800
+  shadow-lg rounded-t-lg
+  -mx-4 sm:-mx-6 lg:-mx-8
+  px-4 sm:px-6 lg:px-8 py-4
+">
+  <div className="max-w-5xl mx-auto flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+
+    {/* Cancel */}
+    <Button
+      type="button"
+      onClick={onCancel}
+      variant="outline"
+      className="
+        border-white text-white
+        transition-colors duration-200
+        bg-white text-black
+        hover:bg-black hover:text-white
+      "
+    >
+      Cancel
+    </Button>
+
+    {/* Save */}
+    <Button
+      type="submit"
+      disabled={saving}
+      className="
+        bg-white text-black
+        font-semibold shadow-md
+        transition-colors duration-200
+        hover:bg-black hover:text-white
+        bg-white text-black
+        disabled:opacity-50
+        disabled:cursor-not-allowed
+      "
+    >
+      {saving ? (
+        <>
+          <svg
+            className="animate-spin -ml-1 mr-2 h-4 w-4 text-black"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          Saving...
+        </>
+      ) : (
+        <>
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          Save Preset
+        </>
+      )}
+    </Button>
+
+  </div>
+</div>
+
         </form>
       </div>
     </div>

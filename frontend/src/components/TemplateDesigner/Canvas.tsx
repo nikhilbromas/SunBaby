@@ -131,32 +131,63 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
 
   return (
     <div
-      ref={zoneRef}
-      className={`section-zone ${className}`}
-      style={style}
+    ref={zoneRef}
+    className={`section-zone ${className}`}
+    style={{
+      ...style,
+      backgroundColor: '#f5f5f5',
+      border: '1px solid #d4d4d4',
+    }}
+  >
+    {/* Label */}
+    <div
+      className="section-label"
+      style={{
+        color: '#404040',
+        backgroundColor: '#e5e5e5',
+        borderBottom: '1px solid #d4d4d4',
+      }}
     >
-      <div className="section-label">{label}</div>
-      <div
-        className={`section-resize-handle ${isBottom ? 'resize-handle-top' : 'resize-handle-bottom'}`}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        style={{
-          cursor: 'row-resize',
-          position: 'absolute',
-          [isBottom ? 'top' : 'bottom']: 0,
-          left: 0,
-          right: 0,
-          height: '16px',
-          minHeight: '16px',
-          backgroundColor: isResizing ? 'rgba(11, 99, 255, 0.3)' : 'transparent',
-          zIndex: 100,
-          touchAction: 'none',
-        }}
-      />
-      <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto',top: '-40px' }}>
-        {children}
-      </div>
+      {label}
     </div>
+  
+    {/* Resize handle */}
+    <div
+      className={`section-resize-handle ${
+        isBottom ? 'resize-handle-top' : 'resize-handle-bottom'
+      }`}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      style={{
+        cursor: 'row-resize',
+        position: 'absolute',
+        [isBottom ? 'top' : 'bottom']: 0,
+        left: 0,
+        right: 0,
+        height: '16px',
+        minHeight: '16px',
+        backgroundColor: isResizing
+          ? 'rgba(115, 115, 115, 0.35)' // active gray
+          : 'transparent',
+        zIndex: 100,
+        touchAction: 'none',
+      }}
+    />
+  
+    {/* Content */}
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'auto',
+        top: '-40px',
+      }}
+    >
+      {children}
+    </div>
+  </div>
+  
   );
 };
 
@@ -2252,63 +2283,87 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
   !isZoneConfigModalOpen &&
   !isSetupPanelOpen && (
     <div
-      className={cn(
-        'fixed bottom-0 left-0 z-50 gap-1',
-        'rounded-lg border border-black bg-white p-2 shadow-md'
-      )}
+  className={cn(
+    'fixed bottom-0 left-0 z-50 gap-1',
+    'rounded-lg border border-neutral-800 bg-black p-2 shadow-lg'
+  )}
+>
+  {/* Zoom Out */}
+  <Button
+    onClick={zoomOut}
+    variant="outline"
+    size="icon"
+    className="
+      h-8 w-8
+      bg-black text-white border-white
+      transition-colors duration-200
+      hover:bg-white hover:text-black
+    "
+    aria-label="Zoom out"
+  >
+    −
+  </Button>
+
+  <div>
+    {/* Reset */}
+    <Button
+      onClick={resetZoom}
+      variant="outline"
+      className="
+        h-8 px-3
+        bg-black text-white border-white
+        transition-colors duration-200
+        hover:bg-white hover:text-black
+      "
+      aria-label="Reset zoom"
+      title="Click to reset to 100%"
     >
-      <Button
-        onClick={zoomOut}
-        variant="outline"
-        size="icon"
-        className="h-8 w-8 border-black text-black hover:bg-black hover:text-white"
-        aria-label="Zoom out"
-      >
-        −
-      </Button>
+      {Math.round(canvasZoom * 100)}%
+    </Button>
 
-      <div className="">
-        <Button
-          onClick={resetZoom}
-          variant="outline"
-          className="h-8 px-3 border-black text-black hover:bg-black hover:text-white"
-          aria-label="Reset zoom"
-          title="Click to reset to 100%"
-        >
-          {Math.round(canvasZoom * 100)}%
-        </Button>
+    {/* Presets */}
+    <div className="flex flex-col items-center gap-1 mt-1">
+      {[0.5, 0.75, 1, 1.5].map((z) => {
+        const active = Math.abs(canvasZoom - z) < 0.05;
 
-        <div className="flex flex-col items-center gap-1">
-          {[0.5, 0.75, 1, 1.5].map((z) => (
-            <Button
-              key={z}
-              onClick={() => setCanvasZoom(z)}
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-6 px-2 text-xs border border-transparent text-black',
-                'hover:border-black hover:bg-black hover:text-white',
-                Math.abs(canvasZoom - z) < 0.05 &&
-                  'border-black bg-black text-white'
-              )}
-              title={`${z * 100}%`}
-            >
-              {z * 100}%
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <Button
-        onClick={zoomIn}
-        variant="outline"
-        size="icon"
-        className="h-8 w-8 border-black text-black hover:bg-black hover:text-white"
-        aria-label="Zoom in"
-      >
-        +
-      </Button>
+        return (
+          <Button
+            key={z}
+            onClick={() => setCanvasZoom(z)}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              'h-6 px-2 text-xs transition-colors duration-200',
+              active
+                ? 'bg-white text-black border border-white'
+                : 'bg-black text-white border border-transparent hover:bg-white hover:text-black'
+            )}
+            title={`${z * 100}%`}
+          >
+            {z * 100}%
+          </Button>
+        );
+      })}
     </div>
+  </div>
+
+  {/* Zoom In */}
+  <Button
+    onClick={zoomIn}
+    variant="outline"
+    size="icon"
+    className="
+      h-8 w-8
+      bg-black text-white border-white
+      transition-colors duration-200
+      hover:bg-white hover:text-black
+    "
+    aria-label="Zoom in"
+  >
+    +
+  </Button>
+</div>
+
   )}
 
         </div>

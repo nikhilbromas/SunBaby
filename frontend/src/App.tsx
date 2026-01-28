@@ -10,7 +10,7 @@ import TemplateConfigList from './components/TemplateConfig/TemplateConfigList';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MobileProvider } from './contexts/MobileContext';
-import { Palette, Eye, Settings ,Menu, LogOut } from 'lucide-react';
+import { Palette, Eye, Settings ,Menu, LogOut,ClipboardList, User } from 'lucide-react';
 import './styles/App.css';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -91,69 +91,185 @@ function AppInner() {
     <DndProvider backend={MultiBackend} options={HTML5toTouch}>
     <MobileProvider>
     <div className="min-h-screen bg-muted/40">
-    <header className="sticky top-0 z-50 border-b bg-background">
-    <div className="mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4">
-    <h1 className="text-lg font-semibold tracking-tight">Dynamic Bill Preview System</h1>
-    
-    
+    <header className="sticky top-0 z-50 border-b border-neutral-800 bg-black">
+  <div className="mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4">
+
+    <h1 className="text-lg font-semibold tracking-tight text-white">
+      Dynamic Bill Preview System
+    </h1>
+
     <div className="flex items-center gap-2">
-    <div className="hidden md:flex gap-1">
-    {canPreset && (
-    <Button variant={currentView === 'presets' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('presets')}>
-    Presets
+
+      {/* Desktop Nav */}
+      <div className="hidden md:flex gap-1">
+        {canPreset && (
+          <Button
+            variant={currentView === 'presets' ? 'outline' : 'ghost'}
+            size="sm"
+            className={
+              currentView === 'presets'
+              ? 'bg-white text-black border border-white transition-colors duration-200 ease-out'
+              : 'text-neutral-300 hover:text-white hover:bg-neutral-900 transition-colors duration-200 ease-out'
+          }
+            onClick={() => handleViewChange('presets')}
+          >
+            <ClipboardList className="mr-2 h-4 w-4" /> SQL Presets
+            
+          </Button>
+        )}
+
+        {canTemplate && (
+          <Button
+            variant={currentView === 'designer' ? 'outline' : 'ghost'}
+            size="sm"
+            className={
+              currentView === 'designer'
+              ? 'bg-white text-black border border-white transition-colors duration-200 ease-out'
+              : 'text-neutral-300 hover:text-white hover:bg-neutral-900 transition-colors duration-200 ease-out'
+          }
+            onClick={() => handleViewChange('designer')}
+          >
+            <Palette className="mr-2 h-4 w-4" /> Designer
+          </Button>
+        )}
+
+        {canPreview && (
+          <Button
+            variant={currentView === 'preview' ? 'outline' : 'ghost'}
+            size="sm"
+            className={
+              currentView === 'preview'
+              ? 'bg-white text-black border border-white transition-colors duration-200 ease-out'
+              : 'text-neutral-300 hover:text-white hover:bg-neutral-900 transition-colors duration-200 ease-out'
+          }
+            onClick={() => handleViewChange('preview')}
+          >
+            <Eye className="mr-2 h-4 w-4" /> Preview
+          </Button>
+        )}
+
+        {canTemplateConfig && (
+          <Button
+            variant={currentView === 'templateConfig' ? 'outline' : 'ghost'}
+            size="sm"
+            className={
+              currentView === 'templateConfig'
+              ? 'bg-white text-black border border-white transition-colors duration-200 ease-out'
+              : 'text-neutral-300 hover:text-white hover:bg-neutral-900 transition-colors duration-200 ease-out'
+          }
+            onClick={() => handleViewChange('templateConfig')}
+          >
+            <Settings className="mr-2 h-4 w-4" /> Config
+          </Button>
+        )}
+      </div>
+
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="md:hidden text-white"
+        onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+      {/* Account Menu */}
+      <DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button
+      variant="outline"
+      size="sm"
+      className="
+        bg-black text-white border-white
+        transition-colors duration-200 ease-out
+
+        hover:bg-white hover:text-black
+
+        data-[state=open]:bg-white
+        data-[state=open]:text-black
+
+        focus-visible:ring-2
+        focus-visible:ring-white
+      "
+    >
+      <User className="mr-2 h-4 w-4" />
+      Account
     </Button>
-    )}
-    {canTemplate && (
-    <Button variant={currentView === 'designer' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('designer')}>
-    <Palette className="mr-2 h-4 w-4" /> Designer
-    </Button>
-    )}
-    {canPreview && (
-    <Button variant={currentView === 'preview' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('preview')}>
-    <Eye className="mr-2 h-4 w-4" /> Preview
-    </Button>
-    )}
-    {canTemplateConfig && (
-    <Button variant={currentView === 'templateConfig' ? 'default' : 'ghost'} size="sm" onClick={() => handleViewChange('templateConfig')}>
-    <Settings className="mr-2 h-4 w-4" /> Config
-    </Button>
-    )}
+  </DropdownMenuTrigger>
+
+
+
+  <DropdownMenuContent
+    align="end"
+    className="
+      w-56
+      bg-black
+      border border-neutral-800
+      text-white
+      shadow-xl
+    "
+  >
+
+          {companyName && (
+            <DropdownMenuLabel className="text-white">
+              {companyName}
+            </DropdownMenuLabel>
+          )}
+          {email && (
+            <DropdownMenuItem disabled className="text-neutral-400">
+              {email}
+            </DropdownMenuItem>
+          )}
+
+<DropdownMenuSeparator className="bg-neutral-800" />
+
+<DropdownMenuItem
+  onClick={() => void logout()}
+  className="
+    text-white
+    transition-colors duration-200 ease-out
+    hover:bg-white hover:text-black
+    focus:bg-white focus:text-black
+  "
+>
+  <LogOut className="mr-2 h-4 w-4" />
+  Logout
+</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
-    
-    
-    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}>
-    <Menu className="h-5 w-5" />
-    </Button>
-    
-    
-    <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-    <Button variant="outline" size="sm">Account</Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" className="w-56">
-    {companyName && <DropdownMenuLabel>{companyName}</DropdownMenuLabel>}
-    {email && <DropdownMenuItem disabled>{email}</DropdownMenuItem>}
-    <DropdownMenuSeparator />
-    <DropdownMenuItem onClick={() => void logout()} className="text-destructive">
-    <LogOut className="mr-2 h-4 w-4" /> Logout
-    </DropdownMenuItem>
-    </DropdownMenuContent>
-    </DropdownMenu>
+  </div>
+
+  {/* Mobile Nav */}
+  {isMobileNavOpen && (
+    <div className="border-t border-neutral-800 bg-black md:hidden">
+      <div className="flex flex-col gap-1 p-2">
+        {canPreset && (
+          <Button variant="ghost" className="text-white" onClick={() => handleViewChange('presets')}>
+            Presets
+          </Button>
+        )}
+        {canTemplate && (
+          <Button variant="ghost" className="text-white" onClick={() => handleViewChange('designer')}>
+            Template Designer
+          </Button>
+        )}
+        {canPreview && (
+          <Button variant="ghost" className="text-white" onClick={() => handleViewChange('preview')}>
+            Preview
+          </Button>
+        )}
+        {canTemplateConfig && (
+          <Button variant="ghost" className="text-white" onClick={() => handleViewChange('templateConfig')}>
+            Template Config
+          </Button>
+        )}
+      </div>
     </div>
-    </div>
-    
-    
-    {isMobileNavOpen && (
-    <div className="border-t bg-background md:hidden">
-    <div className="flex flex-col gap-1 p-2">
-    {canPreset && <Button variant="ghost" onClick={() => handleViewChange('presets')}>Presets</Button>}
-    {canTemplate && <Button variant="ghost" onClick={() => handleViewChange('designer')}>Template Designer</Button>}
-    {canPreview && <Button variant="ghost" onClick={() => handleViewChange('preview')}>Preview</Button>}
-    {canTemplateConfig && <Button variant="ghost" onClick={() => handleViewChange('templateConfig')}>Template Config</Button>}
-    </div>
-    </div>
-    )}
-    </header>
+  )}
+</header>
+
     
     
     <main className="mx-auto max-w-screen-2xl p-4">
