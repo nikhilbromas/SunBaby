@@ -2246,54 +2246,71 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             )}
           </div>
           </div>
-          {/* Zoom Controls - positioned at bottom-right of canvas container */}
-          {(!isMobile || activeDesignerTab === 'canvas') && !isTableModalOpen && !isZoneConfigModalOpen && !isSetupPanelOpen && (
-            <div className="canvas-zoom-controls">
-              <Button onClick={zoomOut} variant="outline" size="icon" className="zoom-btn zoom-out" aria-label="Zoom out">−</Button>
-              <div className="zoom-level-container">
-                <Button 
-                  onClick={resetZoom} 
-                  variant="outline"
-                  className="zoom-btn zoom-reset" 
-                  aria-label="Reset zoom"
-                  title="Click to reset to 100%"
-                >
-                  {Math.round(canvasZoom * 100)}%
-                </Button>
-                <div className="zoom-presets">
-                  <Button 
-                    onClick={() => setCanvasZoom(0.5)} 
-                    variant="ghost"
-                    size="sm"
-                    className={cn("zoom-preset", Math.abs(canvasZoom - 0.5) < 0.05 && 'active')}
-                    title="50%"
-                  >50%</Button>
-                  <Button 
-                    onClick={() => setCanvasZoom(0.75)} 
-                    variant="ghost"
-                    size="sm"
-                    className={cn("zoom-preset", Math.abs(canvasZoom - 0.75) < 0.05 && 'active')}
-                    title="75%"
-                  >75%</Button>
-                  <Button 
-                    onClick={() => setCanvasZoom(1)} 
-                    variant="ghost"
-                    size="sm"
-                    className={cn("zoom-preset", Math.abs(canvasZoom - 1) < 0.05 && 'active')}
-                    title="100%"
-                  >100%</Button>
-                  <Button 
-                    onClick={() => setCanvasZoom(1.5)} 
-                    variant="ghost"
-                    size="sm"
-                    className={cn("zoom-preset", Math.abs(canvasZoom - 1.5) < 0.05 && 'active')}
-                    title="150%"
-                  >150%</Button>
-                </div>
-              </div>
-              <Button onClick={zoomIn} variant="outline" size="icon" className="zoom-btn zoom-in" aria-label="Zoom in">+</Button>
-            </div>
-          )}
+         {/* Zoom Controls - positioned at bottom-left of canvas container */}
+{(!isMobile || activeDesignerTab === 'canvas') &&
+  !isTableModalOpen &&
+  !isZoneConfigModalOpen &&
+  !isSetupPanelOpen && (
+    <div
+      className={cn(
+        'fixed bottom-0 left-0 z-50 gap-1',
+        'rounded-lg border border-black bg-white p-2 shadow-md'
+      )}
+    >
+      <Button
+        onClick={zoomOut}
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 border-black text-black hover:bg-black hover:text-white"
+        aria-label="Zoom out"
+      >
+        −
+      </Button>
+
+      <div className="">
+        <Button
+          onClick={resetZoom}
+          variant="outline"
+          className="h-8 px-3 border-black text-black hover:bg-black hover:text-white"
+          aria-label="Reset zoom"
+          title="Click to reset to 100%"
+        >
+          {Math.round(canvasZoom * 100)}%
+        </Button>
+
+        <div className="flex flex-col items-center gap-1">
+          {[0.5, 0.75, 1, 1.5].map((z) => (
+            <Button
+              key={z}
+              onClick={() => setCanvasZoom(z)}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-6 px-2 text-xs border border-transparent text-black',
+                'hover:border-black hover:bg-black hover:text-white',
+                Math.abs(canvasZoom - z) < 0.05 &&
+                  'border-black bg-black text-white'
+              )}
+              title={`${z * 100}%`}
+            >
+              {z * 100}%
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <Button
+        onClick={zoomIn}
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 border-black text-black hover:bg-black hover:text-white"
+        aria-label="Zoom in"
+      >
+        +
+      </Button>
+    </div>
+  )}
+
         </div>
           {/* Side Panel - hidden on mobile when not on elements tab */}
           <div className={`side-panel-wrapper ${isMobile && activeDesignerTab !== 'elements' ? 'mobile-hidden' : ''}`}>

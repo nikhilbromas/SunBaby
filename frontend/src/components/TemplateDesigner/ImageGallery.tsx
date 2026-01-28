@@ -97,13 +97,17 @@ const ImageGallery: React.FC = () => {
   };
 
   return (
-    <div className="image-gallery">
-      <div className="image-gallery-header">
-        <h3>Images</h3>
+    <div className="rounded-lg border border-neutral-200 bg-white p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+        <h3 className="text-base font-semibold text-black">
+          Images
+        </h3>
+  
         <Button
           variant="outline"
           size="sm"
-          className="upload-button"
+          className="border-black text-black hover:bg-black hover:text-white"
           onClick={handleUploadClick}
           disabled={uploading}
         >
@@ -119,24 +123,32 @@ const ImageGallery: React.FC = () => {
             </>
           )}
         </Button>
+  
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
           onChange={handleFileSelect}
-          style={{ display: 'none' }}
+          className="hidden"
         />
       </div>
-
+  
+      {/* Content */}
       {loading ? (
-        <div className="image-gallery-loading">Loading images...</div>
+        <div className="text-sm text-neutral-600 py-8 text-center">
+          Loading images…
+        </div>
       ) : images.length === 0 ? (
-        <div className="image-gallery-empty">
-          <p>No images uploaded yet.</p>
-          <p>Click "Upload" to add images.</p>
+        <div className="py-10 text-center space-y-1">
+          <p className="text-sm text-neutral-700">
+            No images uploaded yet.
+          </p>
+          <p className="text-xs text-neutral-500">
+            Click <span className="font-medium text-black">Upload</span> to add images.
+          </p>
         </div>
       ) : (
-        <div className="image-gallery-grid">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {images.map((image) => (
             <ImageCard key={image.ImageId} image={image} />
           ))}
@@ -144,6 +156,7 @@ const ImageGallery: React.FC = () => {
       )}
     </div>
   );
+  
 };
 
 export default ImageGallery;
