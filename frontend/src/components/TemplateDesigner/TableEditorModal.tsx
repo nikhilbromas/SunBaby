@@ -25,7 +25,7 @@ interface TableEditorModalProps {
   table: ItemsTableConfig | ContentDetailsTableConfig;
   onSave: (table: ItemsTableConfig | ContentDetailsTableConfig) => void;
   tableType: 'itemsTable' | 'billContentTable' | 'contentDetailTable';
-  tableLabel?: string;
+  tableLabel?: string; 
   sampleData?: {
     header?: { data: Record<string, any> | null; fields: string[] };
     items?: { data: Record<string, any>[]; fields: string[]; sampleCount: number };
