@@ -57,16 +57,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             Start
           </Button>
         )}
-        {onSave && (
-          <Button 
-            className="save-button" 
-            onClick={onSave} 
-            disabled={isSaving}
-          >
-            <Save size={16} className="mr-2" />
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-        )}
+       {onSave && (
+  <Button
+    onClick={onSave}
+    disabled={isSaving}
+    className="
+      bg-black text-white
+      hover:bg-neutral-800
+      disabled:bg-neutral-400
+      disabled:text-white
+      border border-black
+    "
+  >
+    <Save size={16} className="mr-2" />
+    {isSaving ? 'Saving...' : 'Save'}
+  </Button>
+)}
+
       </div>
     );
   };
@@ -124,36 +131,53 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="property-group">
             <h4>Zone Configuration</h4>
             <button
-              className="zone-config-button"
-              onClick={onOpenZoneConfig}
-              style={{
-                width: '100%',
-                padding: '0.75rem 1.5rem',
-                background: 'linear-gradient(135deg, #0B63FF 0%, #1E88E5 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 6px rgba(11, 99, 255, 0.25)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(11, 99, 255, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 6px rgba(11, 99, 255, 0.25)';
-              }}
-            >
-              <Target size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-              Configure Zones
-            </button>
-            <small style={{ display: 'block', marginTop: '0.5rem', color: '#6c757d', fontSize: '0.8rem' }}>
-              Position and size zones (headers, footers, content areas)
-            </small>
+  className="zone-config-button"
+  onClick={onOpenZoneConfig}
+  style={{
+    width: '100%',
+    padding: '0.75rem 1.5rem',
+    background: 'linear-gradient(135deg, #111 0%, #333 100%)',
+    color: 'white',
+    border: '1px solid #222',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-2px)';
+    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.25)';
+  }}
+>
+  <Target
+    size={16}
+    style={{
+      display: 'inline-block',
+      marginRight: '0.5rem',
+      verticalAlign: 'middle',
+      color: 'white',
+    }}
+  />
+  Configure Zones
+</button>
+
+<small
+  style={{
+    display: 'block',
+    marginTop: '0.5rem',
+    color: '#6b7280',
+    fontSize: '0.8rem',
+  }}
+>
+  Position and size zones (headers, footers, content areas)
+</small>
+
           </div>
         )}
         <div className="no-selection-container">
@@ -404,26 +428,44 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="property-group">
           <h4>Content Detail Table: {table.contentName}</h4>
           {onOpenTableModal && (
-            <button
-              className="open-modal-button"
-              onClick={() => onOpenTableModal('contentDetailTable', selectedElement.index)}
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.75rem 1.5rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                width: '100%',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Palette size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-              Open Table Editor
-            </button>
+           <button
+           className="open-modal-button"
+           onClick={() =>
+             onOpenTableModal('contentDetailTable', selectedElement.index)
+           }
+           style={{
+             marginTop: '0.5rem',
+             padding: '0.75rem 1.5rem',
+             background: '#000',
+             color: '#fff',
+             border: '1px solid #000',
+             borderRadius: '6px',
+             cursor: 'pointer',
+             fontSize: '0.95rem',
+             fontWeight: 600,
+             width: '100%',
+             transition: 'background-color 0.2s ease, color 0.2s ease',
+           }}
+           onMouseEnter={(e) => {
+             e.currentTarget.style.background = '#fff';
+             e.currentTarget.style.color = '#000';
+           }}
+           onMouseLeave={(e) => {
+             e.currentTarget.style.background = '#000';
+             e.currentTarget.style.color = '#fff';
+           }}
+         >
+           <Palette
+             size={16}
+             style={{
+               display: 'inline-block',
+               marginRight: '0.5rem',
+               verticalAlign: 'middle',
+             }}
+           />
+           Open Table Editor
+         </button>
+         
           )}
         </div>
         <div className="property-group">
@@ -1094,26 +1136,44 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         <div className="property-group">
           <h4>Bill Content Table</h4>
           {onOpenTableModal && (
-            <button
-              className="open-modal-button"
-              onClick={() => onOpenTableModal('billContentTable', selectedElement.index)}
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.75rem 1.5rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                width: '100%',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Palette size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-              Open Table Editor
-            </button>
+           <button
+           className="open-modal-button"
+           onClick={() =>
+             onOpenTableModal('contentDetailTable', selectedElement.index)
+           }
+           style={{
+             marginTop: '0.5rem',
+             padding: '0.75rem 1.5rem',
+             background: '#000',
+             color: '#fff',
+             border: '1px solid #000',
+             borderRadius: '6px',
+             cursor: 'pointer',
+             fontSize: '0.95rem',
+             fontWeight: 600,
+             width: '100%',
+             transition: 'background-color 0.2s ease, color 0.2s ease',
+           }}
+           onMouseEnter={(e) => {
+             e.currentTarget.style.background = '#fff';
+             e.currentTarget.style.color = '#000';
+           }}
+           onMouseLeave={(e) => {
+             e.currentTarget.style.background = '#000';
+             e.currentTarget.style.color = '#fff';
+           }}
+         >
+           <Palette
+             size={16}
+             style={{
+               display: 'inline-block',
+               marginRight: '0.5rem',
+               verticalAlign: 'middle',
+             }}
+           />
+           Open Table Editor
+         </button>
+         
           )}
         </div>
         <div className="property-group">
@@ -1769,25 +1829,43 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <h4>Items Table</h4>
           {onOpenTableModal && (
             <button
-              className="open-modal-button"
-              onClick={() => onOpenTableModal('itemsTable')}
+            className="open-modal-button"
+            onClick={() =>
+              onOpenTableModal('contentDetailTable', selectedElement.index)
+            }
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              background: '#000',
+              color: '#fff',
+              border: '1px solid #000',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              width: '100%',
+              transition: 'background-color 0.2s ease, color 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#fff';
+              e.currentTarget.style.color = '#000';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#000';
+              e.currentTarget.style.color = '#fff';
+            }}
+          >
+            <Palette
+              size={16}
               style={{
-                marginTop: '0.5rem',
-                padding: '0.75rem 1.5rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                width: '100%',
-                transition: 'all 0.2s ease',
+                display: 'inline-block',
+                marginRight: '0.5rem',
+                verticalAlign: 'middle',
               }}
-            >
-              <Palette size={16} style={{ display: 'inline-block', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-              Open Table Editor
-            </button>
+            />
+            Open Table Editor
+          </button>
+          
           )}
         </div>
         <div className="property-group">

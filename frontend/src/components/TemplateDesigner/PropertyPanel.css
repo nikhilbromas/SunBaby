@@ -499,7 +499,7 @@
 }
 
 .property-panel-actions button {
-  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
+  /* background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%); */
   color: white;
   padding: 12px 20px;
   border: 1px solid rgba(11, 99, 255, 0.35);

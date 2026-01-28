@@ -1,186 +1,162 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
 import { useMobile } from '../../contexts/MobileContext';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { FileText, Table, File, Files } from 'lucide-react';
-import './Toolbar.css';
 
 const Toolbar: React.FC = () => {
-  type TargetSection = 'pageHeader' | 'header' | 'billContent' | 'billFooter' | 'pageFooter';
-  
+  type TargetSection =
+    | 'pageHeader'
+    | 'header'
+    | 'billContent'
+    | 'billFooter'
+    | 'pageFooter';
+
   const { isMobile, enterPlacementMode } = useMobile();
 
-  const TextFieldDraggable: React.FC<{ targetSection: TargetSection; label?: string }> = ({
-    targetSection,
-    label,
-  }) => {
-    const [{ isDragging }, drag] = useDrag({
-      type: 'text',
-      item: { type: 'text', targetSection },
+  const ToolbarItem: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    dragRef?: any;
+    isDragging?: boolean;
+    onClick?: () => void;
+  }> = ({ icon, label, dragRef, isDragging, onClick }) => (
+    <div
+      ref={dragRef}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={cn(
+        'flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer',
+        'border border-neutral-200 bg-white',
+        'hover:bg-neutral-100 transition',
+        isDragging && 'opacity-50'
+      )}
+    >
+      <div className="flex items-center justify-center w-8 h-8 rounded bg-black text-white">
+        {icon}
+      </div>
+      <span className="text-sm font-medium text-black">{label}</span>
+    </div>
+  );
+
+  const useDraggable = (type: string, targetSection?: string) =>
+    useDrag({
+      type,
+      item: { type, targetSection },
       collect: (monitor) => ({
         isDragging: monitor.isDragging(),
       }),
     });
 
-    const handleTap = () => {
-      if (isMobile) {
-        enterPlacementMode({ type: 'text', targetSection });
-      }
-    };
+  const TextField = ({ targetSection }: { targetSection: TargetSection }) => {
+    const [{ isDragging }, drag] = useDraggable('text', targetSection);
+    const tap = () =>
+      isMobile && enterPlacementMode({ type: 'text', targetSection });
 
     return (
-      <div
-        ref={!isMobile ? drag : undefined}
-        className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
-        onClick={isMobile ? handleTap : undefined}
-        role={isMobile ? 'button' : undefined}
-        tabIndex={isMobile ? 0 : undefined}
-      >
-        <span className="toolbar-icon"><FileText size={16} /></span>
-        <span>{label || 'Text Field'}</span>
-      </div>
+      <ToolbarItem
+        icon={<FileText size={16} />}
+        label="Text Field"
+        dragRef={!isMobile ? drag : undefined}
+        isDragging={isDragging}
+        onClick={isMobile ? tap : undefined}
+      />
     );
   };
 
-  const TableDraggable: React.FC<{ targetSection?: 'billContent' | 'itemsTable'; label?: string }> = ({
-    targetSection,
-    label,
-  }) => {
-    const [{ isDragging }, drag] = useDrag({
-      type: 'table',
-      item: { type: 'table', targetSection },
-      collect: (monitor) => ({
-        isDragging: monitor.isDragging(),
-      }),
-    });
-
-    const handleTap = () => {
-      if (isMobile) {
-        enterPlacementMode({ type: 'table', targetSection: targetSection as any });
-      }
-    };
+  const ItemsTable = ({ targetSection }: { targetSection: any }) => {
+    const [{ isDragging }, drag] = useDraggable('table', targetSection);
+    const tap = () =>
+      isMobile && enterPlacementMode({ type: 'table', targetSection });
 
     return (
-      <div
-        ref={!isMobile ? drag : undefined}
-        className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
-        onClick={isMobile ? handleTap : undefined}
-        role={isMobile ? 'button' : undefined}
-        tabIndex={isMobile ? 0 : undefined}
-      >
-        <span className="toolbar-icon"><Table size={16} /></span>
-        <span>{label || 'Items Table'}</span>
-      </div>
+      <ToolbarItem
+        icon={<Table size={16} />}
+        label="Items Table"
+        dragRef={!isMobile ? drag : undefined}
+        isDragging={isDragging}
+        onClick={isMobile ? tap : undefined}
+      />
     );
   };
 
-  const PageNumberDraggable: React.FC<{ targetSection: 'pageHeader' | 'pageFooter' }> = ({
-    targetSection,
-  }) => {
-    const [{ isDragging }, drag] = useDrag({
-      type: 'pageNumber',
-      item: { type: 'pageNumber', targetSection },
-      collect: (monitor) => ({
-        isDragging: monitor.isDragging(),
-      }),
-    });
-
-    const handleTap = () => {
-      if (isMobile) {
-        enterPlacementMode({ type: 'pageNumber', targetSection });
-      }
-    };
+  const PageNumber = ({ targetSection }: any) => {
+    const [{ isDragging }, drag] = useDraggable('pageNumber', targetSection);
+    const tap = () =>
+      isMobile && enterPlacementMode({ type: 'pageNumber', targetSection });
 
     return (
-      <div
-        ref={!isMobile ? drag : undefined}
-        className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
-        onClick={isMobile ? handleTap : undefined}
-        role={isMobile ? 'button' : undefined}
-        tabIndex={isMobile ? 0 : undefined}
-      >
-        <span className="toolbar-icon"><File size={16} /></span>
-        <span>Page Number</span>
-      </div>
+      <ToolbarItem
+        icon={<File size={16} />}
+        label="Page Number"
+        dragRef={!isMobile ? drag : undefined}
+        isDragging={isDragging}
+        onClick={isMobile ? tap : undefined}
+      />
     );
   };
 
-  const TotalPagesDraggable: React.FC<{ targetSection: 'pageHeader' | 'pageFooter' }> = ({
-    targetSection,
-  }) => {
-    const [{ isDragging }, drag] = useDrag({
-      type: 'totalPages',
-      item: { type: 'totalPages', targetSection },
-      collect: (monitor) => ({
-        isDragging: monitor.isDragging(),
-      }),
-    });
-
-    const handleTap = () => {
-      if (isMobile) {
-        enterPlacementMode({ type: 'totalPages', targetSection });
-      }
-    };
+  const TotalPages = ({ targetSection }: any) => {
+    const [{ isDragging }, drag] = useDraggable('totalPages', targetSection);
+    const tap = () =>
+      isMobile && enterPlacementMode({ type: 'totalPages', targetSection });
 
     return (
-      <div
-        ref={!isMobile ? drag : undefined}
-        className={`toolbar-item ${isDragging ? 'dragging' : ''}`}
-        onClick={isMobile ? handleTap : undefined}
-        role={isMobile ? 'button' : undefined}
-        tabIndex={isMobile ? 0 : undefined}
-      >
-        <span className="toolbar-icon"><Files size={16} /></span>
-        <span>Total Pages</span>
-      </div>
+      <ToolbarItem
+        icon={<Files size={16} />}
+        label="Total Pages"
+        dragRef={!isMobile ? drag : undefined}
+        isDragging={isDragging}
+        onClick={isMobile ? tap : undefined}
+      />
     );
   };
+
+  const Section = ({
+    title,
+    children,
+  }: {
+    title: string;
+    children: React.ReactNode;
+  }) => (
+    <Card className="p-4 space-y-3 border-neutral-200">
+      <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">
+        {title}
+      </h3>
+      <div className="grid gap-2">{children}</div>
+    </Card>
+  );
 
   return (
-    <div className="toolbar">
-      <div className="toolbar-section">
-        <h3>Page Header</h3>
-        <div className="toolbar-items">
-          <TextFieldDraggable targetSection="pageHeader" />
-          <PageNumberDraggable targetSection="pageHeader" />
-          <TotalPagesDraggable targetSection="pageHeader" />
-        </div>
-      </div>
+    <div className="w-full space-y-4 p-4 bg-neutral-50">
+      <Section title="Page Header">
+        <TextField targetSection="pageHeader" />
+        <PageNumber targetSection="pageHeader" />
+        <TotalPages targetSection="pageHeader" />
+      </Section>
 
-      <div className="toolbar-section">
-        <h3>Bill Header</h3>
-        <div className="toolbar-items">
-          <TextFieldDraggable targetSection="header" />
-        </div>
-      </div>
+      <Section title="Bill Header">
+        <TextField targetSection="header" />
+      </Section>
 
-      <div className="toolbar-section">
-        <h3>Bill Content</h3>
-        <div className="toolbar-items">
-          <TextFieldDraggable targetSection="billContent" />
-          <TableDraggable targetSection="billContent" label="Items Table (Bill Content)" />
-        </div>
-      </div>
+      <Section title="Bill Content">
+        <TextField targetSection="billContent" />
+        <ItemsTable targetSection="billContent" />
+      </Section>
 
-      <div className="toolbar-section">
-        <h3>Bill Footer</h3>
-        <div className="toolbar-items">
-          <TextFieldDraggable targetSection="billFooter" />
-        </div>
-      </div>
+      <Section title="Bill Footer">
+        <TextField targetSection="billFooter" />
+      </Section>
 
-      <div className="toolbar-section">
-        <h3>Page Footer</h3>
-        <div className="toolbar-items">
-          <TextFieldDraggable targetSection="pageFooter" />
-          <PageNumberDraggable targetSection="pageFooter" />
-          <TotalPagesDraggable targetSection="pageFooter" />
-        </div>
-      </div>
+      <Section title="Page Footer">
+        <TextField targetSection="pageFooter" />
+        <PageNumber targetSection="pageFooter" />
+        <TotalPages targetSection="pageFooter" />
+      </Section>
     </div>
   );
 };
 
 export default Toolbar;
-
