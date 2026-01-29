@@ -356,16 +356,28 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                 />
                 <Button
                   onClick={async () => {
+                    // Create template with default page configuration
+                    const defaultTemplateJson = JSON.stringify({
+                      page: {
+                        size: 'A4',
+                        orientation: 'portrait'
+                      },
+                      header: [],
+                      pageHeader: [],
+                      pageFooter: []
+                    });
+                    
                     const t = await apiClient.createTemplate({
                       presetId: currentPreset.PresetId,
                       templateName,
-                      templateJson: '{}',
+                      templateJson: defaultTemplateJson,
                     });
                     onTemplateSelect(t.TemplateId);
                     setLocalTemplateId(t.TemplateId);
                     setStep('parameters');
                   }}
                   className="bg-white text-black hover:bg-white/90"
+                  disabled={!templateName.trim()}
                 >
                   Create
                 </Button>

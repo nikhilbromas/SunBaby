@@ -22,8 +22,11 @@ class TextFieldConfig(BaseModel):
     visible: bool = Field(True, description="Visibility flag")
     fontSize: Optional[float] = Field(None, description="Font size")
     fontWeight: Optional[str] = Field(None, description="Font weight")
+    fontFamily: Optional[str] = Field(None, description="Font family (e.g., 'Helvetica', 'Times-Roman', 'Courier')")
     color: Optional[str] = Field(None, description="Text color")
     fieldType: Optional[str] = Field(None, description="Special field type: 'pageNumber', 'totalPages', 'currentDate', 'currentTime'")
+    width: Optional[str] = Field(None, description="Field width in px, %, or 'auto'")
+    value: Optional[str] = Field(None, description="Static value for non-bound fields")
 
 
 class ImageFieldConfig(BaseModel):

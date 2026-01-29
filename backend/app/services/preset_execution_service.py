@@ -17,12 +17,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.config import settings
 from app.database import db
 from app.services.preset_service import preset_service
 from app.utils.cache import make_cache_key, query_cache
+
+logger = logging.getLogger(__name__)
 
 
 FieldType = str  # 'number' | 'string' | 'date' | 'boolean' | 'unknown'
@@ -110,8 +114,32 @@ class PresetExecutionService:
         results: List[Any] = []
         if tasks:
             try:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                # Apply execution timeout
+                execution_timeout = getattr(settings, "ANALYTICS_EXECUTION_TIMEOUT", 5)
+                start_time = time.time()
+                
+                try:
+                    results = await asyncio.wait_for(
+                        asyncio.gather(*tasks, return_exceptions=True),
+                        timeout=execution_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    elapsed = time.time() - start_time
+                    logger.warning(
+                        f"Preset {preset_id} execution timed out after {elapsed:.2f}s "
+                        f"(limit: {execution_timeout}s)"
+                    )
+                    raise ValueError(
+                        f"Query execution timed out after {execution_timeout} seconds"
+                    ) from None
+                
+                elapsed = time.time() - start_time
+                logger.info(
+                    f"Preset {preset_id} executed in {elapsed:.2f}s "
+                    f"({len(tasks)} query/queries)"
+                )
             except Exception as e:
+                logger.error(f"Error executing preset {preset_id}: {e}")
                 raise ValueError(f"Error executing preset queries: {e}") from e
 
         header_rows: Optional[List[Dict[str, Any]]] = None
@@ -125,10 +153,19 @@ class PresetExecutionService:
                 raise ValueError(f"Error executing {q_type} query: {result}")
 
             rows: List[Dict[str, Any]] = list(result) if result else []
+            original_row_count = len(rows)
 
             # Enforce row limit
             if len(rows) > settings.MAX_QUERY_ROWS:
                 rows = rows[: settings.MAX_QUERY_ROWS]
+                logger.warning(
+                    f"Preset {preset_id} {q_type} query returned {original_row_count} rows, "
+                    f"truncated to {settings.MAX_QUERY_ROWS} (MAX_QUERY_ROWS limit)"
+                )
+            else:
+                logger.debug(
+                    f"Preset {preset_id} {q_type} query returned {original_row_count} rows"
+                )
 
             if q_type == "header":
                 header_rows = rows

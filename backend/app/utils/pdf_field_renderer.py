@@ -12,24 +12,31 @@ from .pdf_utils import hex_to_rgb
 
 
 def get_field_value(bind_path: str, data: Dict[str, Any], 
-                    field_type: str = None, page_context: Dict[str, Any] = None) -> str:
+                    field_type: str = None, page_context: Dict[str, Any] = None,
+                    static_value: str = None) -> str:
     """
-    Get field value from data using binding path or special field type.
+    Get field value from data using binding path, special field type, or static value.
     
     Args:
         bind_path: Binding path like 'header.BillNo' or 'ItemName'
         data: Data dictionary or item dictionary
         field_type: Special field type
         page_context: Page context for special fields
+        static_value: Static value for non-bound fields
         
     Returns:
         Field value as string (empty string if not found)
     """
-    # Handle special fields
+    # Handle special fields (highest priority)
     if field_type and field_type in ['pageNumber', 'totalPages', 'currentDate', 'currentTime']:
         return get_special_field_value(field_type, page_context)
     
-    if not bind_path:
+    # Handle static value (if no binding or binding fails)
+    if static_value and static_value.strip():
+        return static_value
+    
+    # Handle data binding
+    if not bind_path or not bind_path.strip():
         return ''
     
     parts = bind_path.split('.')
@@ -39,24 +46,27 @@ def get_field_value(bind_path: str, data: Dict[str, Any],
         for part in parts:
             if isinstance(value, dict):
                 if part not in value:
-                    return ''
+                    # Binding failed - fallback to static value if available
+                    return static_value if static_value and static_value.strip() else ''
                 value = value.get(part)
                 if value is None:
-                    return ''
+                    # Binding returned None - fallback to static value if available
+                    return static_value if static_value and static_value.strip() else ''
             elif isinstance(value, list) and len(value) > 0:
                 if not isinstance(value[0], dict):
-                    return ''
+                    return static_value if static_value and static_value.strip() else ''
                 if part not in value[0]:
-                    return ''
+                    return static_value if static_value and static_value.strip() else ''
                 value = value[0].get(part)
                 if value is None:
-                    return ''
+                    return static_value if static_value and static_value.strip() else ''
             else:
-                return ''
+                return static_value if static_value and static_value.strip() else ''
         
         # Handle None, empty string, or other falsy values
         if value is None:
-            return ''
+            # Value is None - fallback to static value if available
+            return static_value if static_value and static_value.strip() else ''
         
         # Convert to string and clean up - preserve numeric formatting
         if isinstance(value, (int, float)):
@@ -68,13 +78,17 @@ def get_field_value(bind_path: str, data: Dict[str, Any],
         else:
             value_str = str(value).strip()
         
+        # If binding returned empty, fallback to static value
+        if not value_str and static_value and static_value.strip():
+            return static_value
+        
         return value_str
     except (KeyError, AttributeError, IndexError, TypeError) as e:
-        pass
-        return ''
+        # Binding failed - fallback to static value if available
+        return static_value if static_value and static_value.strip() else ''
     except Exception as e:
-        pass
-        return ''
+        # Binding failed - fallback to static value if available
+        return static_value if static_value and static_value.strip() else ''
 
 
 def get_special_field_value(field_type: str, page_context: Dict[str, Any] = None) -> str:
@@ -119,10 +133,31 @@ def render_field(c: canvas.Canvas, field: Dict[str, Any], data: Dict[str, Any],
     if not field.get('visible', True):
         return
     
-    # Get field value
+    # Get field value (including static value support)
     field_type = field.get('fieldType')
     bind_path = field.get('bind', '')
-    value = get_field_value(bind_path, data, field_type, page_context)
+    static_value = field.get('value', '')
+    
+    # Priority: Special field types > Static value > Data binding
+    if field_type and field_type in ['pageNumber', 'totalPages', 'currentDate', 'currentTime']:
+        # Special field types - use their computed values
+        value = get_special_field_value(field_type, page_context)
+    elif static_value and static_value.strip():
+        # Static value provided - use it directly (no schema validation needed)
+        value = static_value
+    elif bind_path and bind_path.strip():
+        # Has binding - try to get value from data, fallback to static if binding fails
+        try:
+            value = get_field_value(bind_path, data, field_type, page_context, static_value)
+            # If binding returns empty and we have static value, use static as fallback
+            if not value and static_value and static_value.strip():
+                value = static_value
+        except Exception:
+            # If binding fails, use static value if available
+            value = static_value if static_value and static_value.strip() else ''
+    else:
+        # No binding and no static value - empty
+        value = ''
     
     # Get styling
     font_size = field.get('fontSize', 12)
@@ -130,36 +165,43 @@ def render_field(c: canvas.Canvas, field: Dict[str, Any], data: Dict[str, Any],
     font_weight = field.get('fontWeight', 'normal')
     color = field.get('color', '#000000')
     
-    # Set font
-    if font_weight == 'bold':
-        c.setFont(f'{font_family}-Bold', font_size)
+    # Determine final font name
+    # Handle cases where fontFamily might already include weight (e.g., 'Helvetica-Bold')
+    # or where we need to add weight based on fontWeight property
+    if font_family.endswith('-Bold'):
+        # Font family already includes bold, use as-is
+        final_font_name = font_family
+    elif font_weight == 'bold':
+        # Add bold suffix to font family
+        final_font_name = f'{font_family}-Bold'
     else:
-        c.setFont(font_family, font_size)
+        # Use font family as-is (normal weight)
+        final_font_name = font_family
+    
+    # Set font
+    c.setFont(final_font_name, font_size)
     
     # Set color
     rgb = hex_to_rgb(color)
     c.setFillColorRGB(rgb[0], rgb[1], rgb[2])
     
-    # Render label and value - only show if value exists
+    # Render label and value (no colon separator, matching template_engine)
     label = field.get('label', '')
     value_str = str(value).strip() if value else ''
     
-    # Skip rendering if no value (don't show empty fields with just labels)
-    # Exception: special field types always have values
-    if not value_str and not field_type:
+    # Build text: label and value separately (no colon)
+    text_parts = []
+    if label and label.strip():
+        text_parts.append(label)
+    if value_str:
+        text_parts.append(value_str)
+    
+    # Skip rendering if no content (no label and no value)
+    if not text_parts:
         return
     
-    # Format text based on label presence
-    if label and value_str:
-        text = f"{label}: {value_str}"
-    elif value_str:
-        text = value_str
-    elif label and field_type:
-        # Only show label alone for special fields that might not have values yet
-        text = label
-    else:
-        # Skip empty fields
-        return
+    # Combine label and value with space (no colon)
+    text = ' '.join(text_parts)
     
     # Handle alignment
     align = field.get('align', 'left')

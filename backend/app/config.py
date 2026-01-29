@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     CACHE_TTL_PRESET: int = int(os.getenv("CACHE_TTL_PRESET", "300"))
     CACHE_TTL_QUERY: int = int(os.getenv("CACHE_TTL_QUERY", "60"))
     
+    # Analytics Configuration
+    ANALYTICS_CACHE_TTL: int = int(os.getenv("ANALYTICS_CACHE_TTL", "120"))
+    ANALYTICS_EXECUTION_TIMEOUT: int = int(os.getenv("ANALYTICS_EXECUTION_TIMEOUT", "5"))
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -46,6 +46,7 @@ import type {
   DashboardUpdate,
   DashboardListResponse,
   RunDashboardResponse,
+  MetricResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -507,6 +508,20 @@ class ApiClient {
     const companyId = this.getCompanyId();
     const payload = companyId && !request.company_id ? { ...request, company_id: companyId } : request;
     const response = await this.client.post<PresetAnalyticsRunResponse>('/analytics/preset-analytics', payload);
+    return response.data;
+  }
+
+  // Analytics Metrics endpoint (SPEC-001)
+  async getMetric(metricName: string, parameters?: Record<string, any>): Promise<MetricResponse> {
+    const companyId = this.getCompanyId();
+    const params: Record<string, any> = {};
+    if (companyId) {
+      params.company_id = companyId;
+    }
+    if (parameters) {
+      params.parameters = JSON.stringify(parameters);
+    }
+    const response = await this.client.get<MetricResponse>(`/analytics/metrics/${metricName}`, { params });
     return response.data;
   }
 

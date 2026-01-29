@@ -241,14 +241,24 @@ class PDFEngine:
         
         # Pre-pass: Determine which pages will actually be rendered (to calculate correct totalPages)
         # This allows us to pass the correct totalPages to each page's page_context
+        # CRITICAL FIX: Account for fixed sections (page header, bill header, page footer) that always render
         pages_that_will_render = []
         pre_check_page_num = 1
         pre_check_max_pages = max_pages
         pre_check_iteration = 0
+        
+        # Check if there are fixed sections (including images)
+        has_page_header = bool(template_config.get('pageHeader') or template_config.get('pageHeaderImages'))
+        has_bill_header = bool(template_config.get('header') or template_config.get('headerImages'))
+        has_page_footer = bool(template_config.get('pageFooter') or template_config.get('pageFooterImages'))
+        has_bill_footer = bool(template_config.get('billFooter') or template_config.get('billFooterImages'))
+        has_any_fixed_sections = has_page_header or has_bill_header or has_page_footer or has_bill_footer
+        
         while pre_check_page_num <= pre_check_max_pages and pre_check_iteration < max_iterations:
             pre_check_iteration += 1
             page_elements = pagination_info['pages'].get(pre_check_page_num, [])
             will_render_content = False
+            
             if page_elements:
                 for element_info in page_elements:
                     element = element_info.get('element')
@@ -262,13 +272,15 @@ class PDFEngine:
                         will_render_content = True
                         break
             
-            if will_render_content:
+            # CRITICAL FIX: Always include page 1 if there are fixed sections, even with no dynamic content
+            if will_render_content or (pre_check_page_num == 1 and has_any_fixed_sections):
                 pages_that_will_render.append(pre_check_page_num)
             
             pre_check_page_num += 1
         
         # Calculate actual total pages from pre-pass
-        actual_total_pages = len(pages_that_will_render) if pages_that_will_render else 1
+        # CRITICAL FIX: Ensure at least 1 page if there are fixed sections
+        actual_total_pages = len(pages_that_will_render) if pages_that_will_render else (1 if has_any_fixed_sections else 1)
         logger.debug(f"Pre-pass: pages_that_will_render={pages_that_will_render}, actual_total_pages={actual_total_pages}")
         
         # PHASE 1: Rendering Phase - Render all pages, track last_index monotonically
@@ -314,9 +326,27 @@ class PDFEngine:
                                        f"{table_element.get('type')}, content_name={table_element.get('content_name')}")
             
             # Check if any content will be rendered on this page (not all duplicates)
-            # Skip page creation entirely if no content will render
+            # CRITICAL FIX: Always render at least page 1 to show fixed sections (page header, bill header, page footer)
+            # even if there's no dynamic content
             page_elements = pagination_info['pages'].get(page_num, [])
             will_render_content = False
+            has_fixed_sections = False
+            
+            # Check if there are fixed sections that need rendering (page header, bill header, page footer)
+            # Also check for images in these sections
+            if page_num == 1:
+                # First page: check for bill header, page header, page footer (including images)
+                has_page_header = bool(template_config.get('pageHeader') or template_config.get('pageHeaderImages'))
+                has_bill_header = bool(template_config.get('header') or template_config.get('headerImages'))
+                has_page_footer = bool(template_config.get('pageFooter') or template_config.get('pageFooterImages'))
+                has_bill_footer = bool(template_config.get('billFooter') or template_config.get('billFooterImages'))
+                has_fixed_sections = has_page_header or has_bill_header or has_page_footer or has_bill_footer
+            else:
+                # Subsequent pages: check for page header and page footer (including images)
+                has_page_header = bool(template_config.get('pageHeader') or template_config.get('pageHeaderImages'))
+                has_page_footer = bool(template_config.get('pageFooter') or template_config.get('pageFooterImages'))
+                has_fixed_sections = has_page_header or has_page_footer
+            
             if page_elements:
                 # Check if any element is not a duplicate field
                 for element_info in page_elements:
@@ -333,12 +363,18 @@ class PDFEngine:
                         will_render_content = True
                         break
             
-            # If no content will be rendered, skip creating this page entirely
+            # CRITICAL FIX: Always render page 1 if there are fixed sections, even with no dynamic content
+            # For subsequent pages, only skip if no dynamic content AND no fixed sections
             if not will_render_content:
-                logger.debug(f"Page {page_num}: Skipping page creation - no content will be rendered (all elements are duplicates)")
-                # Don't create the page, just move to next iteration
-                page_num += 1
-                continue
+                if page_num == 1 and has_fixed_sections:
+                    # Page 1 with fixed sections: always render (even if no dynamic content)
+                    will_render_content = True
+                    logger.debug(f"Page {page_num}: Rendering page for fixed sections (page header, bill header, or page footer)")
+                elif not has_fixed_sections:
+                    # No dynamic content and no fixed sections: skip page
+                    logger.debug(f"Page {page_num}: Skipping page creation - no content will be rendered (all elements are duplicates and no fixed sections)")
+                    page_num += 1
+                    continue
             
             # Track that this page is being rendered
             rendered_pages.append(page_num)
@@ -385,7 +421,23 @@ class PDFEngine:
                         f"Tables needing continuation: {self._get_tables_needing_continuation_with_order(bill_content_elements, table_rendering_state, page_num)}")
         
         # Calculate actual total pages based on rendered pages (not skipped pages)
+        # CRITICAL FIX: Ensure at least one page is always created, even if no content was rendered
+        # This prevents corrupted PDFs when templates have only static/fixed content
         actual_total_pages = len(rendered_pages) if rendered_pages else 1
+        
+        # CRITICAL FIX: If no pages were rendered at all, create at least one empty page
+        # This ensures PDF is valid even for templates with only fixed sections that were skipped
+        if not rendered_pages:
+            logger.warning("No pages were rendered! Creating at least one page to prevent corrupted PDF.")
+            # Render at least page 1 with fixed sections only
+            page_context = {'currentPage': 1, 'totalPages': 1}
+            self._render_page(
+                c, 1, 1, template_config, data,
+                section_heights, page_width, page_height,
+                bill_content_elements, pagination_info, table_rendering_state
+            )
+            c.showPage()
+        
         logger.debug(f"Total pages calculation: rendered_pages={rendered_pages}, actual_total_pages={actual_total_pages}, estimated_total_pages={total_pages}")
         
         c.save()

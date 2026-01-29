@@ -20,6 +20,7 @@ from app.api import (
     analytics,
     dashboards,
 )
+from app.analytics import routes as analytics_metrics
 
 # Create FastAPI app
 app = FastAPI(
@@ -53,6 +54,7 @@ app.include_router(lookups.router, prefix=settings.API_PREFIX)
 app.include_router(template_parameters.router, prefix=settings.API_PREFIX)
 app.include_router(schema.router, prefix=settings.API_PREFIX)
 app.include_router(analytics.router, prefix=settings.API_PREFIX)
+app.include_router(analytics_metrics.router, prefix=settings.API_PREFIX)
 app.include_router(dashboards.router, prefix=settings.API_PREFIX)
 
 

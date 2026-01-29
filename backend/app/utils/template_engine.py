@@ -201,10 +201,10 @@ class TemplateEngine:
         # Ensure we render all items correctly - end_index is exclusive in Python slicing
         if end_index is not None:
             items_to_render = items[start_index:end_index]
-            logger.debug(f"[DEBUG] _render_bill_content_table: Rendering items {start_index} to {end_index-1} (exclusive), total items: {len(items)}, items_to_render: {len(items_to_render)}")
+            #logger.debug(f"[DEBUG] _render_bill_content_table: Rendering items {start_index} to {end_index-1} (exclusive), total items: {len(items)}, items_to_render: {len(items_to_render)}")
         else:
             items_to_render = items[start_index:]
-            logger.debug(f"[DEBUG] _render_bill_content_table: Rendering items from {start_index} to end, total items: {len(items)}, items_to_render: {len(items_to_render)}")
+            #logger.debug(f"[DEBUG] _render_bill_content_table: Rendering items from {start_index} to end, total items: {len(items)}, items_to_render: {len(items_to_render)}")
         
         if items_to_render and len(items_to_render) > 0:
             for idx, item in enumerate(items_to_render):
@@ -354,7 +354,7 @@ class TemplateEngine:
         Returns:
             HTML string
         """
-        logger.debug("[DEBUG] _generate_html: Starting HTML generation")
+       
         page_config = template_config.get('page', {})
         page_size = page_config.get('size', 'A4')
         orientation = page_config.get('orientation', 'portrait')
@@ -363,7 +363,7 @@ class TemplateEngine:
         
         # Initialize content details data early to avoid scope issues
         content_details_data = {}  # {contentName: data}
-        logger.debug(f"[DEBUG] _generate_html: Initialized content_details_data = {content_details_data}")
+        #logger.debug(f"[DEBUG] _generate_html: Initialized content_details_data = {content_details_data}")
         
         # Calculate pagination for items table
         items = data.get('items', [])
@@ -389,13 +389,13 @@ class TemplateEngine:
         
         for cd_table_config in content_details_tables:
             content_name = cd_table_config.get('contentName')
-            logger.debug(f"[DEBUG] _generate_html: Processing content_details_table: {content_name}")
+            #logger.debug(f"[DEBUG] _generate_html: Processing content_details_table: {content_name}")
             if content_name and content_name in content_details:
                 cd_data = content_details[content_name]
                 # Only process array-type contentDetails for tables
                 if isinstance(cd_data, list):
                     content_details_data[content_name] = cd_data
-                    logger.debug(f"[DEBUG] _generate_html: Added {content_name} to content_details_data, now has {len(content_details_data)} items")
+                    #logger.debug(f"[DEBUG] _generate_html: Added {content_name} to content_details_data, now has {len(content_details_data)} items")
         
         # Calculate bill-content pagination if needed
         bill_content_fields = template_config.get('billContent', [])
@@ -406,15 +406,15 @@ class TemplateEngine:
         bill_footer_fields = template_config.get('billFooter', [])
         
         # Calculate available height for bill-content per page
-        logger.debug(f"[DEBUG] _generate_html: Before _calculate_bill_content_pages, content_details_data = {type(content_details_data)}, keys = {list(content_details_data.keys()) if content_details_data else 'None'}")
+        #logger.debug(f"[DEBUG] _generate_html: Before _calculate_bill_content_pages, content_details_data = {type(content_details_data)}, keys = {list(content_details_data.keys()) if content_details_data else 'None'}")
         try:
             bill_content_pages_info = self._calculate_bill_content_pages(
                 template_config, bill_content_fields, bill_content_tables, bill_content_height, items,
                 content_details_tables, content_details_data, bill_footer_fields
             )
-            logger.debug(f"[DEBUG] _generate_html: After _calculate_bill_content_pages, success")
+            #logger.debug(f"[DEBUG] _generate_html: After _calculate_bill_content_pages, success")
         except Exception as e:
-            logger.error(f"[ERROR] _generate_html: Error in _calculate_bill_content_pages: {str(e)}", exc_info=True)
+            #logger.error(f"[ERROR] _generate_html: Error in _calculate_bill_content_pages: {str(e)}", exc_info=True)
             raise
         
         # Calculate overall total pages (max of items pages and bill-content pages)
@@ -541,7 +541,7 @@ class TemplateEngine:
                             if table_type == 'contentDetail':
                                 # Render content detail table
                                 content_name = table_info.get('content_name')
-                                logger.debug(f"[DEBUG] _generate_html: Rendering contentDetail table: {content_name}, content_details_data type = {type(content_details_data)}, available keys = {list(content_details_data.keys()) if content_details_data else 'None'}")
+                                #logger.debug(f"[DEBUG] _generate_html: Rendering contentDetail table: {content_name}, content_details_data type = {type(content_details_data)}, available keys = {list(content_details_data.keys()) if content_details_data else 'None'}")
                                 if content_name and content_name in content_details_data:
                                     cd_data = content_details_data[content_name]
                                     # Render all data for contentDetail table (it's treated as single unit)
@@ -647,7 +647,7 @@ class TemplateEngine:
                         # Render contentDetailsTables inside bill-content
                         for cd_table_config in content_details_tables:
                             content_name = cd_table_config.get('contentName')
-                            logger.debug(f"[DEBUG] _generate_html: Rendering contentDetailsTable (single page): {content_name}, content_details_data type = {type(content_details_data)}, available keys = {list(content_details_data.keys()) if content_details_data else 'None'}")
+                            #logger.debug(f"[DEBUG] _generate_html: Rendering contentDetailsTable (single page): {content_name}, content_details_data type = {type(content_details_data)}, available keys = {list(content_details_data.keys()) if content_details_data else 'None'}")
                             if content_name and content_name in content_details_data:
                                 cd_data = content_details_data[content_name]
                                 # Render all data for contentDetail table
@@ -753,7 +753,7 @@ class TemplateEngine:
             '</html>'
         ])
         
-        logger.debug("[DEBUG] _generate_html: Successfully completed HTML generation")
+        #logger.debug("[DEBUG] _generate_html: Successfully completed HTML generation")
         return '\n'.join(html_parts)
     
     def _get_special_field_value(self, field_type: str, page_context: Dict[str, Any] = None) -> str:
@@ -819,7 +819,7 @@ class TemplateEngine:
             
             return str(value)
         except Exception as e:
-            logger.warning(f"Error getting field value for {bind_path}: {str(e)}")
+            #logger.warning(f"Error getting field value for {bind_path}: {str(e)}")
             return ''
     
     def _calculate_bill_content_pages(self, template_config: Dict[str, Any], 
@@ -859,12 +859,12 @@ class TemplateEngine:
         # Store parameter value before any assignment to avoid scope issues
         _param_cd_data = content_details_data
         if _param_cd_data is None:
-            logger.warning("[DEBUG] _calculate_bill_content_pages: content_details_data parameter was None, using empty dict")
+           # logger.warning("[DEBUG] _calculate_bill_content_pages: content_details_data parameter was None, using empty dict")
             content_details_data = {}
         else:
             # Reassign to ensure it's a local variable (same reference, but now local scope)
             content_details_data = _param_cd_data
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Received content_details_data = {type(content_details_data)}, keys = {list(content_details_data.keys()) if content_details_data else 'empty'}")
+        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Received content_details_data = {type(content_details_data)}, keys = {list(content_details_data.keys()) if content_details_data else 'empty'}")
             
         if not bill_content_fields and not bill_content_tables and not content_details_tables:
             return {'total_pages': 0, 'pages': {}}
@@ -911,14 +911,14 @@ class TemplateEngine:
         # Subsequent pages: page_header + bill_content + page_footer
         available_height_other_pages = page_height - page_header_height - page_footer_height - container_padding
         
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Height calculations:")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_height: {page_height}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_header_height: {page_header_height}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - bill_header_height: {bill_header_height}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_footer_height: {page_footer_height}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - container_padding: {container_padding}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_height_first_page: {available_height_first_page}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_height_other_pages: {available_height_other_pages}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: Height calculations:")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_height: {page_height}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_header_height: {page_header_height}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - bill_header_height: {bill_header_height}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_footer_height: {page_footer_height}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - container_padding: {container_padding}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_height_first_page: {available_height_first_page}")
+        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_height_other_pages: {available_height_other_pages}")
         
         # Calculate actual bill-content height based on elements
         # Sum up all field heights and table heights (including bill-footer)
@@ -965,10 +965,10 @@ class TemplateEngine:
         
         # Calculate contentDetailsTables height
         max_content_detail_table_y = 0
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Calculating height, content_details_data type = {type(content_details_data)}, is None = {content_details_data is None}")
+        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Calculating height, content_details_data type = {type(content_details_data)}, is None = {content_details_data is None}")
         for cd_table_config in content_details_tables:
             content_name = cd_table_config.get('contentName')
-            logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing table: {content_name}, checking if in content_details_data")
+            #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing table: {content_name}, checking if in content_details_data")
             if content_name and content_name in content_details_data:
                 cd_data = content_details_data[content_name]
                 if isinstance(cd_data, list):
@@ -1000,11 +1000,7 @@ class TemplateEngine:
             return {'total_pages': 0, 'pages': {}}
         
         # Bill-content needs to be split across pages
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Starting pagination calculation")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_height_first_page: {available_height_first_page}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_height_other_pages: {available_height_other_pages}")
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_bill_content_height: {actual_bill_content_height}")
-        
+       #
         pages_info = {}
         current_y = 0
         page_num = 1
@@ -1055,10 +1051,10 @@ class TemplateEngine:
             })
         
         # Process contentDetailsTables - calculate actual height based on content detail data
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing contentDetailsTables, content_details_data type = {type(content_details_data)}, is None = {content_details_data is None}")
+        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing contentDetailsTables, content_details_data type = {type(content_details_data)}, is None = {content_details_data is None}")
         for cd_table_config in content_details_tables:
             content_name = cd_table_config.get('contentName')
-            logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing table for pagination: {content_name}, checking if in content_details_data")
+            #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing table for pagination: {content_name}, checking if in content_details_data")
             if content_name and content_name in content_details_data:
                 cd_data = content_details_data[content_name]
                 if isinstance(cd_data, list):
@@ -1095,19 +1091,19 @@ class TemplateEngine:
         for t in tables_to_place:
             all_elements.append({'type': 'table', 'data': t, 'y': t['y'], 'height': t['height']})
         
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Total elements to place: {len(all_elements)}")
+        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Total elements to place: {len(all_elements)}")
         for idx, elem in enumerate(all_elements):
             elem_type = elem['type']
             elem_data = elem['data']
             if elem_type == 'table':
                 table_type = elem_data.get('type', 'unknown')
                 content_name = elem_data.get('content_name', 'N/A')
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: Element {idx}: type={elem_type}, table_type={table_type}, content_name={content_name}, y={elem['y']}, height={elem['height']}")
-            else:
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: Element {idx}: type={elem_type}, y={elem['y']}, height={elem['height']}")
+                    #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Element {idx}: type={elem_type}, table_type={table_type}, content_name={content_name}, y={elem['y']}, height={elem['height']}")
+            
+                #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Element {idx}: type={elem_type}, y={elem['y']}, height={elem['height']}")
         
         all_elements.sort(key=lambda x: x['y'])
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Elements sorted by Y position")
+        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Elements sorted by Y position")
         
         # Distribute elements across pages
         # Track the bottom Y position of the last element on current page
@@ -1118,7 +1114,7 @@ class TemplateEngine:
         # Track actual end positions of all previous elements (absolute Y positions)
         previous_elements_end = {}  # {element_index: end_y_position}
         
-        logger.debug(f"[DEBUG] _calculate_bill_content_pages: Starting element placement loop")
+        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Starting element placement loop")
         for element_index, element in enumerate(all_elements):
             element_y = element['y']
             element_height = element['height']
@@ -1127,9 +1123,7 @@ class TemplateEngine:
             if elem_type == 'table':
                 table_type = element['data'].get('type', 'unknown')
                 content_name = element['data'].get('content_name', 'N/A') if table_type == 'contentDetail' else 'N/A'
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing element {element_index}: type={elem_type}, table_type={table_type}, content_name={content_name}, y={element_y}, height={element_height}, current_page={page_num}")
-            else:
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing element {element_index}: type={elem_type}, y={element_y}, height={element_height}, current_page={page_num}")
+                #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing element {element_index}: type={elem_type}, table_type={table_type}, content_name={content_name}, y={element_y}, height={element_height}, current_page={page_num}")
             
             # Check if element fits on current page
             if element['type'] == 'field':
@@ -1259,18 +1253,18 @@ class TemplateEngine:
                         prev_elements_info.append(f"elem[{i}]={prev_end}")
                         max_prev_end = max(max_prev_end, prev_end)
                 
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: Table element {element_index}:")
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Previous elements end positions: {prev_elements_info}")
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: - max_prev_end: {max_prev_end}")
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_y (gap): {table_y}")
+                # logger.debug(f"[DEBUG] _calculate_bill_content_pages: Table element {element_index}:")
+                # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Previous elements end positions: {prev_elements_info}")
+                # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - max_prev_end: {max_prev_end}")
+                # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_y (gap): {table_y}")
                 
                 # Table's Y position is the gap from previous element
                 if max_prev_end > 0:
                     table_start_y = max_prev_end 
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Using max_prev_end as table_start_y: {table_start_y}")
+                    #logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Using max_prev_end as table_start_y: {table_start_y}")
                 else:
                     table_start_y = table_y  # First element, use Y as absolute
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - No previous elements, using table_y as table_start_y: {table_start_y}")
+                    #logger.debug(f"[DEBUG] _calculate_bill_content_pages: - No previous elements, using table_y as table_start_y: {table_start_y}")
                 
                 # Save current page if it has other elements
                 if current_page_elements['fields'] or current_page_elements['tables']:
@@ -1283,15 +1277,15 @@ class TemplateEngine:
                 # For contentDetail tables, treat as single unit (no splitting)
                 if table_type == 'contentDetail':
                     content_name = table_data.get('content_name', 'unknown')
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing contentDetail table '{content_name}'")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - element_index: {element_index}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - current page_num: {page_num}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - max_prev_end: {max_prev_end}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_y (gap): {table_y}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_start_y (calculated): {table_start_y}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_height: {element['height']}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: Processing contentDetail table '{content_name}'")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - element_index: {element_index}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - current page_num: {page_num}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - max_prev_end: {max_prev_end}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_y (gap): {table_y}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_start_y (calculated): {table_start_y}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_height: {element['height']}")
                     
-                    # Check if table fits on current page
+                    # # Check if table fits on current page
                     # Account for page-footer: table must fit within available space
                     page_available = available_height_first_page if page_num == 1 else available_height_other_pages
                     table_height = element['height']
@@ -1299,25 +1293,23 @@ class TemplateEngine:
                     # Calculate total space needed: starting position + table height
                     total_space_needed = table_start_y + table_height
                     
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_available (accounting for page-footer): {page_available}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_start_y: {table_start_y}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_height: {table_height}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - total_space_needed: {total_space_needed}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Will fit? {total_space_needed <= page_available}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_available (accounting for page-footer): {page_available}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_start_y: {table_start_y}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_height: {table_height}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - total_space_needed: {total_space_needed}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Will fit? {total_space_needed <= page_available}")
                     
                     if total_space_needed > page_available:
                         # Table doesn't fit, move to next page
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Table doesn't fit, moving to next page")
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Old page_num: {page_num}")
+                        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Table doesn't fit, moving to next page")
+                        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Old page_num: {page_num}")
                         page_num += 1
                         available_height = available_height_other_pages
                         table_start_y = 0  # On new page, use Y as gap from top
                         page_available = available_height_other_pages
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - New page_num: {page_num}")
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - New table_start_y: {table_start_y}")
-                    else:
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Table fits on current page {page_num}")
-                    
+                        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - New page_num: {page_num}")
+                        # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - New table_start_y: {table_start_y}")
+                   
                     # Ensure page entry exists
                     if page_num not in pages_info:
                         pages_info[page_num] = {
@@ -1378,12 +1370,10 @@ class TemplateEngine:
                         # Account for both the gap and the element height
                         if next_elem_y < 200:  # Small gap suggests same page
                             subsequent_elements_height += next_elem_y + next_elem_height
-                            logger.debug(f"[DEBUG] _calculate_bill_content_pages: Element {next_elem_idx} (type={next_elem_type}, gap={next_elem_y}, height={next_elem_height}) will be on same page, adding {next_elem_y + next_elem_height}px")
-                        else:
+                            #logger.debug(f"[DEBUG] _calculate_bill_content_pages: Element {next_elem_idx} (type={next_elem_type}, gap={next_elem_y}, height={next_elem_height}) will be on same page, adding {next_elem_y + next_elem_height}px")
+                        
                             # Large gap suggests different page, stop checking
                             break
-                
-                logger.debug(f"[DEBUG] _calculate_bill_content_pages: Total subsequent_elements_height to reserve: {subsequent_elements_height}")
                 
                 while start_index < num_items:
                     # Calculate available space for this page
@@ -1418,15 +1408,15 @@ class TemplateEngine:
                         # Subsequent chunks or pages: subtract header, starting position, and subsequent elements
                         available_for_rows = page_available - header_height - actual_table_start_y - subsequent_elements_height
                     
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - subsequent_elements_height: {subsequent_elements_height}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table chunk calculation:")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - current_table_page: {current_table_page}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - start_index: {start_index}, num_items: {num_items}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_available (with page-footer): {page_available}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_table_start_y: {actual_table_start_y}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - header_height: {header_height}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - row_height: {row_height}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_for_rows: {available_for_rows}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - subsequent_elements_height: {subsequent_elements_height}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table chunk calculation:")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - current_table_page: {current_table_page}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - start_index: {start_index}, num_items: {num_items}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - page_available (with page-footer): {page_available}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_table_start_y: {actual_table_start_y}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - header_height: {header_height}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - row_height: {row_height}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - available_for_rows: {available_for_rows}")
                     
                     # Calculate how many rows can fit
                     # Calculate base number of rows that fit using floor division
@@ -1439,19 +1429,18 @@ class TemplateEngine:
                     else:
                         rows_this_page = base_rows
                     
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - base_rows: {base_rows}, calculated rows_this_page: {rows_this_page}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - remaining items: {num_items - start_index}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - base_rows: {base_rows}, calculated rows_this_page: {rows_this_page}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - remaining items: {num_items - start_index}")
                     
                     # Ensure we don't exceed remaining items
                     # end_index is exclusive in Python slicing, so items[start_index:end_index] gives items start_index to end_index-1
                     end_index = min(start_index + rows_this_page, num_items)
                     actual_rows_this_page = end_index - start_index
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - end_index: {end_index} (exclusive, so will render indices {start_index} to {end_index-1})")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_rows_this_page: {actual_rows_this_page}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - end_index: {end_index} (exclusive, so will render indices {start_index} to {end_index-1})")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_rows_this_page: {actual_rows_this_page}")
                     
                     # Verify we're not losing rows - check if we can fit more
-                    if actual_rows_this_page < rows_this_page and start_index + rows_this_page < num_items:
-                        logger.warning(f"[WARNING] _calculate_bill_content_pages: Calculated {rows_this_page} rows but only rendering {actual_rows_this_page} rows. start_index={start_index}, end_index={end_index}, num_items={num_items}")
+                  #ogger.warning(f"[WARNING] _calculate_bill_content_pages: Calculated {rows_this_page} rows but only rendering {actual_rows_this_page} rows. start_index={start_index}, end_index={end_index}, num_items={num_items}")
                     
                     # Calculate table end position on this page
                     # Use actual_rows_this_page to reflect the actual number of rows rendered
@@ -1477,23 +1466,23 @@ class TemplateEngine:
                     
                     # Track table end position for this page
                     table_end_positions[current_table_page] = table_end_y
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table chunk on page {current_table_page}:")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - start_index: {start_index}, end_index: {end_index}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_table_start_y: {actual_table_start_y}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_end_y: {table_end_y}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - rows_this_page: {rows_this_page}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table chunk on page {current_table_page}:")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - start_index: {start_index}, end_index: {end_index}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - actual_table_start_y: {actual_table_start_y}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - table_end_y: {table_end_y}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - rows_this_page: {rows_this_page}")
                     
                     start_index = end_index
                     
                     # Move to next page if more rows remain
                     if start_index < num_items:
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - More rows remaining ({start_index}/{num_items}), moving to next page")
+                        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: - More rows remaining ({start_index}/{num_items}), moving to next page")
                         current_table_page += 1
                         if current_table_page > page_num:
                             page_num = current_table_page
                             available_height = available_height_other_pages
-                    else:
-                        logger.debug(f"[DEBUG] _calculate_bill_content_pages: - All rows processed, billContent table ends on page {current_table_page} at position {table_end_y}")
+                    
+                        #logger.debug(f"[DEBUG] _calculate_bill_content_pages: - All rows processed, billContent table ends on page {current_table_page} at position {table_end_y}")
                 
                 # Update tracking - set current page to where table ended
                 if current_table_page in table_end_positions:
@@ -1507,17 +1496,17 @@ class TemplateEngine:
                         available_height = available_height_other_pages
                     # Track table's end position for this element
                     previous_elements_end[element_index] = table_end_positions[current_table_page]
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table element {element_index} ended:")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Final page: {current_table_page}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - End position: {table_end_positions[current_table_page]}")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Updated page_num: {page_num}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table element {element_index} ended:")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Final page: {current_table_page}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - End position: {table_end_positions[current_table_page]}")
+                    # logger.debug(f"[DEBUG] _calculate_bill_content_pages: - Updated page_num: {page_num}")
                 else:
                     current_page_bottom = 0
                     # Track table's end position (at its Y + height)
                     table_y = element['y']
                     previous_elements_end[element_index] = table_y + element['height']
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table element {element_index} (no end position tracked):")
-                    logger.debug(f"[DEBUG] _calculate_bill_content_pages: - End position: {previous_elements_end[element_index]}")
+                   # logger.debug(f"[DEBUG] _calculate_bill_content_pages: billContent table element {element_index} (no end position tracked):")
+                    #logger.debug(f"[DEBUG] _calculate_bill_content_pages: - End position: {previous_elements_end[element_index]}")
                 current_page_elements = {'fields': [], 'tables': []}
         
         # Add last page if it has elements
@@ -1685,13 +1674,43 @@ class TemplateEngine:
         
         field_type = field.get('fieldType')
         bind_path = field.get('bind', '')
-        value = self._get_field_value(bind_path, data, field_type, page_context)
+        static_value = field.get('value', '')
+        
+        # Determine value based on field type and binding
+        # Priority: Special field types > Data binding (if bind_path exists) > Static value (fallback or direct)
+        if field_type and field_type in ['pageNumber', 'totalPages', 'currentDate', 'currentTime']:
+            # Special field types - use their computed values (highest priority)
+            value = self._get_special_field_value(field_type, page_context)
+        elif bind_path and bind_path.strip():
+            # Has binding - try to get value from data
+            try:
+                value = self._get_field_value(bind_path, data, field_type, page_context)
+                # If binding returns empty/None and we have static value, use static as fallback
+                if (not value or value.strip() == '') and static_value and static_value.strip():
+                    value = static_value
+            except Exception:
+                # If binding fails (e.g., missing data), use static value if available
+                # This allows static content to render in PDF without schema validation
+                value = static_value if static_value and static_value.strip() else ''
+        elif static_value and static_value.strip():
+            # No binding - use static value directly (no schema validation needed)
+            value = static_value
+        else:
+            # No binding and no static value - empty
+            value = ''
+        
         style = self._get_field_style(field)
+        
+        # Build label and value parts separately (no colon)
+        label_html = f'<span class="label">{field.get("label", "")}</span>' if field.get('label', '').strip() else ''
+        value_html = f'<span class="value">{value}</span>' if value and str(value).strip() else ''
+        
+        # Combine with space if both exist
+        content = ' '.join(filter(None, [label_html, value_html]))
         
         return (
             f'<div class="{container_class}" style="position: absolute; {style}">'
-            f'<span class="label">{field.get("label", "")}:</span> '
-            f'<span class="value">{value}</span>'
+            f'{content}'
             f'</div>'
         )
     
@@ -1717,6 +1736,28 @@ class TemplateEngine:
             styles.append(f'font-weight: {field["fontWeight"]}')
         if 'color' in field:
             styles.append(f'color: {field["color"]}')
+        
+        # Handle width property (supports px, %, or 'auto')
+        if 'width' in field:
+            width_value = field['width']
+            if width_value and width_value != 'auto':
+                # If numeric, assume px; otherwise use as-is (handles %)
+                if isinstance(width_value, (int, float)):
+                    styles.append(f'width: {width_value}px')
+                elif isinstance(width_value, str):
+                    width_str = width_value.strip()
+                    if width_str.endswith('%') or width_str == 'auto':
+                        styles.append(f'width: {width_str}')
+                    else:
+                        # Try to parse as number
+                        try:
+                            num_val = float(width_str)
+                            styles.append(f'width: {num_val}px')
+                        except ValueError:
+                            # If can't parse, use as-is (might be valid CSS)
+                            styles.append(f'width: {width_str}')
+            elif width_value == 'auto':
+                styles.append('width: auto')
         
         return '; '.join(styles)
     

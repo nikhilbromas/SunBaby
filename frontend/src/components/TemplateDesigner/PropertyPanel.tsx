@@ -3115,12 +3115,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </>
               )}
               <div className="mt-1 text-xs text-gray-500 italic">
-                Format: header.FieldName, contentDetails.name.field, or direct field name
+                {/* Format: header.FieldName, contentDetails.name.field */}
               </div>
             </label>
           )}
           {/* Show static value input for non-bound fields or when bind is empty */}
-          {/* {(!field.bind || field.bind.trim() === '' || field.fieldType !== 'text') && (
+          {(!field.bind || field.bind.trim() === '' || field.fieldType !== 'text') && (
             <label className="block mb-2">
               <span className="block text-sm font-medium mb-1">Static Value:</span>
               <input
@@ -3134,7 +3134,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 Used when field is not bound to data
               </div>
             </label>
-          )} */}
+          )}
         </div>
         <div className="property-group">
           <h4>Position</h4>

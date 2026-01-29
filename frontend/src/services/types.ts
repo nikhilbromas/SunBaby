@@ -58,8 +58,11 @@ export interface TextFieldConfig {
   visible: boolean;
   fontSize?: number;
   fontWeight?: string;
+  fontFamily?: string; // Font family (e.g., 'Helvetica', 'Times-Roman', 'Courier')
   color?: string;
   fieldType?: 'text' | 'pageNumber' | 'totalPages' | 'currentDate' | 'currentTime';
+  width?: string; // Supports px (numeric), % (percentage), or "auto"
+  value?: string; // Static value for non-bound fields
 }
 
 export interface ImageFieldConfig {
@@ -804,5 +807,38 @@ export interface RunDashboardResponse {
       output?: any;
     }
   >;
+}
+
+// Analytics Metrics (SPEC-001)
+export interface MetricDataPoint {
+  label: string;
+  value: number;
+}
+
+export interface MetricResponse {
+  metric: string;
+  unit: string;
+  bucket?: string | null;
+  data: MetricDataPoint[];
+}
+
+export interface MetricErrorContext {
+  preset?: string | null;
+  column?: string | null;
+  metric?: string | null;
+}
+
+export interface MetricErrorResponse {
+  error_code: string;
+  message: string;
+  context: MetricErrorContext;
+}
+
+// Dashboard Widget Configuration (SPEC-001)
+export interface MetricDashboardWidget {
+  id: string;
+  title: string;
+  metric: string;
+  visualization: 'card' | 'line' | 'bar' | 'table';
 }
 
