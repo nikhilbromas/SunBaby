@@ -98,22 +98,31 @@ const BillPreview: React.FC = () => {
   };
 
   /* -------------------- Generate PDF -------------------- */
-  const generatePdf = async () => {
+  const generatePdf = async (formParameters?: Record<string, any>) => {
     if (!selectedTemplate) return;
-    if (!validateParams(parameters)) return;
+    
+    // Use form parameters if provided, otherwise use state parameters
+    const paramsToUse = formParameters || parameters;
+    
+    if (!validateParams(paramsToUse)) return;
 
     setLoading(true);
     setError(null);
 
+    // Update state with the parameters being used
+    setParameters(paramsToUse);
+
     localStorage.setItem(
       `bp_params_${selectedTemplate.TemplateId}`,
-      JSON.stringify(parameters)
+      JSON.stringify(paramsToUse)
     );
 
     try {
+      // API client will automatically add companyId from cache if available
       const pdf = await apiClient.generatePreviewPdf({
         templateId: selectedTemplate.TemplateId,
-        parameters,
+        parameters: paramsToUse,
+        // companyId will be added automatically by apiClient if available in cache
       });
       setPdfBase64(pdf);
     } catch (err: any) {

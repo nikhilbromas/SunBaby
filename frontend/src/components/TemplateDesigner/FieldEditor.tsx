@@ -260,6 +260,16 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
       return 'Total: 1';
     }
     
+    // Handle static value for non-bound fields
+    if (!field.bind || field.bind.trim() === '') {
+      // If there's a static value, use it; otherwise show label or placeholder
+      if (field.value && field.value.trim() !== '') {
+        return field.value;
+      }
+      // If no value but has label, show label only (no value part)
+      return '';
+    }
+    
     // Handle bound fields - sampleData is already the header data object (flat)
     // fieldType 'text' or undefined means it's a bound text field
     if (field.bind && (!field.fieldType || field.fieldType === 'text')) {
@@ -310,17 +320,50 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
 
   const displayValue = getDisplayValue();
 
+  // Parse width value for styling
+  const getWidthStyle = (): string | undefined => {
+    if (!field.width) return undefined;
+    const width = field.width.trim();
+    if (width === 'auto') return 'auto';
+    if (width.endsWith('%')) return width;
+    // If numeric, assume px
+    const numValue = parseFloat(width);
+    if (!isNaN(numValue)) return `${numValue}px`;
+    return width; // Fallback to raw value
+  };
+
+  const widthStyle = getWidthStyle();
+
+  // Handle fontFamily: Extract base font name (remove "-Bold" suffix for CSS)
+  // CSS uses font-weight for bold, not "-Bold" suffix in font-family
+  const getFontFamilyForCSS = (): string => {
+    if (!field.fontFamily) return 'Helvetica';
+    // Remove "-Bold" suffix if present (CSS handles bold via fontWeight)
+    return field.fontFamily.replace(/-Bold$/, '');
+  };
+
+  // Determine fontWeight: Use field.fontWeight, or 'bold' if fontFamily ends with "-Bold"
+  const getFontWeightForCSS = (): string | undefined => {
+    if (field.fontWeight) return field.fontWeight;
+    if (field.fontFamily && field.fontFamily.endsWith('-Bold')) {
+      return 'bold';
+    }
+    return undefined;
+  };
+
   return (
     <div
       ref={fieldRef}
-      className={`field-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isEditingFontSize ? 'editing-font-size' : ''}`}
+      className={`field-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isEditingFontSize ? 'editing-font-size' : ''} ${field.bind && field.bind.trim() ? 'field-bound' : 'field-static'}`}
       style={{
         position: 'absolute',
         left: `${position.x}px`,
         top: `${position.y}px`,
         fontSize: field.fontSize ? `${field.fontSize}px` : undefined,
-        fontWeight: field.fontWeight,
+        fontWeight: getFontWeightForCSS(),
+        fontFamily: getFontFamilyForCSS(),
         color: field.color,
+        width: widthStyle,
         cursor: isDragging ? 'grabbing' : 'grab',
         zIndex: isSelected ? 100 : 1,
         transition: isDragging ? 'none' : undefined,
@@ -330,8 +373,12 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
       onTouchStart={handleTouchStart}
       onDoubleClick={handleDoubleClick}
     >
-      <div className="field-label">{field.label}:</div>
-      <div className="field-value">{displayValue}</div>
+      {field.label && field.label.trim() && (
+        <div className="field-label">{field.label}</div>
+      )}
+      {displayValue && displayValue.trim() && (
+        <div className="field-value">{displayValue}</div>
+      )}
       {isSelected && (
         <>
           <button className="field-delete" onClick={onDelete} title="Delete field">

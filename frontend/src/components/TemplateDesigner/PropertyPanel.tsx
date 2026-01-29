@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { Target, Settings, Palette, Save } from 'lucide-react';
+import { Target, Settings, Palette, Save, Move } from 'lucide-react';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
@@ -23,6 +24,11 @@ interface PropertyPanelProps {
   onSetup?: () => void;
   onOpenTableModal?: (type: 'itemsTable' | 'billContentTable' | 'contentDetailTable', index?: number) => void;
   onOpenZoneConfig?: () => void;
+  fullSampleData?: {
+    header?: { data: Record<string, any> | null; fields: string[] };
+    items?: { data: Record<string, any>[]; fields: string[]; sampleCount: number };
+    contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
+  } | null;
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -40,7 +46,144 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onSetup,
   onOpenTableModal,
   onOpenZoneConfig,
+  fullSampleData,
 }) => {
+  // State for Available Fields modal
+  const [showFieldsModal, setShowFieldsModal] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
+  const dataBindingInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Font Selection modal
+  const [showFontModal, setShowFontModal] = useState(false);
+  const [fontModalPosition, setFontModalPosition] = useState({ top: 0, left: 0 });
+  const fontInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for table column selection (must be at top level - Rules of Hooks)
+  const [itemsTableSelectedColumns, setItemsTableSelectedColumns] = useState<Set<number>>(new Set());
+  const [contentDetailTableSelectedColumns, setContentDetailTableSelectedColumns] = useState<Set<number>>(new Set());
+  const [billContentTableSelectedColumns, setBillContentTableSelectedColumns] = useState<Set<number>>(new Set());
+  
+  // State for Position Editor modal
+  const [showPositionModal, setShowPositionModal] = useState(false);
+  const [positionModalPosition, setPositionModalPosition] = useState({ top: 0, left: 0 });
+  const [positionValues, setPositionValues] = useState({ x: 0, y: 0 });
+  const [positionUpdateCallback, setPositionUpdateCallback] = useState<((x: number, y: number) => void) | null>(null);
+  const positionXInputRef = React.useRef<HTMLInputElement>(null);
+  const positionYInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Width Editor modal
+  const [showWidthModal, setShowWidthModal] = useState(false);
+  const [widthModalPosition, setWidthModalPosition] = useState({ top: 0, left: 0 });
+  const [widthValue, setWidthValue] = useState<string>('');
+  const [widthUpdateCallback, setWidthUpdateCallback] = useState<((value: string) => void) | null>(null);
+  const widthInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Font Size Editor modal
+  const [showFontSizeModal, setShowFontSizeModal] = useState(false);
+  const [fontSizeModalPosition, setFontSizeModalPosition] = useState({ top: 0, left: 0 });
+  const [fontSizeValue, setFontSizeValue] = useState<number>(12);
+  const [fontSizeUpdateCallback, setFontSizeUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const fontSizeInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Table Padding Editor modal
+  const [showTablePaddingModal, setShowTablePaddingModal] = useState(false);
+  const [tablePaddingModalPosition, setTablePaddingModalPosition] = useState({ top: 0, left: 0 });
+  const [tablePaddingValue, setTablePaddingValue] = useState<number>(10);
+  const [tablePaddingUpdateCallback, setTablePaddingUpdateCallback] = useState<((value: number) => void) | null>(null);
+  const tablePaddingInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Table Font Size Editor modal
+  const [showTableFontSizeModal, setShowTableFontSizeModal] = useState(false);
+  const [tableFontSizeModalPosition, setTableFontSizeModalPosition] = useState({ top: 0, left: 0 });
+  const [tableFontSizeValue, setTableFontSizeValue] = useState<number | undefined>(12);
+  const [tableFontSizeUpdateCallback, setTableFontSizeUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const tableFontSizeInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Table Width Editor modal
+  const [showTableWidthModal, setShowTableWidthModal] = useState(false);
+  const [tableWidthModalPosition, setTableWidthModalPosition] = useState({ top: 0, left: 0 });
+  const [tableWidthValue, setTableWidthValue] = useState<number | undefined>(undefined);
+  const [tableWidthUpdateCallback, setTableWidthUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const tableWidthInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Column Binding Editor modal
+  const [showColumnBindingModal, setShowColumnBindingModal] = useState(false);
+  const [columnBindingModalPosition, setColumnBindingModalPosition] = useState({ top: 0, left: 0 });
+  const [columnBindingValue, setColumnBindingValue] = useState<string>('');
+  const [columnBindingUpdateCallback, setColumnBindingUpdateCallback] = useState<((value: string) => void) | null>(null);
+  const columnBindingInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Column Width Editor modal
+  const [showColumnWidthModal, setShowColumnWidthModal] = useState(false);
+  const [columnWidthModalPosition, setColumnWidthModalPosition] = useState({ top: 0, left: 0 });
+  const [columnWidthValue, setColumnWidthValue] = useState<number | undefined>(undefined);
+  const [columnWidthUpdateCallback, setColumnWidthUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const columnWidthInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Column Height Editor modal
+  const [showColumnHeightModal, setShowColumnHeightModal] = useState(false);
+  const [columnHeightModalPosition, setColumnHeightModalPosition] = useState({ top: 0, left: 0 });
+  const [columnHeightValue, setColumnHeightValue] = useState<number | undefined>(undefined);
+  const [columnHeightUpdateCallback, setColumnHeightUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const columnHeightInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Column Row Span Editor modal
+  const [showColumnRowSpanModal, setShowColumnRowSpanModal] = useState(false);
+  const [columnRowSpanModalPosition, setColumnRowSpanModalPosition] = useState({ top: 0, left: 0 });
+  const [columnRowSpanValue, setColumnRowSpanValue] = useState<number | undefined>(1);
+  const [columnRowSpanUpdateCallback, setColumnRowSpanUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const columnRowSpanInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Column Column Span Editor modal
+  const [showColumnColSpanModal, setShowColumnColSpanModal] = useState(false);
+  const [columnColSpanModalPosition, setColumnColSpanModalPosition] = useState({ top: 0, left: 0 });
+  const [columnColSpanValue, setColumnColSpanValue] = useState<number | undefined>(1);
+  const [columnColSpanUpdateCallback, setColumnColSpanUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const columnColSpanInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Column Calculation Editor modal
+  const [showColumnCalculationModal, setShowColumnCalculationModal] = useState(false);
+  const [columnCalculationModalPosition, setColumnCalculationModalPosition] = useState({ top: 0, left: 0 });
+  const [columnCalculationValue, setColumnCalculationValue] = useState<string>('none');
+  const [columnCalculationSource, setColumnCalculationSource] = useState<string>('');
+  const [columnCalculationField, setColumnCalculationField] = useState<string>('');
+  const [columnCalculationFormula, setColumnCalculationFormula] = useState<string>('');
+  const [columnCalculationUpdateCallback, setColumnCalculationUpdateCallback] = useState<((value: { calculationType: string; calculationSource?: string; calculationField?: string; calculationFormula?: string }) => void) | null>(null);
+  const columnCalculationInputRef = React.useRef<HTMLSelectElement>(null);
+  
+  // State for Final Row Cell Col Span Editor modal
+  const [showFinalRowColSpanModal, setShowFinalRowColSpanModal] = useState(false);
+  const [finalRowColSpanModalPosition, setFinalRowColSpanModalPosition] = useState({ top: 0, left: 0 });
+  const [finalRowColSpanValue, setFinalRowColSpanValue] = useState<number | undefined>(1);
+  const [finalRowColSpanUpdateCallback, setFinalRowColSpanUpdateCallback] = useState<((value: number | undefined) => void) | null>(null);
+  const finalRowColSpanInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Final Row Cell Calculation Source Editor modal
+  const [showFinalRowCalculationSourceModal, setShowFinalRowCalculationSourceModal] = useState(false);
+  const [finalRowCalculationSourceModalPosition, setFinalRowCalculationSourceModalPosition] = useState({ top: 0, left: 0 });
+  const [finalRowCalculationSourceValue, setFinalRowCalculationSourceValue] = useState<string>('');
+  const [finalRowCalculationSourceUpdateCallback, setFinalRowCalculationSourceUpdateCallback] = useState<((value: string) => void) | null>(null);
+  const finalRowCalculationSourceInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // State for Final Row Cell Calculation Field Editor modal
+  const [showFinalRowCalculationFieldModal, setShowFinalRowCalculationFieldModal] = useState(false);
+  const [finalRowCalculationFieldModalPosition, setFinalRowCalculationFieldModalPosition] = useState({ top: 0, left: 0 });
+  const [finalRowCalculationFieldValue, setFinalRowCalculationFieldValue] = useState<string>('');
+  const [finalRowCalculationSourceForField, setFinalRowCalculationSourceForField] = useState<string>('');
+  const [finalRowCalculationFieldUpdateCallback, setFinalRowCalculationFieldUpdateCallback] = useState<((value: string) => void) | null>(null);
+  const finalRowCalculationFieldInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // Available fonts (common PDF fonts)
+  const availableFonts = [
+    { name: 'Helvetica', label: 'Helvetica' },
+    { name: 'Helvetica-Bold', label: 'Helvetica Bold' },
+    { name: 'Times-Roman', label: 'Times Roman' },
+    { name: 'Times-Bold', label: 'Times Bold' },
+    { name: 'Courier', label: 'Courier' },
+    { name: 'Courier-Bold', label: 'Courier Bold' },
+    { name: 'Arial', label: 'Arial' },
+    { name: 'Arial-Bold', label: 'Arial Bold' },
+  ];
   // Fixed Action Bar Component
   const ActionBar = () => {
     if (!onSave && !onSetup) return null;
@@ -77,6 +220,336 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       </div>
     );
   };
+  // Reusable function to calculate modal position near input
+  const calculateModalPosition = (inputRef: React.RefObject<HTMLInputElement | HTMLSelectElement> | HTMLElement | null, modalWidth: number = 350, modalHeight: number = 300) => {
+    let element: HTMLElement | null = null;
+    
+    if (inputRef && 'current' in inputRef && inputRef.current) {
+      element = inputRef.current;
+    } else if (inputRef && !('current' in inputRef)) {
+      element = inputRef as HTMLElement;
+    }
+    
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      let top = rect.bottom + 8;
+      let left = rect.left;
+      
+      // Adjust for viewport boundaries
+      if (left + modalWidth > viewportWidth - 16) {
+        left = viewportWidth - modalWidth - 16;
+      }
+      if (left < 16) left = 16;
+      if (top + modalHeight > viewportHeight - 16) {
+        top = rect.top - modalHeight - 8;
+        if (top < 16) top = 16;
+      }
+      
+      return { top, left };
+    }
+    return { top: 0, left: 0 };
+  };
+
+  // Helper function to open position editor modal
+  const openPositionModal = (x: number, y: number, onSave: (x: number, y: number) => void, inputElement: HTMLElement | React.RefObject<HTMLInputElement> | null = null) => {
+    setPositionValues({ x, y });
+    setPositionUpdateCallback(() => onSave);
+    // Use provided element/ref or default to X ref
+    let elementToUse: HTMLElement | null = null;
+    if (inputElement) {
+      if ('current' in inputElement && inputElement.current) {
+        elementToUse = inputElement.current;
+      } else if (!('current' in inputElement)) {
+        elementToUse = inputElement as HTMLElement;
+      }
+    }
+    if (!elementToUse && positionXInputRef.current) {
+      elementToUse = positionXInputRef.current;
+    }
+    const pos = calculateModalPosition(elementToUse, 400, 350);
+    setPositionModalPosition(pos);
+    setShowPositionModal(true);
+  };
+
+  const handlePositionSave = () => {
+    if (positionUpdateCallback) {
+      positionUpdateCallback(positionValues.x, positionValues.y);
+    }
+    setShowPositionModal(false);
+  };
+
+  // Helper function to open width editor modal
+  const openWidthModal = (currentValue: string, onSave: (value: string) => void, inputElement: HTMLElement | React.RefObject<HTMLInputElement>) => {
+    setWidthValue(currentValue || '');
+    setWidthUpdateCallback(() => onSave);
+    let element: HTMLElement | null = null;
+    if ('current' in inputElement && inputElement.current) {
+      element = inputElement.current;
+    } else if (!('current' in inputElement)) {
+      element = inputElement as HTMLElement;
+    }
+    const pos = calculateModalPosition(element, 350, 280);
+    setWidthModalPosition(pos);
+    setShowWidthModal(true);
+  };
+
+  const handleWidthSave = () => {
+    if (widthUpdateCallback) {
+      widthUpdateCallback(widthValue.trim() || '');
+    }
+    setShowWidthModal(false);
+  };
+
+  // Helper function to open font size editor modal
+  const openFontSizeModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | React.RefObject<HTMLInputElement>) => {
+    setFontSizeValue(currentValue || 12);
+    setFontSizeUpdateCallback(() => onSave);
+    let element: HTMLElement | null = null;
+    if ('current' in inputElement && inputElement.current) {
+      element = inputElement.current;
+    } else if (!('current' in inputElement)) {
+      element = inputElement as HTMLElement;
+    }
+    const pos = calculateModalPosition(element, 300, 250);
+    setFontSizeModalPosition(pos);
+    setShowFontSizeModal(true);
+  };
+
+  const handleFontSizeSave = () => {
+    if (fontSizeUpdateCallback) {
+      fontSizeUpdateCallback(fontSizeValue > 0 ? fontSizeValue : undefined);
+    }
+    setShowFontSizeModal(false);
+  };
+
+  // Helper function to open table padding editor modal
+  const openTablePaddingModal = (currentValue: number, onSave: (value: number) => void, inputElement: HTMLElement | React.RefObject<HTMLInputElement>) => {
+    setTablePaddingValue(currentValue || 10);
+    setTablePaddingUpdateCallback(() => onSave);
+    let element: HTMLElement | null = null;
+    if ('current' in inputElement && inputElement.current) {
+      element = inputElement.current;
+    } else if (!('current' in inputElement)) {
+      element = inputElement as HTMLElement;
+    }
+    const pos = calculateModalPosition(element, 300, 250);
+    setTablePaddingModalPosition(pos);
+    setShowTablePaddingModal(true);
+  };
+
+  const handleTablePaddingSave = () => {
+    if (tablePaddingUpdateCallback) {
+      tablePaddingUpdateCallback(Math.max(0, tablePaddingValue));
+    }
+    setShowTablePaddingModal(false);
+  };
+
+  // Helper function to open table font size editor modal
+  const openTableFontSizeModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | React.RefObject<HTMLInputElement>) => {
+    setTableFontSizeValue(currentValue || 12);
+    setTableFontSizeUpdateCallback(() => onSave);
+    let element: HTMLElement | null = null;
+    if ('current' in inputElement && inputElement.current) {
+      element = inputElement.current;
+    } else if (!('current' in inputElement)) {
+      element = inputElement as HTMLElement;
+    }
+    const pos = calculateModalPosition(element, 300, 250);
+    setTableFontSizeModalPosition(pos);
+    setShowTableFontSizeModal(true);
+  };
+
+  const handleTableFontSizeSave = () => {
+    if (tableFontSizeUpdateCallback) {
+      tableFontSizeUpdateCallback(tableFontSizeValue && tableFontSizeValue > 0 ? tableFontSizeValue : undefined);
+    }
+    setShowTableFontSizeModal(false);
+  };
+
+  // Helper function to open table width editor modal
+  const openTableWidthModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | React.RefObject<HTMLInputElement>) => {
+    setTableWidthValue(currentValue);
+    setTableWidthUpdateCallback(() => onSave);
+    let element: HTMLElement | null = null;
+    if ('current' in inputElement && inputElement.current) {
+      element = inputElement.current;
+    } else if (!('current' in inputElement)) {
+      element = inputElement as HTMLElement;
+    }
+    const pos = calculateModalPosition(element, 300, 250);
+    setTableWidthModalPosition(pos);
+    setShowTableWidthModal(true);
+  };
+
+  const handleTableWidthSave = () => {
+    if (tableWidthUpdateCallback) {
+      tableWidthUpdateCallback(tableWidthValue && tableWidthValue >= 100 ? tableWidthValue : undefined);
+    }
+    setShowTableWidthModal(false);
+  };
+
+  // Helper function to open column binding editor modal
+  const openColumnBindingModal = (currentValue: string, onSave: (value: string) => void, inputElement: HTMLElement | null) => {
+    setColumnBindingValue(currentValue || '');
+    setColumnBindingUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 400, 300);
+    setColumnBindingModalPosition(pos);
+    setShowColumnBindingModal(true);
+  };
+
+  const handleColumnBindingSave = () => {
+    if (columnBindingUpdateCallback) {
+      columnBindingUpdateCallback(columnBindingValue.trim());
+    }
+    setShowColumnBindingModal(false);
+  };
+
+  // Helper function to open column width editor modal
+  const openColumnWidthModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | null) => {
+    setColumnWidthValue(currentValue);
+    setColumnWidthUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 300, 250);
+    setColumnWidthModalPosition(pos);
+    setShowColumnWidthModal(true);
+  };
+
+  const handleColumnWidthSave = () => {
+    if (columnWidthUpdateCallback) {
+      columnWidthUpdateCallback(columnWidthValue && columnWidthValue >= 0 ? columnWidthValue : undefined);
+    }
+    setShowColumnWidthModal(false);
+  };
+
+  // Helper function to open column height editor modal
+  const openColumnHeightModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | null) => {
+    setColumnHeightValue(currentValue);
+    setColumnHeightUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 300, 250);
+    setColumnHeightModalPosition(pos);
+    setShowColumnHeightModal(true);
+  };
+
+  const handleColumnHeightSave = () => {
+    if (columnHeightUpdateCallback) {
+      columnHeightUpdateCallback(columnHeightValue && columnHeightValue >= 0 ? columnHeightValue : undefined);
+    }
+    setShowColumnHeightModal(false);
+  };
+
+  // Helper function to open column row span editor modal
+  const openColumnRowSpanModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | null) => {
+    setColumnRowSpanValue(currentValue || 1);
+    setColumnRowSpanUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 300, 250);
+    setColumnRowSpanModalPosition(pos);
+    setShowColumnRowSpanModal(true);
+  };
+
+  const handleColumnRowSpanSave = () => {
+    if (columnRowSpanUpdateCallback) {
+      columnRowSpanUpdateCallback(columnRowSpanValue && columnRowSpanValue >= 1 ? columnRowSpanValue : undefined);
+    }
+    setShowColumnRowSpanModal(false);
+  };
+
+  // Helper function to open column col span editor modal
+  const openColumnColSpanModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | null) => {
+    setColumnColSpanValue(currentValue || 1);
+    setColumnColSpanUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 300, 250);
+    setColumnColSpanModalPosition(pos);
+    setShowColumnColSpanModal(true);
+  };
+
+  const handleColumnColSpanSave = () => {
+    if (columnColSpanUpdateCallback) {
+      columnColSpanUpdateCallback(columnColSpanValue && columnColSpanValue >= 1 ? columnColSpanValue : undefined);
+    }
+    setShowColumnColSpanModal(false);
+  };
+
+  // Helper function to open column calculation editor modal
+  const openColumnCalculationModal = (
+    currentValue: { calculationType?: string; calculationSource?: string; calculationField?: string; calculationFormula?: string },
+    onSave: (value: { calculationType: string; calculationSource?: string; calculationField?: string; calculationFormula?: string }) => void,
+    inputElement: HTMLElement | null
+  ) => {
+    setColumnCalculationValue(currentValue.calculationType || 'none');
+    setColumnCalculationSource(currentValue.calculationSource || '');
+    setColumnCalculationField(currentValue.calculationField || '');
+    setColumnCalculationFormula(currentValue.calculationFormula || '');
+    setColumnCalculationUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 400, 400);
+    setColumnCalculationModalPosition(pos);
+    setShowColumnCalculationModal(true);
+  };
+
+  const handleColumnCalculationSave = () => {
+    if (columnCalculationUpdateCallback) {
+      const result: any = { calculationType: columnCalculationValue };
+      if (columnCalculationValue !== 'none' && columnCalculationValue !== 'custom') {
+        result.calculationSource = columnCalculationSource;
+        result.calculationField = columnCalculationField;
+      } else if (columnCalculationValue === 'custom') {
+        result.calculationFormula = columnCalculationFormula;
+      }
+      columnCalculationUpdateCallback(result);
+    }
+    setShowColumnCalculationModal(false);
+  };
+
+  // Helper function to open final row cell col span editor modal
+  const openFinalRowColSpanModal = (currentValue: number | undefined, onSave: (value: number | undefined) => void, inputElement: HTMLElement | null) => {
+    setFinalRowColSpanValue(currentValue || 1);
+    setFinalRowColSpanUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 300, 250);
+    setFinalRowColSpanModalPosition(pos);
+    setShowFinalRowColSpanModal(true);
+  };
+
+  const handleFinalRowColSpanSave = () => {
+    if (finalRowColSpanUpdateCallback) {
+      finalRowColSpanUpdateCallback(finalRowColSpanValue && finalRowColSpanValue >= 1 ? finalRowColSpanValue : undefined);
+    }
+    setShowFinalRowColSpanModal(false);
+  };
+
+  // Helper function to open final row cell calculation source editor modal
+  const openFinalRowCalculationSourceModal = (currentValue: string, onSave: (value: string) => void, inputElement: HTMLElement | null) => {
+    setFinalRowCalculationSourceValue(currentValue || '');
+    setFinalRowCalculationSourceUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 500, 400);
+    setFinalRowCalculationSourceModalPosition(pos);
+    setShowFinalRowCalculationSourceModal(true);
+  };
+
+  const handleFinalRowCalculationSourceSave = () => {
+    if (finalRowCalculationSourceUpdateCallback) {
+      finalRowCalculationSourceUpdateCallback(finalRowCalculationSourceValue.trim());
+    }
+    setShowFinalRowCalculationSourceModal(false);
+  };
+
+  // Helper function to open final row cell calculation field editor modal
+  const openFinalRowCalculationFieldModal = (currentValue: string, sourcePath: string, onSave: (value: string) => void, inputElement: HTMLElement | null) => {
+    setFinalRowCalculationFieldValue(currentValue || '');
+    setFinalRowCalculationSourceForField(sourcePath);
+    setFinalRowCalculationFieldUpdateCallback(() => onSave);
+    const pos = calculateModalPosition(inputElement, 400, 350);
+    setFinalRowCalculationFieldModalPosition(pos);
+    setShowFinalRowCalculationFieldModal(true);
+  };
+
+  const handleFinalRowCalculationFieldSave = () => {
+    if (finalRowCalculationFieldUpdateCallback) {
+      finalRowCalculationFieldUpdateCallback(finalRowCalculationFieldValue.trim());
+    }
+    setShowFinalRowCalculationFieldModal(false);
+  };
+
   const getFieldForSelected = (): TextFieldConfig | null => {
     if (!selectedElement || selectedElement.type !== 'field') return null;
     const section = selectedElement.section || 'header';
@@ -85,6 +558,137 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     if (section === 'billFooter') return template.billFooter?.[selectedElement.index] || null;
     if (section === 'billContent') return template.billContent?.[selectedElement.index] || null;
     return template.header[selectedElement.index] || null;
+  };
+
+  // Get available fields for data binding
+  const getAvailableFields = (): { header: string[]; contentDetails: Record<string, string[]> } => {
+    const result = {
+      header: [] as string[],
+      contentDetails: {} as Record<string, string[]>
+    };
+    
+    if (fullSampleData) {
+      if (fullSampleData.header?.fields) {
+        result.header = fullSampleData.header.fields;
+      }
+      if (fullSampleData.contentDetails) {
+        Object.keys(fullSampleData.contentDetails).forEach(name => {
+          const detail = fullSampleData.contentDetails![name];
+          if (detail.fields) {
+            result.contentDetails[name] = detail.fields;
+          }
+        });
+      }
+    }
+    
+    return result;
+  };
+
+  // Get available data sources for calculations (arrays/tables)
+  const getAvailableDataSources = (): Array<{ path: string; label: string; fields: string[] }> => {
+    const sources: Array<{ path: string; label: string; fields: string[] }> = [];
+    
+    if (fullSampleData) {
+      // Check for items array (root-level array)
+      if (fullSampleData.items) {
+        const items = fullSampleData.items;
+        if (items.fields && items.fields.length > 0) {
+          const itemCount = items.sampleCount || (Array.isArray(items.data) ? items.data.length : 0);
+          sources.push({
+            path: 'items',
+            label: `Items (${itemCount} rows)`,
+            fields: items.fields
+          });
+        }
+      }
+      
+      // Check contentDetails arrays
+      if (fullSampleData.contentDetails) {
+        Object.keys(fullSampleData.contentDetails).forEach(name => {
+          const detail = fullSampleData.contentDetails![name];
+          // Only include if it's an array type (has dataType: 'array' or has array data)
+          if (detail.dataType === 'array' || (Array.isArray(detail.data) && detail.data.length > 0)) {
+            if (detail.fields && detail.fields.length > 0) {
+              sources.push({
+                path: `contentDetails.${name}`,
+                label: `${name} (${detail.sampleCount || (Array.isArray(detail.data) ? detail.data.length : 0)} items)`,
+                fields: detail.fields
+              });
+            }
+          }
+        });
+      }
+    }
+    
+    return sources;
+  };
+
+  // Binding validation helper
+  const validateBindPath = (bindPath: string): { valid: boolean; error?: string } => {
+    if (!bindPath || !bindPath.trim()) {
+      return { valid: true }; // Empty bind is valid (static field)
+    }
+
+    if (!fullSampleData) {
+      return { valid: true }; // No sample data available, allow any bind
+    }
+
+    const trimmed = bindPath.trim();
+    
+    // Check for contentDetails binding: contentDetails.name.field
+    if (trimmed.startsWith('contentDetails.')) {
+      const parts = trimmed.split('.');
+      if (parts.length === 3) {
+        const [, contentName, fieldName] = parts;
+        const contentDetail = fullSampleData.contentDetails?.[contentName];
+        if (contentDetail && contentDetail.fields) {
+          if (contentDetail.fields.includes(fieldName)) {
+            return { valid: true };
+          } else {
+            return { 
+              valid: false, 
+              error: `Field "${fieldName}" not found in contentDetails.${contentName}. Available: ${contentDetail.fields.join(', ')}` 
+            };
+          }
+        } else {
+          return { 
+            valid: false, 
+            error: `Content detail "${contentName}" not found in sample data` 
+          };
+        }
+      } else {
+        return { 
+          valid: false, 
+          error: 'Invalid contentDetails binding format. Expected: contentDetails.name.field' 
+        };
+      }
+    }
+    
+    // Check for header binding: header.FieldName or direct field name
+    let fieldName = trimmed;
+    if (trimmed.includes('.')) {
+      const parts = trimmed.split('.');
+      if (parts[0] === 'header' && parts.length === 2) {
+        fieldName = parts[1];
+      } else {
+        // Allow other dot-separated paths (might be valid but not in sample data)
+        return { valid: true }; // Don't validate unknown patterns
+      }
+    }
+    
+    // Check if field exists in header
+    if (fullSampleData.header?.fields) {
+      if (fullSampleData.header.fields.includes(fieldName)) {
+        return { valid: true };
+      } else {
+        return { 
+          valid: false, 
+          error: `Field "${fieldName}" not found in header. Available: ${fullSampleData.header.fields.join(', ')}` 
+        };
+      }
+    }
+    
+    return { valid: true }; // Default to valid if we can't validate
   };
 
   const getImageForSelected = (): ImageFieldConfig | null => {
@@ -98,8 +702,1984 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const images = (template[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
     return images[selectedElement.index] || null;
   };
+  // Position Editor Modal Component (always rendered)
+  const PositionModal = () => {
+    if (!showPositionModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowPositionModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-96 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${positionModalPosition.top}px`,
+            left: `${positionModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Position</h3>
+            <button
+              type="button"
+              onClick={() => setShowPositionModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust the X and Y coordinates. Use the arrow buttons for fine adjustments or type values directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">X:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, x: Math.max(0, prev.x - 1) }))}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={positionValues.x}
+                    onChange={(e) => setPositionValues(prev => ({ ...prev, x: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, x: prev.x + 1 }))}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, x: Math.max(0, prev.x - 10) }))}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, x: prev.x + 10 }))}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Y:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, y: Math.max(0, prev.y - 1) }))}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={positionValues.y}
+                    onChange={(e) => setPositionValues(prev => ({ ...prev, y: parseFloat(e.target.value) || 0 }))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, y: prev.y + 1 }))}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, y: Math.max(0, prev.y - 10) }))}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPositionValues(prev => ({ ...prev, y: prev.y + 10 }))}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPositionValues({ x: 0, y: 0 })}
+                  className="flex-1 px-4 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors text-sm"
+                >
+                  Reset to (0, 0)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const centerX = 400; // Approximate center for A4
+                    const centerY = 560;
+                    setPositionValues({ x: centerX, y: centerY });
+                  }}
+                  className="flex-1 px-4 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors text-sm"
+                >
+                  Center
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPositionModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handlePositionSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Position
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Width Editor Modal Component (always rendered)
+  const WidthModal = () => {
+    if (!showWidthModal) return null;
+    
+    const parseWidthValue = (value: string): { numeric: number; unit: string } => {
+      const trimmed = value.trim();
+      if (!trimmed || trimmed === 'auto') return { numeric: 0, unit: 'auto' };
+      if (trimmed.endsWith('%')) {
+        return { numeric: parseFloat(trimmed) || 0, unit: '%' };
+      }
+      if (trimmed.endsWith('px')) {
+        return { numeric: parseFloat(trimmed) || 0, unit: 'px' };
+      }
+      // Assume px if just a number
+      return { numeric: parseFloat(trimmed) || 0, unit: 'px' };
+    };
+
+    const formatWidthValue = (numeric: number, unit: string): string => {
+      if (unit === 'auto') return 'auto';
+      if (unit === '%') return `${numeric}%`;
+      return `${numeric}px`;
+    };
+
+    const currentWidth = parseWidthValue(widthValue);
+    
+    const handleIncrement = (amount: number) => {
+      if (currentWidth.unit === 'auto') {
+        setWidthValue('100px');
+      } else {
+        const newNumeric = Math.max(0, currentWidth.numeric + amount);
+        setWidthValue(formatWidthValue(newNumeric, currentWidth.unit));
+      }
+    };
+
+    const handleDecrement = (amount: number) => {
+      if (currentWidth.unit === 'auto') {
+        setWidthValue('100px');
+      } else {
+        const newNumeric = Math.max(0, currentWidth.numeric - amount);
+        setWidthValue(formatWidthValue(newNumeric, currentWidth.unit));
+      }
+    };
+
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowWidthModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-80 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${widthModalPosition.top}px`,
+            left: `${widthModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Width</h3>
+            <button
+              type="button"
+              onClick={() => setShowWidthModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust width. Supports px, %, or "auto".
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Width:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDecrement(1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="text"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={widthValue}
+                    onChange={(e) => setWidthValue(e.target.value)}
+                    placeholder="e.g., 100px, 50%, auto"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleIncrement(1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDecrement(10)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleIncrement(10)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {['auto', '50%', '100%', '200px', '300px'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setWidthValue(preset)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        widthValue === preset
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowWidthModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleWidthSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Width
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Font Size Editor Modal Component (always rendered)
+  const FontSizeModal = () => {
+    if (!showFontSizeModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowFontSizeModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${fontSizeModalPosition.top}px`,
+            left: `${fontSizeModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Font Size</h3>
+            <button
+              type="button"
+              onClick={() => setShowFontSizeModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust font size. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Font Size:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFontSizeValue(prev => Math.max(1, prev - 1))}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={fontSizeValue}
+                    onChange={(e) => setFontSizeValue(Math.max(1, parseFloat(e.target.value) || 12))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFontSizeValue(prev => prev + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFontSizeValue(prev => Math.max(1, prev - 2))}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFontSizeValue(prev => prev + 2)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +2
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setFontSizeValue(size)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        fontSizeValue === size
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {size}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFontSizeModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleFontSizeSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Font Size
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Table Padding Editor Modal Component (always rendered)
+  const TablePaddingModal = () => {
+    if (!showTablePaddingModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowTablePaddingModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${tablePaddingModalPosition.top}px`,
+            left: `${tablePaddingModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Table Padding</h3>
+            <button
+              type="button"
+              onClick={() => setShowTablePaddingModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust cell padding. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Padding:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTablePaddingValue(prev => Math.max(0, prev - 1))}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={tablePaddingValue}
+                    onChange={(e) => setTablePaddingValue(Math.max(0, parseFloat(e.target.value) || 10))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTablePaddingValue(prev => prev + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTablePaddingValue(prev => Math.max(0, prev - 5))}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -5
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTablePaddingValue(prev => prev + 5)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +5
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[0, 5, 10, 15, 20].map((padding) => (
+                    <button
+                      key={padding}
+                      type="button"
+                      onClick={() => setTablePaddingValue(padding)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        tablePaddingValue === padding
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {padding}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowTablePaddingModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleTablePaddingSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Padding
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Table Font Size Editor Modal Component (always rendered)
+  const TableFontSizeModal = () => {
+    if (!showTableFontSizeModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowTableFontSizeModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${tableFontSizeModalPosition.top}px`,
+            left: `${tableFontSizeModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Table Font Size</h3>
+            <button
+              type="button"
+              onClick={() => setShowTableFontSizeModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust font size. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Font Size:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTableFontSizeValue(prev => prev ? Math.max(1, prev - 1) : 12)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={tableFontSizeValue || ''}
+                    onChange={(e) => setTableFontSizeValue(e.target.value ? Math.max(1, parseFloat(e.target.value) || 12) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTableFontSizeValue(prev => (prev || 12) + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableFontSizeValue(prev => prev ? Math.max(1, prev - 2) : 12)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableFontSizeValue(prev => (prev || 12) + 2)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +2
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[8, 10, 12, 14, 16, 18, 20].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setTableFontSizeValue(size)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        (tableFontSizeValue ?? 0) === size
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {size}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowTableFontSizeModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleTableFontSizeSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Font Size
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Table Width Editor Modal Component (always rendered)
+  const TableWidthModal = () => {
+    if (!showTableWidthModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowTableWidthModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${tableWidthModalPosition.top}px`,
+            left: `${tableWidthModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Table Width</h3>
+            <button
+              type="button"
+              onClick={() => setShowTableWidthModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust table width. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Width:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTableWidthValue(prev => prev ? Math.max(100, prev - 10) : 100)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="100"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={tableWidthValue || ''}
+                    onChange={(e) => setTableWidthValue(e.target.value ? Math.max(100, parseFloat(e.target.value) || 100) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTableWidthValue(prev => (prev || 100) + 10)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableWidthValue(prev => prev ? Math.max(100, prev - 50) : 100)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -50
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableWidthValue(prev => (prev || 100) + 50)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +50
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[100, 200, 300, 400, 500, 600].map((width) => (
+                    <button
+                      key={width}
+                      type="button"
+                      onClick={() => setTableWidthValue(width)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        tableWidthValue === width
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {width}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowTableWidthModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleTableWidthSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Width
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Column Binding Editor Modal Component (always rendered)
+  const ColumnBindingModal = () => {
+    if (!showColumnBindingModal) return null;
+    
+    const availableFields = getAvailableFields();
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowColumnBindingModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-96 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${columnBindingModalPosition.top}px`,
+            left: `${columnBindingModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Column Binding</h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnBindingModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">Binding Path:</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={columnBindingValue}
+                onChange={(e) => setColumnBindingValue(e.target.value)}
+                placeholder="e.g., items.rate, header.BillNo"
+              />
+            </div>
+            {(availableFields.header.length > 0 || Object.keys(availableFields.contentDetails).length > 0) && (
+              <div>
+                <strong className="text-sm text-white block mb-2">Available Fields:</strong>
+                {availableFields.header.length > 0 && (
+                  <div className="mb-4">
+                    <strong className="text-xs text-white text-opacity-80 block mb-2">Header:</strong>
+                    <div className="flex flex-wrap gap-2">
+                      {availableFields.header.map(fieldName => (
+                        <button
+                          key={fieldName}
+                          type="button"
+                          onClick={() => {
+                            setColumnBindingValue(fieldName);
+                            setShowColumnBindingModal(false);
+                            if (columnBindingUpdateCallback) {
+                              columnBindingUpdateCallback(fieldName);
+                            }
+                          }}
+                          className="text-sm px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md cursor-pointer text-white hover:bg-opacity-20 hover:border-opacity-30 transition-colors"
+                        >
+                          {fieldName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {Object.keys(availableFields.contentDetails).map(contentName => {
+                  const contentFields = availableFields.contentDetails[contentName];
+                  if (!contentFields || !Array.isArray(contentFields)) return null;
+                  return (
+                    <div key={contentName} className="mb-4">
+                      <strong className="text-xs text-white text-opacity-80 block mb-2">contentDetails.{contentName}:</strong>
+                      <div className="flex flex-wrap gap-2">
+                        {contentFields.map((fieldName: string) => (
+                        <button
+                          key={fieldName}
+                          type="button"
+                          onClick={() => {
+                            setColumnBindingValue(`contentDetails.${contentName}.${fieldName}`);
+                            setShowColumnBindingModal(false);
+                            if (columnBindingUpdateCallback) {
+                              columnBindingUpdateCallback(`contentDetails.${contentName}.${fieldName}`);
+                            }
+                          }}
+                          className="text-sm px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md cursor-pointer text-white hover:bg-opacity-20 hover:border-opacity-30 transition-colors"
+                        >
+                          {fieldName}
+                        </button>
+                      ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowColumnBindingModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleColumnBindingSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Binding
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Column Width Editor Modal Component (always rendered)
+  const ColumnWidthModal = () => {
+    if (!showColumnWidthModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowColumnWidthModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${columnWidthModalPosition.top}px`,
+            left: `${columnWidthModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Column Width</h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnWidthModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust column width. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Width:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setColumnWidthValue(prev => prev ? Math.max(0, prev - 1) : 0)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={columnWidthValue || ''}
+                    onChange={(e) => setColumnWidthValue(e.target.value ? Math.max(0, parseFloat(e.target.value) || 0) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setColumnWidthValue(prev => (prev || 0) + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColumnWidthValue(prev => prev ? Math.max(0, prev - 10) : 0)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColumnWidthValue(prev => (prev || 0) + 10)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[50, 100, 150, 200, 250, 300].map((width) => (
+                    <button
+                      key={width}
+                      type="button"
+                      onClick={() => setColumnWidthValue(width)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        columnWidthValue === width
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {width}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowColumnWidthModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleColumnWidthSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Width
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Column Height Editor Modal Component (always rendered)
+  const ColumnHeightModal = () => {
+    if (!showColumnHeightModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowColumnHeightModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${columnHeightModalPosition.top}px`,
+            left: `${columnHeightModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Column Height</h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnHeightModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust column height. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Height:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setColumnHeightValue(prev => prev ? Math.max(0, prev - 1) : 0)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={columnHeightValue || ''}
+                    onChange={(e) => setColumnHeightValue(e.target.value ? Math.max(0, parseFloat(e.target.value) || 0) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setColumnHeightValue(prev => (prev || 0) + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColumnHeightValue(prev => prev ? Math.max(0, prev - 10) : 0)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    -10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColumnHeightValue(prev => (prev || 0) + 10)}
+                    className="px-2 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white text-sm hover:bg-opacity-20 transition-colors"
+                  >
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[20, 30, 40, 50, 60, 80].map((height) => (
+                    <button
+                      key={height}
+                      type="button"
+                      onClick={() => setColumnHeightValue(height)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        columnHeightValue === height
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {height}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowColumnHeightModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleColumnHeightSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Height
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Column Row Span Editor Modal Component (always rendered)
+  const ColumnRowSpanModal = () => {
+    if (!showColumnRowSpanModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowColumnRowSpanModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${columnRowSpanModalPosition.top}px`,
+            left: `${columnRowSpanModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Row Span</h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnRowSpanModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust row span. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Row Span:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setColumnRowSpanValue(prev => prev ? Math.max(1, prev - 1) : 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={columnRowSpanValue || 1}
+                    onChange={(e) => setColumnRowSpanValue(e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setColumnRowSpanValue(prev => (prev || 1) + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((span) => (
+                    <button
+                      key={span}
+                      type="button"
+                      onClick={() => setColumnRowSpanValue(span)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        columnRowSpanValue === span
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {span}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowColumnRowSpanModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleColumnRowSpanSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Row Span
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Column Col Span Editor Modal Component (always rendered)
+  const ColumnColSpanModal = () => {
+    if (!showColumnColSpanModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowColumnColSpanModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${columnColSpanModalPosition.top}px`,
+            left: `${columnColSpanModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Column Span</h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnColSpanModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust column span. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Column Span:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setColumnColSpanValue(prev => prev ? Math.max(1, prev - 1) : 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={columnColSpanValue || 1}
+                    onChange={(e) => setColumnColSpanValue(e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setColumnColSpanValue(prev => (prev || 1) + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((span) => (
+                    <button
+                      key={span}
+                      type="button"
+                      onClick={() => setColumnColSpanValue(span)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        columnColSpanValue === span
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {span}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowColumnColSpanModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleColumnColSpanSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Column Span
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Column Calculation Editor Modal Component (always rendered)
+  const ColumnCalculationModal = () => {
+    if (!showColumnCalculationModal) return null;
+    
+    const availableSources = getAvailableDataSources();
+    const selectedSource = availableSources.find(s => s.path === columnCalculationSource);
+    const availableFieldsForSource = selectedSource?.fields || [];
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowColumnCalculationModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-[500px] max-h-[75vh] flex flex-col"
+          style={{
+            top: `${columnCalculationModalPosition.top}px`,
+            left: `${columnCalculationModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Data Manipulation</h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnCalculationModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Select calculation type and choose data from available sources.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Calculation Type:</label>
+                <select
+                  className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={columnCalculationValue}
+                  onChange={(e) => {
+                    setColumnCalculationValue(e.target.value);
+                    // Clear fields when changing calculation type
+                    if (e.target.value === 'none' || e.target.value === 'custom') {
+                      setColumnCalculationSource('');
+                      setColumnCalculationField('');
+                    }
+                  }}
+                >
+                  <option value="none" className="bg-black">None</option>
+                  <option value="sum" className="bg-black">Sum</option>
+                  <option value="avg" className="bg-black">Average</option>
+                  <option value="count" className="bg-black">Count</option>
+                  <option value="min" className="bg-black">Min</option>
+                  <option value="max" className="bg-black">Max</option>
+                  <option value="custom" className="bg-black">Custom Formula</option>
+                </select>
+                {columnCalculationValue !== 'none' && columnCalculationValue !== 'custom' && (
+                  <p className="text-xs text-white text-opacity-60 mt-1">
+                    {columnCalculationValue === 'sum' && 'Add all values together'}
+                    {columnCalculationValue === 'avg' && 'Calculate the average value'}
+                    {columnCalculationValue === 'count' && 'Count the number of items'}
+                    {columnCalculationValue === 'min' && 'Find the smallest value'}
+                    {columnCalculationValue === 'max' && 'Find the largest value'}
+                  </p>
+                )}
+              </div>
+              {columnCalculationValue !== 'none' && columnCalculationValue !== 'custom' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Select Data Source:</label>
+                    {availableSources.length > 0 ? (
+                      <select
+                        className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={columnCalculationSource}
+                        onChange={(e) => {
+                          setColumnCalculationSource(e.target.value);
+                          // Clear field when changing source
+                          setColumnCalculationField('');
+                        }}
+                      >
+                        <option value="" className="bg-black">-- Select a data source --</option>
+                        {availableSources.map(source => (
+                          <option key={source.path} value={source.path} className="bg-black">
+                            {source.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full px-3 py-2 bg-white bg-opacity-5 border border-white border-opacity-10 rounded-md text-white text-opacity-60">
+                        <p className="text-sm">No data sources available. Please ensure sample data is loaded.</p>
+                        <input
+                          type="text"
+                          className="w-full mt-2 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-white placeholder-opacity-50"
+                          value={columnCalculationSource}
+                          onChange={(e) => setColumnCalculationSource(e.target.value)}
+                          placeholder="Enter source path manually (e.g., items, contentDetails.items)"
+                        />
+                      </div>
+                    )}
+                    {columnCalculationSource && (
+                      <p className="text-xs text-white text-opacity-60 mt-1">
+                        Selected: <code className="bg-white bg-opacity-10 px-1 rounded">{columnCalculationSource}</code>
+                      </p>
+                    )}
+                  </div>
+                  {columnCalculationSource && (
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">Select Field to Calculate:</label>
+                      {availableFieldsForSource.length > 0 ? (
+                        <>
+                          <select
+                            className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={columnCalculationField}
+                            onChange={(e) => setColumnCalculationField(e.target.value)}
+                          >
+                            <option value="" className="bg-black">-- Select a field --</option>
+                            {availableFieldsForSource.map(field => (
+                              <option key={field} value={field} className="bg-black">
+                                {field}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="mt-2 p-2 bg-white bg-opacity-5 rounded-md">
+                            <p className="text-xs text-white text-opacity-70 mb-1">Available fields:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {availableFieldsForSource.map(field => (
+                                <button
+                                  key={field}
+                                  type="button"
+                                  onClick={() => setColumnCalculationField(field)}
+                                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                                    columnCalculationField === field
+                                      ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                                      : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                                  }`}
+                                >
+                                  {field}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-white placeholder-opacity-50"
+                          value={columnCalculationField}
+                          onChange={(e) => setColumnCalculationField(e.target.value)}
+                          placeholder="Enter field name manually (e.g., rate, price)"
+                        />
+                      )}
+                      {columnCalculationField && (
+                        <p className="text-xs text-white text-opacity-60 mt-1">
+                          Will calculate <strong>{columnCalculationValue}</strong> of <code className="bg-white bg-opacity-10 px-1 rounded">{columnCalculationField}</code> from <code className="bg-white bg-opacity-10 px-1 rounded">{columnCalculationSource}</code>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+              {columnCalculationValue === 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Custom Formula:</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-white placeholder-opacity-50 font-mono text-sm"
+                    value={columnCalculationFormula}
+                    onChange={(e) => setColumnCalculationFormula(e.target.value)}
+                    placeholder="e.g., sum(items.rate) * header.exchangeRate"
+                  />
+                  <p className="text-xs text-white text-opacity-60 mt-1">
+                    For advanced users only. Use field paths like <code className="bg-white bg-opacity-10 px-1 rounded">items.rate</code> or <code className="bg-white bg-opacity-10 px-1 rounded">header.exchangeRate</code>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowColumnCalculationModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleColumnCalculationSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Calculation
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Final Row Cell Col Span Editor Modal Component (always rendered)
+  const FinalRowColSpanModal = () => {
+    if (!showFinalRowColSpanModal) return null;
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowFinalRowColSpanModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-72 max-h-[60vh] flex flex-col"
+          style={{
+            top: `${finalRowColSpanModalPosition.top}px`,
+            left: `${finalRowColSpanModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Edit Column Span</h3>
+            <button
+              type="button"
+              onClick={() => setShowFinalRowColSpanModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Adjust column span. Use buttons for fine adjustments or type directly.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Column Span:</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFinalRowColSpanValue(prev => prev ? Math.max(1, prev - 1) : 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    className="flex-1 px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={finalRowColSpanValue || 1}
+                    onChange={(e) => setFinalRowColSpanValue(e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFinalRowColSpanValue(prev => (prev || 1) + 1)}
+                    className="px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white hover:bg-opacity-20 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Quick Presets:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((span) => (
+                    <button
+                      key={span}
+                      type="button"
+                      onClick={() => setFinalRowColSpanValue(span)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        finalRowColSpanValue === span
+                          ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                          : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                      }`}
+                    >
+                      {span}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFinalRowColSpanModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleFinalRowColSpanSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Column Span
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Final Row Cell Calculation Source Editor Modal Component (always rendered)
+  const FinalRowCalculationSourceModal = () => {
+    if (!showFinalRowCalculationSourceModal) return null;
+    
+    const availableSources = getAvailableDataSources();
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowFinalRowCalculationSourceModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-[500px] max-h-[70vh] flex flex-col"
+          style={{
+            top: `${finalRowCalculationSourceModalPosition.top}px`,
+            left: `${finalRowCalculationSourceModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Select Data Source</h3>
+            <button
+              type="button"
+              onClick={() => setShowFinalRowCalculationSourceModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Select the data source (table/array) to use for calculation.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Data Source:</label>
+                {availableSources.length > 0 ? (
+                  <select
+                    className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={finalRowCalculationSourceValue}
+                    onChange={(e) => setFinalRowCalculationSourceValue(e.target.value)}
+                  >
+                    <option value="" className="bg-black">-- Select a data source --</option>
+                    {availableSources.map(source => (
+                      <option key={source.path} value={source.path} className="bg-black">
+                        {source.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-white placeholder-opacity-50"
+                    value={finalRowCalculationSourceValue}
+                    onChange={(e) => setFinalRowCalculationSourceValue(e.target.value)}
+                    placeholder="Enter source path manually (e.g., items, contentDetails.items)"
+                  />
+                )}
+                {finalRowCalculationSourceValue && (
+                  <p className="text-xs text-white text-opacity-60 mt-1">
+                    Selected: <code className="bg-white bg-opacity-10 px-1 rounded">{finalRowCalculationSourceValue}</code>
+                  </p>
+                )}
+              </div>
+              {availableSources.length > 0 && (
+                <div>
+                  <strong className="text-sm text-white block mb-2">Available Sources:</strong>
+                  <div className="flex flex-wrap gap-2">
+                    {availableSources.map(source => (
+                      <button
+                        key={source.path}
+                        type="button"
+                        onClick={() => {
+                          setFinalRowCalculationSourceValue(source.path);
+                          setShowFinalRowCalculationSourceModal(false);
+                          if (finalRowCalculationSourceUpdateCallback) {
+                            finalRowCalculationSourceUpdateCallback(source.path);
+                          }
+                        }}
+                        className={`text-sm px-3 py-2 rounded-md transition-colors ${
+                          finalRowCalculationSourceValue === source.path
+                            ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                            : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                        }`}
+                      >
+                        {source.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFinalRowCalculationSourceModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleFinalRowCalculationSourceSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Source
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  // Final Row Cell Calculation Field Editor Modal Component (always rendered)
+  const FinalRowCalculationFieldModal = () => {
+    if (!showFinalRowCalculationFieldModal) return null;
+    
+    const availableSources = getAvailableDataSources();
+    const selectedSource = availableSources.find(s => s.path === finalRowCalculationSourceForField);
+    const availableFieldsForSource = selectedSource?.fields || [];
+    
+    return (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70"
+          onClick={() => setShowFinalRowCalculationFieldModal(false)}
+        />
+        {/* Modal positioned near input */}
+        <div 
+          className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-96 max-h-[70vh] flex flex-col"
+          style={{
+            top: `${finalRowCalculationFieldModalPosition.top}px`,
+            left: `${finalRowCalculationFieldModalPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+            <h3 className="text-lg font-semibold text-white">Select Field</h3>
+            <button
+              type="button"
+              onClick={() => setShowFinalRowCalculationFieldModal(false)}
+              className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            <p className="text-sm text-white text-opacity-80 mb-4">
+              Select the field to calculate from {finalRowCalculationSourceForField || 'selected source'}.
+            </p>
+            <div className="space-y-4">
+              {finalRowCalculationSourceForField && availableFieldsForSource.length > 0 ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Field:</label>
+                    <select
+                      className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={finalRowCalculationFieldValue}
+                      onChange={(e) => setFinalRowCalculationFieldValue(e.target.value)}
+                    >
+                      <option value="" className="bg-black">-- Select a field --</option>
+                      {availableFieldsForSource.map(field => (
+                        <option key={field} value={field} className="bg-black">
+                          {field}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="p-2 bg-white bg-opacity-5 rounded-md">
+                    <p className="text-xs text-white text-opacity-70 mb-2">Available fields:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableFieldsForSource.map(field => (
+                        <button
+                          key={field}
+                          type="button"
+                          onClick={() => {
+                            setFinalRowCalculationFieldValue(field);
+                            setShowFinalRowCalculationFieldModal(false);
+                            if (finalRowCalculationFieldUpdateCallback) {
+                              finalRowCalculationFieldUpdateCallback(field);
+                            }
+                          }}
+                          className={`text-xs px-2 py-1 rounded transition-colors ${
+                            finalRowCalculationFieldValue === field
+                              ? 'bg-white bg-opacity-30 border border-white border-opacity-40 text-white'
+                              : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20'
+                          }`}
+                        >
+                          {field}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Field:</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-white placeholder-opacity-50"
+                    value={finalRowCalculationFieldValue}
+                    onChange={(e) => setFinalRowCalculationFieldValue(e.target.value)}
+                    placeholder="Enter field name manually (e.g., rate, price)"
+                  />
+                  {!finalRowCalculationSourceForField && (
+                    <p className="text-xs text-white text-opacity-60 mt-1">
+                      Please select a data source first to see available fields.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="p-4 border-t border-white border-opacity-20 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFinalRowCalculationFieldModal(false)}
+              className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleFinalRowCalculationFieldSave}
+              className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-md hover:bg-opacity-30 transition-colors border border-white border-opacity-20"
+            >
+              Save Field
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   if (!selectedElement) {
     return (
+      <>
       <div className="property-panel">
         {onUpdatePage && (
           <div className="property-group">
@@ -185,6 +2765,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <ActionBar />
       </div>
+        <PositionModal />
+        <WidthModal />
+        <FontSizeModal />
+      </>
     );
   }
 
@@ -194,6 +2778,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const section = selectedElement.section || 'header';
 
     return (
+      <>
       <div className="property-panel">
         <div className="property-group">
           <h4>Info</h4>
@@ -203,22 +2788,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <div className="property-group">
           <h4>Position</h4>
-          <label>
-            X:
+          <div className="flex gap-2">
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">X:</span>
+              <div className="relative">
             <input
+                  ref={positionXInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={image.x}
               onChange={(e) => onUpdateImage(selectedElement.index, { x: parseFloat(e.target.value) || 0 }, section)}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(image.x, image.y, (x, y) => {
+                    onUpdateImage(selectedElement.index, { x, y }, section);
+                  }, positionXInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
-          <label>
-            Y:
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">Y:</span>
+              <div className="relative">
             <input
+                  ref={positionYInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={image.y}
               onChange={(e) => onUpdateImage(selectedElement.index, { y: parseFloat(e.target.value) || 0 }, section)}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(image.x, image.y, (x, y) => {
+                    onUpdateImage(selectedElement.index, { x, y }, section);
+                  }, positionYInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
+          </div>
         </div>
         <div className="property-group">
           <h4>Size</h4>
@@ -264,6 +2879,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <ActionBar />
       </div>
+        <PositionModal />
+        <WidthModal />
+        <FontSizeModal />
+      </>
     );
   }
 
@@ -272,87 +2891,433 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     if (!field) return null;
     const section = selectedElement.section || 'header';
     const isPageSection = section === 'pageHeader' || section === 'pageFooter';
+    const hasBind = field.bind && field.bind.trim() !== '';
+    const bindValidation = validateBindPath(field.bind || '');
+    const availableFields = getAvailableFields();
 
     return (
+      <>
       <div className="property-panel">
         <div className="property-group">
           <h4>Info</h4>
-          <label>
-            Section: <strong>{section === 'pageHeader' ? 'Page Header' : section === 'pageFooter' ? 'Page Footer' : section === 'billFooter' ? 'Bill Footer' : section === 'billContent' ? 'Bill Content' : 'Bill Header'}</strong>
+            <label className="block">
+              <span className="text-sm font-medium">Section: </span>
+              <strong className="text-sm">{section === 'pageHeader' ? 'Page Header' : section === 'pageFooter' ? 'Page Footer' : section === 'billFooter' ? 'Bill Footer' : section === 'billContent' ? 'Bill Content' : 'Bill Header'}</strong>
           </label>
         </div>
         <div className="property-group">
           <h4>Field</h4>
-          <label>
-            Type:
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Type:</span>
             <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={field.fieldType || 'text'}
-              onChange={(e) => onUpdateField(selectedElement.index, { fieldType: e.target.value === 'text' ? undefined : e.target.value as any }, section)}
+              onChange={(e) => {
+                const newFieldType = e.target.value === 'text' ? undefined : e.target.value as any;
+                // If setting to static type, clear bind; if setting to text and has bind, keep bind
+                const updates: Partial<TextFieldConfig> = { fieldType: newFieldType };
+                if (newFieldType && newFieldType !== 'text') {
+                  updates.bind = ''; // Clear bind for static types
+                }
+                onUpdateField(selectedElement.index, updates, section);
+              }}
             >
               <option value="text">Text</option>
-              {isPageSection && (
+              {/* Hide static-only options when field has bind */}
+              {!hasBind && isPageSection && (
                 <>
                   <option value="pageNumber">Page #</option>
                   <option value="totalPages">Total Pages</option>
                 </>
               )}
+              {!hasBind && (
+                <>
               <option value="currentDate">Date</option>
               <option value="currentTime">Time</option>
+                </>
+              )}
             </select>
           </label>
-          <label>
-            Label:
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Label:</span>
             <input
               type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={field.label}
               onChange={(e) => onUpdateField(selectedElement.index, { label: e.target.value }, section)}
             />
           </label>
-          {field.fieldType === 'text' && (
-            <label>
-              Binding:
+          {/* Always show binding for text fields (fieldType === 'text' or undefined) */}
+          {(field.fieldType === 'text' || !field.fieldType) && (
+            <label className="block mb-2">
+              <span className="block text-sm font-medium mb-1">Data Binding:</span>
               <input
+                ref={dataBindingInputRef}
                 type="text"
-                value={field.bind}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  bindValidation.valid ? 'border-gray-300' : 'border-red-500'
+                }`}
+                value={field.bind || ''}
                 onChange={(e) => onUpdateField(selectedElement.index, { bind: e.target.value }, section)}
-                placeholder="header.Field"
+                placeholder="header.Field or contentDetails.name.field"
               />
+              {!bindValidation.valid && bindValidation.error && (
+                <div className="mt-1 text-xs text-red-600 p-1 bg-yellow-100 rounded">
+                  ⚠ {bindValidation.error}
+                </div>
+              )}
+              {bindValidation.valid && field.bind && field.bind.trim() && (
+                <div className="mt-1 text-xs text-green-600 p-1 bg-green-50 rounded">
+                  ✓ Binding valid
+                </div>
+              )}
+              {(availableFields.header.length > 0 || Object.keys(availableFields.contentDetails).length > 0) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dataBindingInputRef.current) {
+                        const rect = dataBindingInputRef.current.getBoundingClientRect();
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+                        const modalWidth = 384; // w-96 = 384px
+                        const modalHeight = Math.min(480, viewportHeight * 0.6); // max-h-[60vh]
+                        
+                        // Calculate position: below the input field
+                        let top = rect.bottom + 8;
+                        let left = rect.left;
+                        
+                        // Adjust if modal would go off right edge
+                        if (left + modalWidth > viewportWidth) {
+                          left = viewportWidth - modalWidth - 16; // 16px padding from edge
+                        }
+                        
+                        // Adjust if modal would go off left edge
+                        if (left < 16) {
+                          left = 16;
+                        }
+                        
+                        // Adjust if modal would go off bottom edge
+                        if (top + modalHeight > viewportHeight) {
+                          // Position above input instead
+                          top = rect.top - modalHeight - 8;
+                          // If still off screen, position at top
+                          if (top < 16) {
+                            top = 16;
+                          }
+                        }
+                        
+                        setModalPosition({ top, left });
+                      }
+                      setShowFieldsModal(true);
+                    }}
+                    className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer underline"
+                  >
+                    Available Fields
+                  </button>
+                  
+                  {/* Available Fields Modal */}
+                  {showFieldsModal && (
+                    <>
+                      {/* Backdrop */}
+                      <div 
+                        className="fixed inset-0 z-50 bg-black bg-opacity-70"
+                        onClick={() => setShowFieldsModal(false)}
+                      />
+                      {/* Modal positioned near input */}
+                      <div 
+                        className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-96 max-h-[60vh] flex flex-col"
+                        style={{
+                          top: `${modalPosition.top}px`,
+                          left: `${modalPosition.left}px`,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+                          <h3 className="text-lg font-semibold text-white">Available Fields</h3>
+                          <button
+                            type="button"
+                            onClick={() => setShowFieldsModal(false)}
+                            className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+                            aria-label="Close"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        
+                        {/* Modal Content */}
+                        <div className="p-4 overflow-y-auto flex-1">
+                          {availableFields.header.length > 0 && (
+                            <div className="mb-4">
+                              <strong className="text-sm text-white block mb-2">Header:</strong>
+                              <div className="flex flex-wrap gap-2">
+                                {availableFields.header.map(fieldName => (
+                                  <button
+                                    key={fieldName}
+                                    type="button"
+                                    onClick={() => {
+                                      onUpdateField(selectedElement.index, { bind: fieldName }, section);
+                                      setShowFieldsModal(false);
+                                    }}
+                                    className="text-sm px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md cursor-pointer text-white hover:bg-opacity-20 hover:border-opacity-30 transition-colors"
+                                    title={`Click to bind to ${fieldName}`}
+                                  >
+                                    {fieldName}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {Object.keys(availableFields.contentDetails).length > 0 && (
+                            <div>
+                              <strong className="text-sm text-white block mb-2">Content Details:</strong>
+                              {Object.keys(availableFields.contentDetails).map(contentName => (
+                                <div key={contentName} className="mb-4">
+                                  <div className="text-sm font-medium text-white text-opacity-80 mb-2">
+                                    {contentName}:
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {availableFields.contentDetails[contentName].map(fieldName => (
+                                      <button
+                                        key={fieldName}
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateField(selectedElement.index, { bind: `contentDetails.${contentName}.${fieldName}` }, section);
+                                          setShowFieldsModal(false);
+                                        }}
+                                        className="text-sm px-3 py-2 bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md cursor-pointer text-white hover:bg-opacity-20 hover:border-opacity-30 transition-colors"
+                                        title={`Click to bind to contentDetails.${contentName}.${fieldName}`}
+                                      >
+                                        {fieldName}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Modal Footer */}
+                        <div className="p-4 border-t border-white border-opacity-20 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setShowFieldsModal(false)}
+                            className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+              <div className="mt-1 text-xs text-gray-500 italic">
+                Format: header.FieldName, contentDetails.name.field, or direct field name
+              </div>
             </label>
           )}
+          {/* Show static value input for non-bound fields or when bind is empty */}
+          {/* {(!field.bind || field.bind.trim() === '' || field.fieldType !== 'text') && (
+            <label className="block mb-2">
+              <span className="block text-sm font-medium mb-1">Static Value:</span>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={field.value || ''}
+                onChange={(e) => onUpdateField(selectedElement.index, { value: e.target.value }, section)}
+                placeholder="Enter static text value"
+              />
+              <div className="mt-1 text-xs text-gray-500 italic">
+                Used when field is not bound to data
+              </div>
+            </label>
+          )} */}
         </div>
         <div className="property-group">
           <h4>Position</h4>
-          <label>
-            X:
+          <div className="flex gap-2 mb-2">
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">X:</span>
+              <div className="relative">
             <input
+                  ref={positionXInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={field.x}
               onChange={(e) => onUpdateField(selectedElement.index, { x: parseFloat(e.target.value) || 0 }, section)}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(field.x, field.y, (x, y) => {
+                    onUpdateField(selectedElement.index, { x, y }, section);
+                  }, positionXInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
-          <label>
-            Y:
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">Y:</span>
+              <div className="relative">
             <input
+                  ref={positionYInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={field.y}
               onChange={(e) => onUpdateField(selectedElement.index, { y: parseFloat(e.target.value) || 0 }, section)}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(field.x, field.y, (x, y) => {
+                    onUpdateField(selectedElement.index, { x, y }, section);
+                  }, positionYInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
+            </label>
+          </div>
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Width:</span>
+            <div className="relative">
+              <input
+                ref={widthInputRef}
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                value={field.width || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  // Allow empty, numeric (px), percentage, or "auto"
+                  onUpdateField(selectedElement.index, { width: value || undefined }, section);
+                }}
+                placeholder="e.g., 100, 50%, auto"
+                title="Width in px (numeric), % (percentage), or 'auto'"
+              />
+              <button
+                type="button"
+                onClick={() => openWidthModal(field.width || '', (value) => {
+                  onUpdateField(selectedElement.index, { width: value || undefined }, section);
+                }, widthInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open width editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
         </div>
         <div className="property-group">
           <h4>Font</h4>
-          <label>
-            Size:
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Family:</span>
+            <div className="relative">
             <input
+                ref={fontInputRef}
+                type="text"
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer bg-white"
+                value={field.fontFamily || 'Helvetica'}
+                onClick={() => {
+                  if (fontInputRef.current) {
+                    const rect = fontInputRef.current.getBoundingClientRect();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const modalWidth = 300;
+                    const modalHeight = Math.min(400, viewportHeight * 0.6);
+                    
+                    let top = rect.bottom + 8;
+                    let left = rect.left;
+                    
+                    if (left + modalWidth > viewportWidth) {
+                      left = viewportWidth - modalWidth - 16;
+                    }
+                    if (left < 16) {
+                      left = 16;
+                    }
+                    if (top + modalHeight > viewportHeight) {
+                      top = rect.top - modalHeight - 8;
+                      if (top < 16) {
+                        top = 16;
+                      }
+                    }
+                    
+                    setFontModalPosition({ top, left });
+                  }
+                  setShowFontModal(true);
+                }}
+                placeholder="Select font"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (fontInputRef.current) {
+                    const rect = fontInputRef.current.getBoundingClientRect();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const modalWidth = 300;
+                    const modalHeight = Math.min(400, viewportHeight * 0.6);
+                    
+                    let top = rect.bottom + 8;
+                    let left = rect.left;
+                    
+                    if (left + modalWidth > viewportWidth) {
+                      left = viewportWidth - modalWidth - 16;
+                    }
+                    if (left < 16) {
+                      left = 16;
+                    }
+                    if (top + modalHeight > viewportHeight) {
+                      top = rect.top - modalHeight - 8;
+                      if (top < 16) {
+                        top = 16;
+                      }
+                    }
+                    
+                    setFontModalPosition({ top, left });
+                  }
+                  setShowFontModal(true);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Open font selector"
+              >
+                ▼
+              </button>
+            </div>
+          </label>
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Size:</span>
+            <div className="relative">
+              <input
+                ref={fontSizeInputRef}
               type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={field.fontSize || ''}
               onChange={(e) => onUpdateField(selectedElement.index, { fontSize: parseFloat(e.target.value) || undefined }, section)}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openFontSizeModal(field.fontSize, (value) => {
+                  onUpdateField(selectedElement.index, { fontSize: value }, section);
+                }, fontSizeInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open font size editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
-          <label>
-            Weight:
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Weight:</span>
             <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={field.fontWeight || ''}
               onChange={(e) => onUpdateField(selectedElement.index, { fontWeight: e.target.value || undefined }, section)}
             >
@@ -361,28 +3326,120 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               <option value="bold">Bold</option>
             </select>
           </label>
-          <label>
-            Color:
+          <label className="block mb-2">
+            <span className="block text-sm font-medium mb-1">Color:</span>
+            <div className="flex items-center gap-2">
             <input
               type="color"
+                className="h-10 w-20 border border-gray-300 rounded cursor-pointer"
               value={field.color || '#000000'}
               onChange={(e) => onUpdateField(selectedElement.index, { color: e.target.value }, section)}
             />
+              <input
+                type="text"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={field.color || '#000000'}
+                onChange={(e) => onUpdateField(selectedElement.index, { color: e.target.value }, section)}
+                placeholder="#000000"
+              />
+            </div>
           </label>
+          
+          {/* Font Selection Modal */}
+          {showFontModal && (
+            <>
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 z-50 bg-black bg-opacity-70"
+                onClick={() => setShowFontModal(false)}
+              />
+              {/* Modal positioned near input */}
+              <div 
+                className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-80 max-h-[60vh] flex flex-col"
+                style={{
+                  top: `${fontModalPosition.top}px`,
+                  left: `${fontModalPosition.left}px`,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+                  <h3 className="text-lg font-semibold text-white">Select Font</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowFontModal(false)}
+                    className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                {/* Modal Content */}
+                <div className="p-4 overflow-y-auto flex-1">
+                  <div className="space-y-1">
+                    {availableFonts.map((font) => (
+                      <button
+                        key={font.name}
+                        type="button"
+                        onClick={() => {
+                          onUpdateField(selectedElement.index, { fontFamily: font.name }, section);
+                          setShowFontModal(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+                          (field.fontFamily || 'Helvetica') === font.name
+                            ? 'bg-white bg-opacity-20 border border-white border-opacity-30 text-white'
+                            : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20 hover:border-opacity-30'
+                        }`}
+                        style={{ fontFamily: font.name.replace('-Bold', '') }}
+                      >
+                        {font.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Modal Footer */}
+                <div className="p-4 border-t border-white border-opacity-20 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowFontModal(false)}
+                    className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <div className="property-group">
           <h4>Options</h4>
-          <label>
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               checked={field.visible}
               onChange={(e) => onUpdateField(selectedElement.index, { visible: e.target.checked }, section)}
             />
-            Visible
+            <span className="text-sm font-medium">Visible</span>
           </label>
         </div>
         <ActionBar />
       </div>
+        <PositionModal />
+        <WidthModal />
+        <FontSizeModal />
+        <TablePaddingModal />
+        <TableFontSizeModal />
+        <TableWidthModal />
+        <ColumnBindingModal />
+        <ColumnWidthModal />
+        <ColumnHeightModal />
+        <ColumnRowSpanModal />
+        <ColumnColSpanModal />
+        <ColumnCalculationModal />
+      </>
     );
   }
 
@@ -390,7 +3447,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const table = template.contentDetailsTables[selectedElement.index];
     if (!table) return null;
     
-    const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set());
+    const selectedColumns = contentDetailTableSelectedColumns;
+    const setSelectedColumns = setContentDetailTableSelectedColumns;
 
     const updateColumn = (index: number, updates: Partial<TableColumnConfig>) => {
       const newColumns = table.columns.map((col, i) =>
@@ -424,6 +3482,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     };
 
     return (
+      <>
       <div className="property-panel">
         <div className="property-group">
           <h4>Content Detail Table: {table.contentName}</h4>
@@ -483,22 +3542,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <div className="property-group">
           <h4>Position</h4>
-          <label>
-            X:
+          <div className="flex gap-2">
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">X:</span>
+              <div className="relative">
             <input
+                  ref={positionXInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={table.x || 0}
               onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, x: parseFloat(e.target.value) || 0 })}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(table.x || 0, table.y || 0, (x, y) => {
+                    onUpdateContentDetailTable(selectedElement.index, { ...table, x, y });
+                  }, positionXInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
-          <label>
-            Y:
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">Y:</span>
+              <div className="relative">
             <input
+                  ref={positionYInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={table.y || 0}
               onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, y: parseFloat(e.target.value) || 0 })}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(table.x || 0, table.y || 0, (x, y) => {
+                    onUpdateContentDetailTable(selectedElement.index, { ...table, x, y });
+                  }, positionYInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
+          </div>
         </div>
         <div className="property-group">
           <h4>Borders</h4>
@@ -544,24 +3633,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <h4>Style</h4>
           <label>
             Padding:
+            <div className="relative">
             <input
+                ref={tablePaddingInputRef}
               type="number"
               value={table.cellPadding || 10}
               min="0"
               step="1"
+                className="w-full pr-10"
               onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, cellPadding: parseFloat(e.target.value) || 10 })}
             />
+              <button
+                type="button"
+                onClick={() => openTablePaddingModal(table.cellPadding || 10, (value) => {
+                  onUpdateContentDetailTable(selectedElement.index, { ...table, cellPadding: value });
+                }, tablePaddingInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open padding editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
           <label>
             Font Size:
+            <div className="relative">
             <input
+                ref={tableFontSizeInputRef}
               type="number"
               value={table.fontSize || ''}
               min="8"
               step="1"
+                className="w-full pr-10"
               onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, fontSize: e.target.value ? parseFloat(e.target.value) : undefined })}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openTableFontSizeModal(table.fontSize, (value) => {
+                  onUpdateContentDetailTable(selectedElement.index, { ...table, fontSize: value });
+                }, tableFontSizeInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open font size editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
           <label>
             <input
@@ -583,14 +3700,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           )}
           <label>
             Width:
+            <div className="relative">
             <input
+                ref={tableWidthInputRef}
               type="number"
               value={table.tableWidth || ''}
               min="100"
               step="10"
+                className="w-full pr-10"
               onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, tableWidth: e.target.value ? parseFloat(e.target.value) : undefined })}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openTableWidthModal(table.tableWidth, (value) => {
+                  onUpdateContentDetailTable(selectedElement.index, { ...table, tableWidth: value });
+                }, tableWidthInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open width editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
         </div>
         <div className="property-group column-group">
@@ -639,34 +3770,85 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </label>
                 <label>
                   Binding:
+                  <div className="relative">
                   <input
+                      ref={columnBindingInputRef}
                     type="text"
+                      className="w-full pr-10"
                     value={col.bind}
                     onChange={(e) => updateColumn(index, { bind: e.target.value })}
                     placeholder="Field"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnBindingModal(col.bind || '', (value) => {
+                          updateColumn(index, { bind: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open binding editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Width:
+                  <div className="relative">
                   <input
+                      ref={columnWidthInputRef}
                     type="number"
                     value={col.width || ''}
                     min="0"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
                     placeholder="Auto"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnWidthModal(col.width, (value) => {
+                          updateColumn(index, { width: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open width editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Height:
+                  <div className="relative">
                   <input
+                      ref={columnHeightInputRef}
                     type="number"
                     value={col.height || ''}
                     min="0"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
                     placeholder="Auto"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnHeightModal(col.height, (value) => {
+                          updateColumn(index, { height: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open height editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Align:
@@ -681,31 +3863,68 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </label>
                 <label>
                   Row Span:
+                  <div className="relative">
                   <input
+                      ref={columnRowSpanInputRef}
                     type="number"
                     value={col.rowSpan || ''}
                     min="1"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
                     placeholder="1"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnRowSpanModal(col.rowSpan, (value) => {
+                          updateColumn(index, { rowSpan: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open row span editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Column Span:
+                  <div className="relative">
                   <input
+                      ref={columnColSpanInputRef}
                     type="number"
                     value={col.colSpan || ''}
                     min="1"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
                     placeholder="1"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnColSpanModal(col.colSpan, (value) => {
+                          updateColumn(index, { colSpan: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open column span editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <div className="property-group" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px' }}>
                   <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Data Manipulation</h5>
                   <label>
                     Calculation Type:
+                    <div className="relative">
                     <select
+                        ref={columnCalculationInputRef}
+                        className="w-full pr-10"
                       value={col.calculationType || 'none'}
                       onChange={(e) => updateColumn(index, { calculationType: e.target.value as any })}
                     >
@@ -717,6 +3936,25 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       <option value="max">Max</option>
                       <option value="custom">Custom Formula</option>
                     </select>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const selectElement = (e.currentTarget.parentElement?.querySelector('select') as HTMLElement) || null;
+                          openColumnCalculationModal({
+                            calculationType: col.calculationType || 'none',
+                            calculationSource: col.calculationSource,
+                            calculationField: col.calculationField,
+                            calculationFormula: col.calculationFormula,
+                          }, (value) => {
+                            updateColumn(index, value as any);
+                          }, selectElement);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        title="Open calculation editor"
+                      >
+                        <Move className="h-4 w-4" />
+                      </button>
+                    </div>
                   </label>
                   {(col.calculationType && col.calculationType !== 'none') && (
                     <>
@@ -798,12 +4036,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </button>
           </div>
           {table.finalRows && table.finalRows.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="flex flex-col gap-4">
               {table.finalRows.map((finalRow, rowIndex) => (
-                <div key={rowIndex} style={{ border: '1px solid #e9ecef', borderRadius: '6px', padding: '0.75rem', background: '#f8f9fa' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <strong style={{ fontSize: '0.875rem' }}>Row {rowIndex + 1}</strong>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div key={rowIndex} className="border border-white border-opacity-20 rounded-lg p-3 bg-black text-white">
+                  <div className="flex justify-between items-center mb-2">
+                    <strong className="text-sm text-white">Row {rowIndex + 1}</strong>
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -818,15 +4056,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                           });
                           onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                         }}
-                        style={{ 
-                          padding: '0.25rem 0.5rem', 
-                          fontSize: '0.75rem',
-                          background: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
+                        className="px-2 py-1 text-xs bg-green-600 text-white border-none rounded cursor-pointer"
                         title="Add cell to row"
                       >
                         + Cell
@@ -839,7 +4069,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                             [newRows[rowIndex], newRows[rowIndex - 1]] = [newRows[rowIndex - 1], newRows[rowIndex]];
                             onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                           }}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          className="px-2 py-1 text-xs text-white"
                         >
                           ↑
                         </button>
@@ -852,7 +4082,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                             [newRows[rowIndex], newRows[rowIndex + 1]] = [newRows[rowIndex + 1], newRows[rowIndex]];
                             onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                           }}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          className="px-2 py-1 text-xs text-white"
                         >
                           ↓
                         </button>
@@ -863,20 +4093,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                           const newRows = table.finalRows!.filter((_, i) => i !== rowIndex);
                           onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows.length > 0 ? newRows : undefined });
                         }}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc3545' }}
+                        className="px-2 py-1 text-xs text-red-500"
                       >
                         ×
                       </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="flex flex-col gap-2">
                     {finalRow.cells.map((cell, cellIndex) => {
                       const column = table.columns[cellIndex];
                       if (column && column.visible === false) return null;
                       return (
-                        <div key={cellIndex} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem', background: '#ffffff', borderRadius: '4px', position: 'relative' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#6c757d', fontWeight: 600 }}>
+                        <div key={cellIndex} className="flex flex-col gap-1 p-2 bg-black text-white rounded border border-white border-opacity-20 relative">
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-white font-semibold">
                               Cell {cellIndex + 1} ({column?.label || 'Column ' + (cellIndex + 1)})
                             </div>
                             <button
@@ -892,21 +4122,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }
                               }}
-                              style={{ 
-                                padding: '0.25rem 0.5rem', 
-                                fontSize: '0.75rem', 
-                                color: '#dc3545',
-                                background: 'transparent',
-                                border: '1px solid #dc3545',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
+                              className="px-2 py-1 text-xs text-red-500 bg-transparent border border-red-500 rounded cursor-pointer"
                               title="Delete cell"
                             >
                               ×
                             </button>
                           </div>
-                          <label style={{ fontSize: '0.875rem' }}>
+                          <label className="text-sm text-white">
                             Label:
                             <input
                               type="text"
@@ -917,10 +4139,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                               }}
                               placeholder="e.g., Sub Total"
-                              style={{ width: '100%', marginTop: '0.25rem' }}
+                              className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
                             />
                           </label>
-                          <label style={{ fontSize: '0.875rem' }}>
+                          <label className="text-sm text-white">
                             Value Type:
                             <select
                               value={cell.valueType || 'static'}
@@ -929,15 +4151,15 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 newRows[rowIndex].cells[cellIndex].valueType = e.target.value as any;
                                 onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                               }}
-                              style={{ width: '100%', marginTop: '0.25rem' }}
+                              className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                             >
-                              <option value="static">Static</option>
-                              <option value="calculation">Calculation</option>
-                              <option value="formula">Formula</option>
+                              <option value="static" className="bg-black">Static</option>
+                              <option value="calculation" className="bg-black">Calculation</option>
+                              <option value="formula" className="bg-black">Formula</option>
                             </select>
                           </label>
                           {cell.valueType === 'static' && (
-                            <label style={{ fontSize: '0.875rem' }}>
+                            <label className="text-sm text-white">
                               Value:
                               <input
                                 type="text"
@@ -948,13 +4170,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }}
                                 placeholder="e.g., 400"
-                                style={{ width: '100%', marginTop: '0.25rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
                               />
                             </label>
                           )}
                           {cell.valueType === 'calculation' && (
                             <>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Calculation:
                                 <select
                                   value={cell.calculationType || 'sum'}
@@ -963,47 +4185,83 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                     newRows[rowIndex].cells[cellIndex].calculationType = e.target.value as any;
                                     onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                                   }}
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                  className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                                 >
-                                  <option value="sum">Sum</option>
-                                  <option value="avg">Average</option>
-                                  <option value="count">Count</option>
-                                  <option value="min">Min</option>
-                                  <option value="max">Max</option>
+                                  <option value="sum" className="bg-black">Sum</option>
+                                  <option value="avg" className="bg-black">Average</option>
+                                  <option value="count" className="bg-black">Count</option>
+                                  <option value="min" className="bg-black">Min</option>
+                                  <option value="max" className="bg-black">Max</option>
                                 </select>
                               </label>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Source Table/Array:
-                                <input
-                                  type="text"
-                                  value={cell.calculationSource || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...table.finalRows!];
-                                    newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
-                                    onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
-                                  }}
-                                  placeholder="e.g., items"
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
-                                />
+                                <div className="relative">
+                                  <input
+                                    ref={finalRowCalculationSourceInputRef}
+                                    type="text"
+                                    value={cell.calculationSource || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
+                                      onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                    }}
+                                    placeholder="e.g., items"
+                                    className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                      openFinalRowCalculationSourceModal(cell.calculationSource || '', (value) => {
+                                        const newRows = [...table.finalRows!];
+                                        newRows[rowIndex].cells[cellIndex].calculationSource = value;
+                                        onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                      }, inputElement);
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                    title="Open data source selector"
+                                  >
+                                    <Move className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </label>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Field:
-                                <input
-                                  type="text"
-                                  value={cell.calculationField || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...table.finalRows!];
-                                    newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
-                                    onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
-                                  }}
-                                  placeholder="e.g., rate, price"
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
-                                />
+                                <div className="relative">
+                                  <input
+                                    ref={finalRowCalculationFieldInputRef}
+                                    type="text"
+                                    value={cell.calculationField || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
+                                      onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                    }}
+                                    placeholder="e.g., rate, price"
+                                    className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                      openFinalRowCalculationFieldModal(cell.calculationField || '', cell.calculationSource || '', (value) => {
+                                        const newRows = [...table.finalRows!];
+                                        newRows[rowIndex].cells[cellIndex].calculationField = value;
+                                        onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                      }, inputElement);
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                    title="Open field selector"
+                                  >
+                                    <Move className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </label>
                             </>
                           )}
                           {cell.valueType === 'formula' && (
-                            <label style={{ fontSize: '0.875rem' }}>
+                            <label className="text-sm text-white">
                               Formula:
                               <input
                                 type="text"
@@ -1014,12 +4272,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }}
                                 placeholder="e.g., sum(items.rate) * header.exchangeRate"
-                                style={{ width: '100%', marginTop: '0.25rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50 font-mono text-sm"
                               />
                             </label>
                           )}
-                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                          <div className="flex gap-2 mt-1">
+                            <label className="text-sm text-white flex-1">
                               Align:
                               <select
                                 value={cell.align || 'left'}
@@ -1028,29 +4286,47 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   newRows[rowIndex].cells[cellIndex].align = e.target.value as any;
                                   onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }}
-                                style={{ width: '100%', marginTop: '0.25rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                               >
-                                <option value="left">Left</option>
-                                <option value="center">Center</option>
-                                <option value="right">Right</option>
+                                <option value="left" className="bg-black">Left</option>
+                                <option value="center" className="bg-black">Center</option>
+                                <option value="right" className="bg-black">Right</option>
                               </select>
                             </label>
-                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                            <label className="text-sm text-white flex-1">
                               Col Span:
-                              <input
-                                type="number"
-                                value={cell.colSpan || 1}
-                                min="1"
-                                onChange={(e) => {
-                                  const newRows = [...table.finalRows!];
-                                  newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
-                                  onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
-                                }}
-                                style={{ width: '100%', marginTop: '0.25rem' }}
-                              />
+                              <div className="relative">
+                                <input
+                                  ref={finalRowColSpanInputRef}
+                                  type="number"
+                                  value={cell.colSpan || 1}
+                                  min="1"
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
+                                    onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                    openFinalRowColSpanModal(cell.colSpan, (value) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].colSpan = value || 1;
+                                      onUpdateContentDetailTable(selectedElement.index, { ...table, finalRows: newRows });
+                                    }, inputElement);
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                  title="Open column span editor"
+                                >
+                                  <Move className="h-4 w-4" />
+                                </button>
+                              </div>
                             </label>
                           </div>
-                          <label style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                          <label className="text-sm text-white mt-1">
                             <input
                               type="checkbox"
                               checked={cell.fontWeight === 'bold'}
@@ -1093,12 +4369,29 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <ActionBar />
       </div>
+        <PositionModal />
+        <WidthModal />
+        <FontSizeModal />
+        <TablePaddingModal />
+        <TableFontSizeModal />
+        <TableWidthModal />
+        <ColumnBindingModal />
+        <ColumnWidthModal />
+        <ColumnHeightModal />
+        <ColumnRowSpanModal />
+        <ColumnColSpanModal />
+        <ColumnCalculationModal />
+        <FinalRowColSpanModal />
+        <FinalRowCalculationSourceModal />
+        <FinalRowCalculationFieldModal />
+      </>
     );
   }
 
   if (selectedElement.type === 'billContentTable' && template.billContentTables && template.billContentTables[selectedElement.index] && onUpdateBillContentTable) {
     const table = template.billContentTables[selectedElement.index];
-    const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set());
+    const selectedColumns = billContentTableSelectedColumns;
+    const setSelectedColumns = setBillContentTableSelectedColumns;
 
     const updateColumn = (index: number, updates: Partial<TableColumnConfig>) => {
       const newColumns = table.columns.map((col, i) =>
@@ -1132,6 +4425,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     };
 
     return (
+      <>
       <div className="property-panel">
         <div className="property-group">
           <h4>Bill Content Table</h4>
@@ -1191,22 +4485,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <div className="property-group">
           <h4>Position</h4>
-          <label>
-            X:
+          <div className="flex gap-2">
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">X:</span>
+              <div className="relative">
             <input
+                  ref={positionXInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={table.x || 0}
               onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, x: parseFloat(e.target.value) || 0 })}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(table.x || 0, table.y || 0, (x, y) => {
+                    onUpdateBillContentTable(selectedElement.index, { ...table, x, y });
+                  }, positionXInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
-          <label>
-            Y:
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">Y:</span>
+              <div className="relative">
             <input
+                  ref={positionYInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={table.y || 0}
               onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, y: parseFloat(e.target.value) || 0 })}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(table.x || 0, table.y || 0, (x, y) => {
+                    onUpdateBillContentTable(selectedElement.index, { ...table, x, y });
+                  }, positionYInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
+          </div>
         </div>
         <div className="property-group">
           <h4>Borders</h4>
@@ -1252,24 +4576,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <h4>Style</h4>
           <label>
             Padding:
+            <div className="relative">
             <input
+                ref={tablePaddingInputRef}
               type="number"
               value={table.cellPadding || 10}
               min="0"
               step="1"
+                className="w-full pr-10"
               onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, cellPadding: parseFloat(e.target.value) || 10 })}
             />
+              <button
+                type="button"
+                onClick={() => openTablePaddingModal(table.cellPadding || 10, (value) => {
+                  onUpdateBillContentTable(selectedElement.index, { ...table, cellPadding: value });
+                }, tablePaddingInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open padding editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
           <label>
             Font Size:
+            <div className="relative">
             <input
+                ref={tableFontSizeInputRef}
               type="number"
               value={table.fontSize || ''}
               min="8"
               step="1"
+                className="w-full pr-10"
               onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, fontSize: e.target.value ? parseFloat(e.target.value) : undefined })}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openTableFontSizeModal(table.fontSize, (value) => {
+                  onUpdateBillContentTable(selectedElement.index, { ...table, fontSize: value });
+                }, tableFontSizeInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open font size editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
           <label>
             <input
@@ -1291,14 +4643,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           )}
           <label>
             Width:
+            <div className="relative">
             <input
+                ref={tableWidthInputRef}
               type="number"
               value={table.tableWidth || ''}
               min="100"
               step="10"
+                className="w-full pr-10"
               onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, tableWidth: e.target.value ? parseFloat(e.target.value) : undefined })}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openTableWidthModal(table.tableWidth, (value) => {
+                  onUpdateBillContentTable(selectedElement.index, { ...table, tableWidth: value });
+                }, tableWidthInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open width editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
         </div>
         <div className="property-group column-group">
@@ -1347,34 +4713,85 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </label>
                 <label>
                   Binding:
+                  <div className="relative">
                   <input
+                      ref={columnBindingInputRef}
                     type="text"
+                      className="w-full pr-10"
                     value={col.bind}
                     onChange={(e) => updateColumn(index, { bind: e.target.value })}
                     placeholder="Field"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnBindingModal(col.bind || '', (value) => {
+                          updateColumn(index, { bind: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open binding editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Width:
+                  <div className="relative">
                   <input
+                      ref={columnWidthInputRef}
                     type="number"
                     value={col.width || ''}
                     min="0"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
                     placeholder="Auto"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnWidthModal(col.width, (value) => {
+                          updateColumn(index, { width: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open width editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Height:
+                  <div className="relative">
                   <input
+                      ref={columnHeightInputRef}
                     type="number"
                     value={col.height || ''}
                     min="0"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
                     placeholder="Auto"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnHeightModal(col.height, (value) => {
+                          updateColumn(index, { height: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open height editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Align:
@@ -1389,31 +4806,68 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </label>
                 <label>
                   Row Span:
+                  <div className="relative">
                   <input
+                      ref={columnRowSpanInputRef}
                     type="number"
                     value={col.rowSpan || ''}
                     min="1"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
                     placeholder="1"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnRowSpanModal(col.rowSpan, (value) => {
+                          updateColumn(index, { rowSpan: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open row span editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Column Span:
+                  <div className="relative">
                   <input
+                      ref={columnColSpanInputRef}
                     type="number"
                     value={col.colSpan || ''}
                     min="1"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
                     placeholder="1"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnColSpanModal(col.colSpan, (value) => {
+                          updateColumn(index, { colSpan: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open column span editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <div className="property-group" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px' }}>
                   <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Data Manipulation</h5>
                   <label>
                     Calculation Type:
+                    <div className="relative">
                     <select
+                        ref={columnCalculationInputRef}
+                        className="w-full pr-10"
                       value={col.calculationType || 'none'}
                       onChange={(e) => updateColumn(index, { calculationType: e.target.value as any })}
                     >
@@ -1425,6 +4879,25 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       <option value="max">Max</option>
                       <option value="custom">Custom Formula</option>
                     </select>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const selectElement = (e.currentTarget.parentElement?.querySelector('select') as HTMLElement) || null;
+                          openColumnCalculationModal({
+                            calculationType: col.calculationType || 'none',
+                            calculationSource: col.calculationSource,
+                            calculationField: col.calculationField,
+                            calculationFormula: col.calculationFormula,
+                          }, (value) => {
+                            updateColumn(index, value as any);
+                          }, selectElement);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        title="Open calculation editor"
+                      >
+                        <Move className="h-4 w-4" />
+                      </button>
+                    </div>
                   </label>
                   {(col.calculationType && col.calculationType !== 'none') && (
                     <>
@@ -1506,12 +4979,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </button>
           </div>
           {table.finalRows && table.finalRows.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="flex flex-col gap-4">
               {table.finalRows.map((finalRow, rowIndex) => (
-                <div key={rowIndex} style={{ border: '1px solid #e9ecef', borderRadius: '6px', padding: '0.75rem', background: '#f8f9fa' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <strong style={{ fontSize: '0.875rem' }}>Row {rowIndex + 1}</strong>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div key={rowIndex} className="border border-white border-opacity-20 rounded-lg p-3 bg-black text-white">
+                  <div className="flex justify-between items-center mb-2">
+                    <strong className="text-sm text-white">Row {rowIndex + 1}</strong>
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -1526,15 +4999,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                           });
                           onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                         }}
-                        style={{ 
-                          padding: '0.25rem 0.5rem', 
-                          fontSize: '0.75rem',
-                          background: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
+                        className="px-2 py-1 text-xs bg-green-600 text-white border-none rounded cursor-pointer"
                         title="Add cell to row"
                       >
                         + Cell
@@ -1547,7 +5012,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                             [newRows[rowIndex], newRows[rowIndex - 1]] = [newRows[rowIndex - 1], newRows[rowIndex]];
                             onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                           }}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          className="px-2 py-1 text-xs text-white"
                         >
                           ↑
                         </button>
@@ -1560,7 +5025,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                             [newRows[rowIndex], newRows[rowIndex + 1]] = [newRows[rowIndex + 1], newRows[rowIndex]];
                             onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                           }}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          className="px-2 py-1 text-xs text-white"
                         >
                           ↓
                         </button>
@@ -1571,20 +5036,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                           const newRows = table.finalRows!.filter((_, i) => i !== rowIndex);
                           onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows.length > 0 ? newRows : undefined });
                         }}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc3545' }}
+                        className="px-2 py-1 text-xs text-red-500"
                       >
                         ×
                       </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="flex flex-col gap-2">
                     {finalRow.cells.map((cell, cellIndex) => {
                       const column = table.columns[cellIndex];
                       if (column && column.visible === false) return null;
                       return (
-                        <div key={cellIndex} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem', background: '#ffffff', borderRadius: '4px', position: 'relative' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#6c757d', fontWeight: 600 }}>
+                        <div key={cellIndex} className="flex flex-col gap-1 p-2 bg-black text-white rounded border border-white border-opacity-20 relative">
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-white font-semibold">
                               Cell {cellIndex + 1} ({column?.label || 'Column ' + (cellIndex + 1)})
                             </div>
                             <button
@@ -1600,21 +5065,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }
                               }}
-                              style={{ 
-                                padding: '0.25rem 0.5rem', 
-                                fontSize: '0.75rem', 
-                                color: '#dc3545',
-                                background: 'transparent',
-                                border: '1px solid #dc3545',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
+                              className="px-2 py-1 text-xs text-red-500 bg-transparent border border-red-500 rounded cursor-pointer"
                               title="Delete cell"
                             >
                               ×
                             </button>
                           </div>
-                          <label style={{ fontSize: '0.875rem' }}>
+                          <label className="text-sm text-white">
                             Label:
                             <input
                               type="text"
@@ -1625,10 +5082,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                               }}
                               placeholder="e.g., Sub Total"
-                              style={{ width: '100%', marginTop: '0.25rem' }}
+                              className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
                             />
                           </label>
-                          <label style={{ fontSize: '0.875rem' }}>
+                          <label className="text-sm text-white">
                             Value Type:
                             <select
                               value={cell.valueType || 'static'}
@@ -1637,15 +5094,15 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 newRows[rowIndex].cells[cellIndex].valueType = e.target.value as any;
                                 onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                               }}
-                              style={{ width: '100%', marginTop: '0.25rem' }}
+                              className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                             >
-                              <option value="static">Static</option>
-                              <option value="calculation">Calculation</option>
-                              <option value="formula">Formula</option>
+                              <option value="static" className="bg-black">Static</option>
+                              <option value="calculation" className="bg-black">Calculation</option>
+                              <option value="formula" className="bg-black">Formula</option>
                             </select>
                           </label>
                           {cell.valueType === 'static' && (
-                            <label style={{ fontSize: '0.875rem' }}>
+                            <label className="text-sm text-white">
                               Value:
                               <input
                                 type="text"
@@ -1656,13 +5113,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }}
                                 placeholder="e.g., 400"
-                                style={{ width: '100%', marginTop: '0.25rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
                               />
                             </label>
                           )}
                           {cell.valueType === 'calculation' && (
                             <>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Calculation:
                                 <select
                                   value={cell.calculationType || 'sum'}
@@ -1671,47 +5128,83 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                     newRows[rowIndex].cells[cellIndex].calculationType = e.target.value as any;
                                     onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                                   }}
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                  className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                                 >
-                                  <option value="sum">Sum</option>
-                                  <option value="avg">Average</option>
-                                  <option value="count">Count</option>
-                                  <option value="min">Min</option>
-                                  <option value="max">Max</option>
+                                  <option value="sum" className="bg-black">Sum</option>
+                                  <option value="avg" className="bg-black">Average</option>
+                                  <option value="count" className="bg-black">Count</option>
+                                  <option value="min" className="bg-black">Min</option>
+                                  <option value="max" className="bg-black">Max</option>
                                 </select>
                               </label>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Source Table/Array:
-                                <input
-                                  type="text"
-                                  value={cell.calculationSource || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...table.finalRows!];
-                                    newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
-                                    onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
-                                  }}
-                                  placeholder="e.g., items"
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
-                                />
+                                <div className="relative">
+                                  <input
+                                    ref={finalRowCalculationSourceInputRef}
+                                    type="text"
+                                    value={cell.calculationSource || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
+                                      onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                    }}
+                                    placeholder="e.g., items"
+                                    className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                      openFinalRowCalculationSourceModal(cell.calculationSource || '', (value) => {
+                                        const newRows = [...table.finalRows!];
+                                        newRows[rowIndex].cells[cellIndex].calculationSource = value;
+                                        onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                      }, inputElement);
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                    title="Open data source selector"
+                                  >
+                                    <Move className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </label>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Field:
-                                <input
-                                  type="text"
-                                  value={cell.calculationField || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...table.finalRows!];
-                                    newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
-                                    onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
-                                  }}
-                                  placeholder="e.g., rate, price"
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
-                                />
+                                <div className="relative">
+                                  <input
+                                    ref={finalRowCalculationFieldInputRef}
+                                    type="text"
+                                    value={cell.calculationField || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
+                                      onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                    }}
+                                    placeholder="e.g., rate, price"
+                                    className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                      openFinalRowCalculationFieldModal(cell.calculationField || '', cell.calculationSource || '', (value) => {
+                                        const newRows = [...table.finalRows!];
+                                        newRows[rowIndex].cells[cellIndex].calculationField = value;
+                                        onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                      }, inputElement);
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                    title="Open field selector"
+                                  >
+                                    <Move className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </label>
                             </>
                           )}
                           {cell.valueType === 'formula' && (
-                            <label style={{ fontSize: '0.875rem' }}>
+                            <label className="text-sm text-white">
                               Formula:
                               <input
                                 type="text"
@@ -1722,12 +5215,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }}
                                 placeholder="e.g., sum(items.rate) * header.exchangeRate"
-                                style={{ width: '100%', marginTop: '0.25rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50 font-mono text-sm"
                               />
                             </label>
                           )}
-                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                          <div className="flex gap-2 mt-1">
+                            <label className="text-sm text-white flex-1">
                               Align:
                               <select
                                 value={cell.align || 'left'}
@@ -1736,29 +5229,47 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   newRows[rowIndex].cells[cellIndex].align = e.target.value as any;
                                   onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
                                 }}
-                                style={{ width: '100%', marginTop: '0.25rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                               >
-                                <option value="left">Left</option>
-                                <option value="center">Center</option>
-                                <option value="right">Right</option>
+                                <option value="left" className="bg-black">Left</option>
+                                <option value="center" className="bg-black">Center</option>
+                                <option value="right" className="bg-black">Right</option>
                               </select>
                             </label>
-                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                            <label className="text-sm text-white flex-1">
                               Col Span:
-                              <input
-                                type="number"
-                                value={cell.colSpan || 1}
-                                min="1"
-                                onChange={(e) => {
-                                  const newRows = [...table.finalRows!];
-                                  newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
-                                  onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
-                                }}
-                                style={{ width: '100%', marginTop: '0.25rem' }}
-                              />
+                              <div className="relative">
+                                <input
+                                  ref={finalRowColSpanInputRef}
+                                  type="number"
+                                  value={cell.colSpan || 1}
+                                  min="1"
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
+                                    onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                  }}
+                                  className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                    openFinalRowColSpanModal(cell.colSpan, (value) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].colSpan = value || 1;
+                                      onUpdateBillContentTable(selectedElement.index, { ...table, finalRows: newRows });
+                                    }, inputElement);
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                  title="Open column span editor"
+                                >
+                                  <Move className="h-4 w-4" />
+                                </button>
+                              </div>
                             </label>
                           </div>
-                          <label style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                          <label className="text-sm text-white mt-1">
                             <input
                               type="checkbox"
                               checked={cell.fontWeight === 'bold'}
@@ -1785,12 +5296,29 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <ActionBar />
       </div>
+        <PositionModal />
+        <WidthModal />
+        <FontSizeModal />
+        <TablePaddingModal />
+        <TableFontSizeModal />
+        <TableWidthModal />
+        <ColumnBindingModal />
+        <ColumnWidthModal />
+        <ColumnHeightModal />
+        <ColumnRowSpanModal />
+        <ColumnColSpanModal />
+        <ColumnCalculationModal />
+        <FinalRowColSpanModal />
+        <FinalRowCalculationSourceModal />
+        <FinalRowCalculationFieldModal />
+      </>
     );
   }
 
   if (selectedElement.type === 'table' && template.itemsTable) {
     const table = template.itemsTable;
-    const [selectedColumns, setSelectedColumns] = useState<Set<number>>(new Set());
+    const selectedColumns = itemsTableSelectedColumns;
+    const setSelectedColumns = setItemsTableSelectedColumns;
 
     const updateColumn = (index: number, updates: Partial<TableColumnConfig>) => {
       const newColumns = table.columns.map((col, i) =>
@@ -1824,6 +5352,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     };
 
     return (
+      <>
       <div className="property-panel">
         <div className="property-group">
           <h4>Items Table</h4>
@@ -1883,22 +5412,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
         <div className="property-group">
           <h4>Position</h4>
-          <label>
-            X:
+          <div className="flex gap-2">
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">X:</span>
+              <div className="relative">
             <input
+                  ref={positionXInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={table.x || 0}
               onChange={(e) => onUpdateTable({ ...table, x: parseFloat(e.target.value) || 0 })}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(table.x || 0, table.y || 0, (x, y) => {
+                    onUpdateTable({ ...table, x, y });
+                  }, positionXInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
-          <label>
-            Y:
+            <label className="flex-1">
+              <span className="block text-sm font-medium mb-1">Y:</span>
+              <div className="relative">
             <input
+                  ref={positionYInputRef}
               type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
               value={table.y || 0}
               onChange={(e) => onUpdateTable({ ...table, y: parseFloat(e.target.value) || 0 })}
             />
+                <button
+                  type="button"
+                  onClick={() => openPositionModal(table.x || 0, table.y || 0, (x, y) => {
+                    onUpdateTable({ ...table, x, y });
+                  }, positionYInputRef)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Open position editor"
+                >
+                  <Move className="h-4 w-4" />
+                </button>
+              </div>
           </label>
+          </div>
         </div>
         <div className="property-group">
           <h4>Borders</h4>
@@ -1944,24 +5503,52 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <h4>Style</h4>
           <label>
             Padding:
+            <div className="relative">
             <input
+                ref={tablePaddingInputRef}
               type="number"
               value={table.cellPadding || 10}
               min="0"
               step="1"
+                className="w-full pr-10"
               onChange={(e) => onUpdateTable({ ...table, cellPadding: parseFloat(e.target.value) || 10 })}
             />
+              <button
+                type="button"
+                onClick={() => openTablePaddingModal(table.cellPadding || 10, (value) => {
+                  onUpdateTable({ ...table, cellPadding: value });
+                }, tablePaddingInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open padding editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
           <label>
             Font Size:
+            <div className="relative">
             <input
+                ref={tableFontSizeInputRef}
               type="number"
               value={table.fontSize || ''}
               min="8"
               step="1"
+                className="w-full pr-10"
               onChange={(e) => onUpdateTable({ ...table, fontSize: e.target.value ? parseFloat(e.target.value) : undefined })}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openTableFontSizeModal(table.fontSize, (value) => {
+                  onUpdateTable({ ...table, fontSize: value });
+                }, tableFontSizeInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open font size editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
           <label>
             <input
@@ -1983,14 +5570,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           )}
           <label>
             Width:
+            <div className="relative">
             <input
+                ref={tableWidthInputRef}
               type="number"
               value={table.tableWidth || ''}
               min="100"
               step="10"
+                className="w-full pr-10"
               onChange={(e) => onUpdateTable({ ...table, tableWidth: e.target.value ? parseFloat(e.target.value) : undefined })}
               placeholder="Auto"
             />
+              <button
+                type="button"
+                onClick={() => openTableWidthModal(table.tableWidth, (value) => {
+                  onUpdateTable({ ...table, tableWidth: value });
+                }, tableWidthInputRef)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Open width editor"
+              >
+                <Move className="h-4 w-4" />
+              </button>
+            </div>
           </label>
         </div>
         <div className="property-group column-group">
@@ -2039,34 +5640,85 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </label>
                 <label>
                   Binding:
+                  <div className="relative">
                   <input
+                      ref={columnBindingInputRef}
                     type="text"
+                      className="w-full pr-10"
                     value={col.bind}
                     onChange={(e) => updateColumn(index, { bind: e.target.value })}
                     placeholder="Field"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnBindingModal(col.bind || '', (value) => {
+                          updateColumn(index, { bind: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open binding editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Width:
+                  <div className="relative">
                   <input
+                      ref={columnWidthInputRef}
                     type="number"
                     value={col.width || ''}
                     min="0"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
                     placeholder="Auto"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnWidthModal(col.width, (value) => {
+                          updateColumn(index, { width: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open width editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Height:
+                  <div className="relative">
                   <input
+                      ref={columnHeightInputRef}
                     type="number"
                     value={col.height || ''}
                     min="0"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
                     placeholder="Auto"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnHeightModal(col.height, (value) => {
+                          updateColumn(index, { height: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open height editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Align:
@@ -2081,31 +5733,68 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </label>
                 <label>
                   Row Span:
+                  <div className="relative">
                   <input
+                      ref={columnRowSpanInputRef}
                     type="number"
                     value={col.rowSpan || ''}
                     min="1"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
                     placeholder="1"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnRowSpanModal(col.rowSpan, (value) => {
+                          updateColumn(index, { rowSpan: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open row span editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <label>
                   Column Span:
+                  <div className="relative">
                   <input
+                      ref={columnColSpanInputRef}
                     type="number"
                     value={col.colSpan || ''}
                     min="1"
                     step="1"
+                      className="w-full pr-10"
                     onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
                     placeholder="1"
                   />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                        openColumnColSpanModal(col.colSpan, (value) => {
+                          updateColumn(index, { colSpan: value });
+                        }, inputElement);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title="Open column span editor"
+                    >
+                      <Move className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
                 <div className="property-group" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px' }}>
                   <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 600 }}>Data Manipulation</h5>
                   <label>
                     Calculation Type:
+                    <div className="relative">
                     <select
+                        ref={columnCalculationInputRef}
+                        className="w-full pr-10"
                       value={col.calculationType || 'none'}
                       onChange={(e) => updateColumn(index, { calculationType: e.target.value as any })}
                     >
@@ -2117,6 +5806,25 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                       <option value="max">Max</option>
                       <option value="custom">Custom Formula</option>
                     </select>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const selectElement = (e.currentTarget.parentElement?.querySelector('select') as HTMLElement) || null;
+                          openColumnCalculationModal({
+                            calculationType: col.calculationType || 'none',
+                            calculationSource: col.calculationSource,
+                            calculationField: col.calculationField,
+                            calculationFormula: col.calculationFormula,
+                          }, (value) => {
+                            updateColumn(index, value as any);
+                          }, selectElement);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        title="Open calculation editor"
+                      >
+                        <Move className="h-4 w-4" />
+                      </button>
+                    </div>
                   </label>
                   {(col.calculationType && col.calculationType !== 'none') && (
                     <>
@@ -2198,12 +5906,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </button>
           </div>
           {table.finalRows && table.finalRows.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="flex flex-col gap-4">
               {table.finalRows.map((finalRow, rowIndex) => (
-                <div key={rowIndex} style={{ border: '1px solid #e9ecef', borderRadius: '6px', padding: '0.75rem', background: '#f8f9fa' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <strong style={{ fontSize: '0.875rem' }}>Row {rowIndex + 1}</strong>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div key={rowIndex} className="border border-white border-opacity-20 rounded-lg p-3 bg-black text-white">
+                  <div className="flex justify-between items-center mb-2">
+                    <strong className="text-sm text-white">Row {rowIndex + 1}</strong>
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -2218,15 +5926,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                           });
                           onUpdateTable({ ...table, finalRows: newRows });
                         }}
-                        style={{ 
-                          padding: '0.25rem 0.5rem', 
-                          fontSize: '0.75rem',
-                          background: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
+                        className="px-2 py-1 text-xs bg-green-600 text-white border-none rounded cursor-pointer"
                         title="Add cell to row"
                       >
                         + Cell
@@ -2239,7 +5939,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                             [newRows[rowIndex], newRows[rowIndex - 1]] = [newRows[rowIndex - 1], newRows[rowIndex]];
                             onUpdateTable({ ...table, finalRows: newRows });
                           }}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          className="px-2 py-1 text-xs text-white"
                         >
                           ↑
                         </button>
@@ -2252,7 +5952,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                             [newRows[rowIndex], newRows[rowIndex + 1]] = [newRows[rowIndex + 1], newRows[rowIndex]];
                             onUpdateTable({ ...table, finalRows: newRows });
                           }}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          className="px-2 py-1 text-xs text-white"
                         >
                           ↓
                         </button>
@@ -2263,20 +5963,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                           const newRows = table.finalRows!.filter((_, i) => i !== rowIndex);
                           onUpdateTable({ ...table, finalRows: newRows.length > 0 ? newRows : undefined });
                         }}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#dc3545' }}
+                        className="px-2 py-1 text-xs text-red-500"
                       >
                         ×
                       </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="flex flex-col gap-2">
                     {finalRow.cells.map((cell, cellIndex) => {
                       const column = table.columns[cellIndex];
                       if (column && column.visible === false) return null;
                       return (
-                        <div key={cellIndex} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem', background: '#ffffff', borderRadius: '4px', position: 'relative' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#6c757d', fontWeight: 600 }}>
+                        <div key={cellIndex} className="flex flex-col gap-1 p-2 bg-black text-white rounded border border-white border-opacity-20 relative">
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-white font-semibold">
                               Cell {cellIndex + 1} ({column?.label || 'Column ' + (cellIndex + 1)})
                             </div>
                             <button
@@ -2292,21 +5992,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateTable({ ...table, finalRows: newRows });
                                 }
                               }}
-                              style={{ 
-                                padding: '0.25rem 0.5rem', 
-                                fontSize: '0.75rem', 
-                                color: '#dc3545',
-                                background: 'transparent',
-                                border: '1px solid #dc3545',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
+                              className="px-2 py-1 text-xs text-red-500 bg-transparent border border-red-500 rounded cursor-pointer"
                               title="Delete cell"
                             >
                               ×
                             </button>
                           </div>
-                          <label style={{ fontSize: '0.875rem' }}>
+                          <label className="text-sm text-white">
                             Label:
                             <input
                               type="text"
@@ -2317,10 +6009,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 onUpdateTable({ ...table, finalRows: newRows });
                               }}
                               placeholder="e.g., Sub Total"
-                              style={{ width: '100%', marginTop: '0.25rem' }}
+                              className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
                             />
                           </label>
-                          <label style={{ fontSize: '0.875rem' }}>
+                          <label className="text-sm text-white">
                             Value Type:
                             <select
                               value={cell.valueType || 'static'}
@@ -2329,15 +6021,15 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 newRows[rowIndex].cells[cellIndex].valueType = e.target.value as any;
                                 onUpdateTable({ ...table, finalRows: newRows });
                               }}
-                              style={{ width: '100%', marginTop: '0.25rem' }}
+                              className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                             >
-                              <option value="static">Static</option>
-                              <option value="calculation">Calculation</option>
-                              <option value="formula">Formula</option>
+                              <option value="static" className="bg-black">Static</option>
+                              <option value="calculation" className="bg-black">Calculation</option>
+                              <option value="formula" className="bg-black">Formula</option>
                             </select>
                           </label>
                           {cell.valueType === 'static' && (
-                            <label style={{ fontSize: '0.875rem' }}>
+                            <label className="text-sm text-white">
                               Value:
                               <input
                                 type="text"
@@ -2348,13 +6040,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateTable({ ...table, finalRows: newRows });
                                 }}
                                 placeholder="e.g., 400"
-                                style={{ width: '100%', marginTop: '0.25rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
                               />
                             </label>
                           )}
                           {cell.valueType === 'calculation' && (
                             <>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Calculation:
                                 <select
                                   value={cell.calculationType || 'sum'}
@@ -2363,47 +6055,83 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                     newRows[rowIndex].cells[cellIndex].calculationType = e.target.value as any;
                                     onUpdateTable({ ...table, finalRows: newRows });
                                   }}
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
+                                  className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                                 >
-                                  <option value="sum">Sum</option>
-                                  <option value="avg">Average</option>
-                                  <option value="count">Count</option>
-                                  <option value="min">Min</option>
-                                  <option value="max">Max</option>
+                                  <option value="sum" className="bg-black">Sum</option>
+                                  <option value="avg" className="bg-black">Average</option>
+                                  <option value="count" className="bg-black">Count</option>
+                                  <option value="min" className="bg-black">Min</option>
+                                  <option value="max" className="bg-black">Max</option>
                                 </select>
                               </label>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Source Table/Array:
-                                <input
-                                  type="text"
-                                  value={cell.calculationSource || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...table.finalRows!];
-                                    newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
-                                    onUpdateTable({ ...table, finalRows: newRows });
-                                  }}
-                                  placeholder="e.g., items"
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
-                                />
+                                <div className="relative">
+                                  <input
+                                    ref={finalRowCalculationSourceInputRef}
+                                    type="text"
+                                    value={cell.calculationSource || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].calculationSource = e.target.value;
+                                      onUpdateTable({ ...table, finalRows: newRows });
+                                    }}
+                                    placeholder="e.g., items"
+                                    className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                      openFinalRowCalculationSourceModal(cell.calculationSource || '', (value) => {
+                                        const newRows = [...table.finalRows!];
+                                        newRows[rowIndex].cells[cellIndex].calculationSource = value;
+                                        onUpdateTable({ ...table, finalRows: newRows });
+                                      }, inputElement);
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                    title="Open data source selector"
+                                  >
+                                    <Move className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </label>
-                              <label style={{ fontSize: '0.875rem' }}>
+                              <label className="text-sm text-white">
                                 Field:
-                                <input
-                                  type="text"
-                                  value={cell.calculationField || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...table.finalRows!];
-                                    newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
-                                    onUpdateTable({ ...table, finalRows: newRows });
-                                  }}
-                                  placeholder="e.g., rate, price"
-                                  style={{ width: '100%', marginTop: '0.25rem' }}
-                                />
+                                <div className="relative">
+                                  <input
+                                    ref={finalRowCalculationFieldInputRef}
+                                    type="text"
+                                    value={cell.calculationField || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].calculationField = e.target.value;
+                                      onUpdateTable({ ...table, finalRows: newRows });
+                                    }}
+                                    placeholder="e.g., rate, price"
+                                    className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                      openFinalRowCalculationFieldModal(cell.calculationField || '', cell.calculationSource || '', (value) => {
+                                        const newRows = [...table.finalRows!];
+                                        newRows[rowIndex].cells[cellIndex].calculationField = value;
+                                        onUpdateTable({ ...table, finalRows: newRows });
+                                      }, inputElement);
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                    title="Open field selector"
+                                  >
+                                    <Move className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </label>
                             </>
                           )}
                           {cell.valueType === 'formula' && (
-                            <label style={{ fontSize: '0.875rem' }}>
+                            <label className="text-sm text-white">
                               Formula:
                               <input
                                 type="text"
@@ -2414,12 +6142,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   onUpdateTable({ ...table, finalRows: newRows });
                                 }}
                                 placeholder="e.g., sum(items.rate) * header.exchangeRate"
-                                style={{ width: '100%', marginTop: '0.25rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white placeholder-white placeholder-opacity-50 font-mono text-sm"
                               />
                             </label>
                           )}
-                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                          <div className="flex gap-2 mt-1">
+                            <label className="text-sm text-white flex-1">
                               Align:
                               <select
                                 value={cell.align || 'left'}
@@ -2428,29 +6156,47 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                   newRows[rowIndex].cells[cellIndex].align = e.target.value as any;
                                   onUpdateTable({ ...table, finalRows: newRows });
                                 }}
-                                style={{ width: '100%', marginTop: '0.25rem' }}
+                                className="w-full mt-1 px-2 py-1 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
                               >
-                                <option value="left">Left</option>
-                                <option value="center">Center</option>
-                                <option value="right">Right</option>
+                                <option value="left" className="bg-black">Left</option>
+                                <option value="center" className="bg-black">Center</option>
+                                <option value="right" className="bg-black">Right</option>
                               </select>
                             </label>
-                            <label style={{ fontSize: '0.875rem', flex: 1 }}>
+                            <label className="text-sm text-white flex-1">
                               Col Span:
-                              <input
-                                type="number"
-                                value={cell.colSpan || 1}
-                                min="1"
-                                onChange={(e) => {
-                                  const newRows = [...table.finalRows!];
-                                  newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
-                                  onUpdateTable({ ...table, finalRows: newRows });
-                                }}
-                                style={{ width: '100%', marginTop: '0.25rem' }}
-                              />
+                              <div className="relative">
+                                <input
+                                  ref={finalRowColSpanInputRef}
+                                  type="number"
+                                  value={cell.colSpan || 1}
+                                  min="1"
+                                  onChange={(e) => {
+                                    const newRows = [...table.finalRows!];
+                                    newRows[rowIndex].cells[cellIndex].colSpan = parseInt(e.target.value) || 1;
+                                    onUpdateTable({ ...table, finalRows: newRows });
+                                  }}
+                                  className="w-full mt-1 px-2 py-1 pr-8 bg-white bg-opacity-10 border border-white border-opacity-20 rounded text-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    const inputElement = (e.currentTarget.parentElement?.querySelector('input') as HTMLElement) || null;
+                                    openFinalRowColSpanModal(cell.colSpan, (value) => {
+                                      const newRows = [...table.finalRows!];
+                                      newRows[rowIndex].cells[cellIndex].colSpan = value || 1;
+                                      onUpdateTable({ ...table, finalRows: newRows });
+                                    }, inputElement);
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-opacity-60 hover:text-white cursor-pointer"
+                                  title="Open column span editor"
+                                >
+                                  <Move className="h-4 w-4" />
+                                </button>
+                              </div>
                             </label>
                           </div>
-                          <label style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                          <label className="text-sm text-white mt-1">
                             <input
                               type="checkbox"
                               checked={cell.fontWeight === 'bold'}
@@ -2459,6 +6205,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                                 newRows[rowIndex].cells[cellIndex].fontWeight = e.target.checked ? 'bold' : 'normal';
                                 onUpdateTable({ ...table, finalRows: newRows });
                               }}
+                              className="mr-2"
                             />
                             Bold
                           </label>
@@ -2506,10 +6253,44 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         )}
         <ActionBar />
       </div>
+        <PositionModal />
+        <WidthModal />
+        <FontSizeModal />
+        <TablePaddingModal />
+        <TableFontSizeModal />
+        <TableWidthModal />
+        <ColumnBindingModal />
+        <ColumnWidthModal />
+        <ColumnHeightModal />
+        <ColumnRowSpanModal />
+        <ColumnColSpanModal />
+        <ColumnCalculationModal />
+        <FinalRowColSpanModal />
+        <FinalRowCalculationSourceModal />
+        <FinalRowCalculationFieldModal />
+      </>
     );
   }
 
-  return null;
+  return (
+    <>
+      <PositionModal />
+      <WidthModal />
+      <FontSizeModal />
+      <TablePaddingModal />
+      <TableFontSizeModal />
+      <TableWidthModal />
+      <ColumnBindingModal />
+      <ColumnWidthModal />
+      <ColumnHeightModal />
+      <ColumnRowSpanModal />
+      <ColumnColSpanModal />
+      <ColumnCalculationModal />
+      <FinalRowColSpanModal />
+      <FinalRowCalculationSourceModal />
+      <FinalRowCalculationFieldModal />
+    </>
+  );
 };
 
 export default PropertyPanel;

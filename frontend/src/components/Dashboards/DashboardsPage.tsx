@@ -7,11 +7,13 @@ import type {
   Preset,
   RunDashboardResponse,
   DataAnalyticsDataset,
+  MetricDashboardWidget,
 } from '@/services/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import WidgetRenderer from './WidgetRenderer';
 
 function prettifyKey(key: string): string {
   return key
@@ -342,8 +344,29 @@ const DashboardsPage: React.FC = () => {
     }
   };
 
+  // Static dashboard configuration for metric-based widgets (SPEC-001)
+  // This demonstrates the new widget-based system
+  // In production, this would come from the API or be user-configurable
+  const [metricDashboardConfig] = useState<MetricDashboardWidget[]>([
+    // Example widgets - these will work once metrics are registered in the backend
+    // { id: 'w1', title: 'Today Sales', metric: 'daily_sales', visualization: 'card' },
+    // { id: 'w2', title: 'Sales Trend', metric: 'daily_sales', visualization: 'line' },
+  ]);
+
   return (
     <div className="space-y-4">
+      {/* Metric-based Dashboard Section (SPEC-001) */}
+      {metricDashboardConfig.length > 0 && (
+        <Card className="p-4 space-y-3 bg-black border border-neutral-800 text-white">
+          <h2 className="text-sm font-semibold">Metric-Based Dashboard (New System)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {metricDashboardConfig.map((widget) => (
+              <WidgetRenderer key={widget.id} widget={widget} />
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4 space-y-4 bg-black border border-neutral-800 text-white">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold tracking-tight">Create Dashboard</h2>

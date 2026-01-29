@@ -1956,6 +1956,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
               setIsTableModalOpen(true);
             }}
             onOpenZoneConfig={() => setIsZoneConfigModalOpen(true)}
+            fullSampleData={sampleData}
           />
         </div>
         <div className="designer-content-wrapper">

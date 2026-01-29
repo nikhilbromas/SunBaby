@@ -41,10 +41,24 @@
   /* background: rgba(255, 255, 255, 1); */
 }
 
+.field-editor.field-bound {
+  /* Visual indicator for bound fields - subtle border */
+  border-left: 2px solid rgba(34, 197, 94, 0.5);
+}
+
+.field-editor.field-static {
+  /* Visual indicator for static fields - subtle border */
+  border-left: 2px solid rgba(156, 163, 175, 0.5);
+}
+
 .field-label {
   font-weight: 600;
   color: var(--text);
   font-size: 0.9rem;
+}
+
+.field-label:not(:last-child) {
+  margin-right: 0.5rem;
 }
 
 .field-value {
