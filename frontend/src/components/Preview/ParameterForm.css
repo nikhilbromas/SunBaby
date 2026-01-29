@@ -72,3 +72,53 @@
   transform: scale(0.98);
 }
 
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .parameter-form {
+    padding: 1.25rem;
+    border-radius: 12px;
+    max-width: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  
+  .parameter-form.loading {
+    padding: 2rem 1rem;
+  }
+  
+  .parameter-form h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1.25rem;
+    text-align: center;
+  }
+  
+  .parameter-inputs {
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .parameter-input-group label {
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+  }
+  
+  .parameter-input-group input {
+    padding: 0.875rem;
+    font-size: 16px; /* Prevents iOS zoom */
+    border-radius: 10px;
+    min-height: 48px;
+  }
+  
+  .error-message {
+    padding: 1rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
+  }
+  
+  .submit-button {
+    min-height: 52px;
+    font-size: 1.05rem;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+}
+

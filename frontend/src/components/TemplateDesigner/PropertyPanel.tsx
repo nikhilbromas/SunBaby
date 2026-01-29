@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig, ImageFieldConfig } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { Target, Settings, Palette, Save } from 'lucide-react';
 import './PropertyPanel.css';
 
 interface PropertyPanelProps {
-  selectedElement: { type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable'; index: number; section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' } | null;
+  selectedElement: { type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable' | 'image'; index: number; section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' } | null;
   template: TemplateJson;
   onUpdateField: (index: number, updates: Partial<TextFieldConfig>, section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter') => void;
+  onUpdateImage?: (index: number, updates: Partial<ImageFieldConfig>, section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter') => void;
   onUpdateTable: (table: ItemsTableConfig) => void;
   onUpdateContentDetailTable?: (index: number, table: ContentDetailsTableConfig) => void;
   onUpdateBillContentTable?: (index: number, table: ItemsTableConfig) => void;
@@ -14,12 +21,15 @@ interface PropertyPanelProps {
   onSave?: () => void;
   isSaving?: boolean;
   onSetup?: () => void;
+  onOpenTableModal?: (type: 'itemsTable' | 'billContentTable' | 'contentDetailTable', index?: number) => void;
+  onOpenZoneConfig?: () => void;
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
   selectedElement,
   template,
   onUpdateField,
+  onUpdateImage,
   onUpdateTable,
   onUpdateContentDetailTable,
   onUpdateBillContentTable,
@@ -28,7 +38,45 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onSave,
   isSaving,
   onSetup,
+  onOpenTableModal,
+  onOpenZoneConfig,
 }) => {
+  // Fixed Action Bar Component
+  const ActionBar = () => {
+    if (!onSave && !onSetup) return null;
+    
+    return (
+      <div className="property-panel-actions">
+        {onSetup && (
+          <Button 
+            variant="secondary"
+            className="setup-button"
+            onClick={onSetup}
+          >
+            <Settings size={16} className="mr-2" />
+            Start
+          </Button>
+        )}
+       {onSave && (
+  <Button
+    onClick={onSave}
+    disabled={isSaving}
+    className="
+      bg-black text-white
+      hover:bg-neutral-800
+      disabled:bg-neutral-400
+      disabled:text-white
+      border border-black
+    "
+  >
+    <Save size={16} className="mr-2" />
+    {isSaving ? 'Saving...' : 'Save'}
+  </Button>
+)}
+
+      </div>
+    );
+  };
   const getFieldForSelected = (): TextFieldConfig | null => {
     if (!selectedElement || selectedElement.type !== 'field') return null;
     const section = selectedElement.section || 'header';
@@ -37,6 +85,18 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     if (section === 'billFooter') return template.billFooter?.[selectedElement.index] || null;
     if (section === 'billContent') return template.billContent?.[selectedElement.index] || null;
     return template.header[selectedElement.index] || null;
+  };
+
+  const getImageForSelected = (): ImageFieldConfig | null => {
+    if (!selectedElement || selectedElement.type !== 'image' || !onUpdateImage) return null;
+    const section = selectedElement.section || 'header';
+    const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                      section === 'pageFooter' ? 'pageFooterImages' :
+                      section === 'header' ? 'headerImages' :
+                      section === 'billContent' ? 'billContentImages' :
+                      'billFooterImages';
+    const images = (template[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+    return images[selectedElement.index] || null;
   };
   if (!selectedElement) {
     return (
@@ -67,30 +127,142 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </label>
           </div>
         )}
+        {onOpenZoneConfig && (
+          <div className="property-group">
+            <h4>Zone Configuration</h4>
+            <button
+  className="zone-config-button"
+  onClick={onOpenZoneConfig}
+  style={{
+    width: '100%',
+    padding: '0.75rem 1.5rem',
+    background: 'linear-gradient(135deg, #111 0%, #333 100%)',
+    color: 'white',
+    border: '1px solid #222',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-2px)';
+    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.25)';
+  }}
+>
+  <Target
+    size={16}
+    style={{
+      display: 'inline-block',
+      marginRight: '0.5rem',
+      verticalAlign: 'middle',
+      color: 'white',
+    }}
+  />
+  Configure Zones
+</button>
+
+<small
+  style={{
+    display: 'block',
+    marginTop: '0.5rem',
+    color: '#6b7280',
+    fontSize: '0.8rem',
+  }}
+>
+  Position and size zones (headers, footers, content areas)
+</small>
+
+          </div>
+        )}
         <div className="no-selection-container">
           <p className="no-selection">Select an element to edit properties</p>
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                 Start 
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save '}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
+      </div>
+    );
+  }
+
+  if (selectedElement.type === 'image' && onUpdateImage) {
+    const image = getImageForSelected();
+    if (!image) return null;
+    const section = selectedElement.section || 'header';
+
+    return (
+      <div className="property-panel">
+        <div className="property-group">
+          <h4>Info</h4>
+          <label>
+            Section: <strong>{section === 'pageHeader' ? 'Page Header' : section === 'pageFooter' ? 'Page Footer' : section === 'billFooter' ? 'Bill Footer' : section === 'billContent' ? 'Bill Content' : 'Bill Header'}</strong>
+          </label>
+        </div>
+        <div className="property-group">
+          <h4>Position</h4>
+          <label>
+            X:
+            <input
+              type="number"
+              value={image.x}
+              onChange={(e) => onUpdateImage(selectedElement.index, { x: parseFloat(e.target.value) || 0 }, section)}
+            />
+          </label>
+          <label>
+            Y:
+            <input
+              type="number"
+              value={image.y}
+              onChange={(e) => onUpdateImage(selectedElement.index, { y: parseFloat(e.target.value) || 0 }, section)}
+            />
+          </label>
+        </div>
+        <div className="property-group">
+          <h4>Size</h4>
+          <label>
+            Width:
+            <input
+              type="number"
+              value={image.width || ''}
+              onChange={(e) => onUpdateImage(selectedElement.index, { width: e.target.value ? parseFloat(e.target.value) : undefined }, section)}
+              placeholder="Auto"
+            />
+          </label>
+          <label>
+            Height:
+            <input
+              type="number"
+              value={image.height || ''}
+              onChange={(e) => onUpdateImage(selectedElement.index, { height: e.target.value ? parseFloat(e.target.value) : undefined }, section)}
+              placeholder="Auto"
+            />
+          </label>
+        </div>
+        <div className="property-group">
+          <h4>Options</h4>
+          <label>
+            <input
+              type="checkbox"
+              checked={image.visible}
+              onChange={(e) => onUpdateImage(selectedElement.index, { visible: e.target.checked }, section)}
+            />
+            Visible
+          </label>
+          {section === 'billContent' && (
+            <label>
+              <input
+                type="checkbox"
+                checked={image.watermark || false}
+                onChange={(e) => onUpdateImage(selectedElement.index, { watermark: e.target.checked }, section)}
+              />
+              Watermark (render behind content with opacity)
+            </label>
+          )}
+        </div>
+        <ActionBar />
       </div>
     );
   }
@@ -209,27 +381,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             Visible
           </label>
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -275,6 +427,46 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <div className="property-panel">
         <div className="property-group">
           <h4>Content Detail Table: {table.contentName}</h4>
+          {onOpenTableModal && (
+           <button
+           className="open-modal-button"
+           onClick={() =>
+             onOpenTableModal('contentDetailTable', selectedElement.index)
+           }
+           style={{
+             marginTop: '0.5rem',
+             padding: '0.75rem 1.5rem',
+             background: '#000',
+             color: '#fff',
+             border: '1px solid #000',
+             borderRadius: '6px',
+             cursor: 'pointer',
+             fontSize: '0.95rem',
+             fontWeight: 600,
+             width: '100%',
+             transition: 'background-color 0.2s ease, color 0.2s ease',
+           }}
+           onMouseEnter={(e) => {
+             e.currentTarget.style.background = '#fff';
+             e.currentTarget.style.color = '#000';
+           }}
+           onMouseLeave={(e) => {
+             e.currentTarget.style.background = '#000';
+             e.currentTarget.style.color = '#fff';
+           }}
+         >
+           <Palette
+             size={16}
+             style={{
+               display: 'inline-block',
+               marginRight: '0.5rem',
+               verticalAlign: 'middle',
+             }}
+           />
+           Open Table Editor
+         </button>
+         
+          )}
         </div>
         <div className="property-group">
           <h4>Layout</h4>
@@ -372,13 +564,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
           <label>
-            Alt Row:
             <input
-              type="color"
-              value={table.alternateRowColor || '#f9f9f9'}
-              onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              type="checkbox"
+              checked={!!table.alternateRowColor}
+              onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, alternateRowColor: e.target.checked ? '#f9f9f9' : undefined })}
             />
+            Alt Row Color
           </label>
+          {table.alternateRowColor && (
+            <label>
+              Alt Row Color:
+              <input
+                type="color"
+                value={table.alternateRowColor}
+                onChange={(e) => onUpdateContentDetailTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Width:
             <input
@@ -889,27 +1091,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -951,6 +1133,49 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
     return (
       <div className="property-panel">
+        <div className="property-group">
+          <h4>Bill Content Table</h4>
+          {onOpenTableModal && (
+           <button
+           className="open-modal-button"
+           onClick={() =>
+             onOpenTableModal('billContentTable', selectedElement.index)
+           }
+           style={{
+             marginTop: '0.5rem',
+             padding: '0.75rem 1.5rem',
+             background: '#000',
+             color: '#fff',
+             border: '1px solid #000',
+             borderRadius: '6px',
+             cursor: 'pointer',
+             fontSize: '0.95rem',
+             fontWeight: 600,
+             width: '100%',
+             transition: 'background-color 0.2s ease, color 0.2s ease',
+           }}
+           onMouseEnter={(e) => {
+             e.currentTarget.style.background = '#fff';
+             e.currentTarget.style.color = '#000';
+           }}
+           onMouseLeave={(e) => {
+             e.currentTarget.style.background = '#000';
+             e.currentTarget.style.color = '#fff';
+           }}
+         >
+           <Palette
+             size={16}
+             style={{
+               display: 'inline-block',
+               marginRight: '0.5rem',
+               verticalAlign: 'middle',
+             }}
+           />
+           Open Table Editor
+         </button>
+         
+          )}
+        </div>
         <div className="property-group">
           <h4>Layout</h4>
           <label>
@@ -1047,13 +1272,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
           <label>
-            Alt Row:
             <input
-              type="color"
-              value={table.alternateRowColor || '#f9f9f9'}
-              onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              type="checkbox"
+              checked={!!table.alternateRowColor}
+              onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, alternateRowColor: e.target.checked ? '#f9f9f9' : undefined })}
             />
+            Alt Row Color
           </label>
+          {table.alternateRowColor && (
+            <label>
+              Alt Row Color:
+              <input
+                type="color"
+                value={table.alternateRowColor}
+                onChange={(e) => onUpdateBillContentTable(selectedElement.index, { ...table, alternateRowColor: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Width:
             <input
@@ -1548,27 +1783,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </p>
           )}
         </div>
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }
@@ -1610,6 +1825,49 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
     return (
       <div className="property-panel">
+        <div className="property-group">
+          <h4>Items Table</h4>
+          {onOpenTableModal && (
+            <button
+            className="open-modal-button"
+            onClick={() =>
+              onOpenTableModal('itemsTable', selectedElement.index)
+            }
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.75rem 1.5rem',
+              background: '#000',
+              color: '#fff',
+              border: '1px solid #000',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              width: '100%',
+              transition: 'background-color 0.2s ease, color 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#fff';
+              e.currentTarget.style.color = '#000';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#000';
+              e.currentTarget.style.color = '#fff';
+            }}
+          >
+            <Palette
+              size={16}
+              style={{
+                display: 'inline-block',
+                marginRight: '0.5rem',
+                verticalAlign: 'middle',
+              }}
+            />
+            Open Table Editor
+          </button>
+          
+          )}
+        </div>
         <div className="property-group">
           <h4>Layout</h4>
           <label>
@@ -1706,13 +1964,23 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             />
           </label>
           <label>
-            Alt Row:
             <input
-              type="color"
-              value={table.alternateRowColor || '#f9f9f9'}
-              onChange={(e) => onUpdateTable({ ...table, alternateRowColor: e.target.value })}
+              type="checkbox"
+              checked={!!table.alternateRowColor}
+              onChange={(e) => onUpdateTable({ ...table, alternateRowColor: e.target.checked ? '#f9f9f9' : undefined })}
             />
+            Alt Row Color
           </label>
+          {table.alternateRowColor && (
+            <label>
+              Alt Row Color:
+              <input
+                type="color"
+                value={table.alternateRowColor}
+                onChange={(e) => onUpdateTable({ ...table, alternateRowColor: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Width:
             <input
@@ -2236,27 +2504,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </label>
           </div>
         )}
-        {(onSave || onSetup) && (
-          <div className="property-panel-actions">
-            {onSetup && (
-              <button 
-                className="setup-button"
-                onClick={onSetup}
-              >
-                ⚙️ Setup
-              </button>
-            )}
-            {onSave && (
-              <button 
-                className="save-button" 
-                onClick={onSave} 
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Template'}
-              </button>
-            )}
-          </div>
-        )}
+        <ActionBar />
       </div>
     );
   }

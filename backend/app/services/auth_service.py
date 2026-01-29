@@ -3,7 +3,7 @@ Authentication and company access service.
 
 Auth DB tables (expected):
 - dbo.UserAuthentication (EmailId/emailid, Password/password, UserId/userid)
-- dbo.UserPrintCompany (UserId, CompanyId, AllowPreset, AllowTemplate, AllowPreview, IsActive)
+- dbo.UserPrintCompany (UserId, CompanyId, AllowPreset, AllowTemplate, AllowPreview, AllowTemplateConfig, IsActive)
 - dbo.CompanyProfile (CompanyID, CompanyName, DBname, DBserver, DBuserName, DBpassword)
 """
 
@@ -52,6 +52,7 @@ class AuthService:
         """
         Authenticate against dbo.UserAuthentication.
         Returns dict with at least {user_id, email} on success, else None.
+        Always uses auth DB for authentication queries.
         """
         # NOTE: column names may vary in casing; we read the first row dict keys dynamically.
         q = """
@@ -59,7 +60,8 @@ class AuthService:
             FROM [dbo].[UserAuthentication]
             WHERE [emailid] = @email
         """
-        rows = db.execute_query(q, {"email": email})
+        # Always use auth DB for authentication queries
+        rows = db.execute_query(q, {"email": email}, use_auth_db=True)
         if not rows:
             return None
 
@@ -96,6 +98,7 @@ class AuthService:
     def get_user_companies(self, user_id: int) -> list[dict]:
         """
         Return companies mapped to a user, with permissions, filtered to active mappings.
+        Always queries the auth database.
         """
         q = """
             SELECT
@@ -106,17 +109,20 @@ class AuthService:
                 cp.PhoneNo,
                 upc.AllowPreset,
                 upc.AllowTemplate,
-                upc.AllowPreview
+                upc.AllowPreview,
+                upc.AllowTemplateConfig
             FROM dbo.UserPrintCompany upc
             LEFT JOIN dbo.CompanyProfile cp ON cp.CompanyID = upc.CompanyId
             WHERE upc.UserId = @user_id
               AND upc.IsActive = 1
         """
-        return db.execute_query(q, {"user_id": user_id})
+        # Always use auth DB for user company queries
+        return db.execute_query(q, {"user_id": user_id}, use_auth_db=True)
 
     def get_company_details(self, company_id: int) -> Optional[dict]:
         """
         Get DB connection details for a company from auth DB.
+        Always queries the auth database.
         """
         q = """
             SELECT TOP 1
@@ -129,7 +135,8 @@ class AuthService:
             FROM dbo.CompanyProfile
             WHERE CompanyID = @company_id
         """
-        rows = db.execute_query(q, {"company_id": company_id})
+        # Always use auth DB for company profile queries
+        rows = db.execute_query(q, {"company_id": company_id}, use_auth_db=True)
         return rows[0] if rows else None
 
 

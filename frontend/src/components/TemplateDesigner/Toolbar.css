@@ -20,6 +20,14 @@
   flex-wrap: wrap;
 }
 
+.toolbar-section {
+  margin-bottom: 1.25rem;
+}
+
+.toolbar-section:last-child {
+  margin-bottom: 0;
+}
+
 .toolbar-item {
   display: flex;
   align-items: center;
@@ -57,9 +65,72 @@
 }
 
 @media (max-width: 768px) {
+  .toolbar {
+    padding: 1rem;
+  }
+  
+  .toolbar h3 {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .toolbar-items {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .toolbar-section {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  }
+  
+  .toolbar-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  
   .toolbar-item {
     flex: 1;
-    min-width: 120px;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+    min-height: 70px;
+    padding: 0.75rem;
+    text-align: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .toolbar-item:hover,
+  .toolbar-item:focus {
+    background: linear-gradient(135deg, var(--brand-50) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border-color: var(--brand-500);
+    color: var(--brand-600);
+    transform: scale(1.02);
+  }
+  
+  .toolbar-item:active {
+    transform: scale(0.98);
+    background: var(--brand-100);
+  }
+  
+  .toolbar-icon {
+    font-size: 1.5rem;
+  }
+  
+  /* Tap hint */
+  .toolbar-item::after {
+    content: 'Tap to add';
+    font-size: 0.6rem;
+    color: var(--muted);
+    font-weight: 500;
+    margin-top: 0.25rem;
+    opacity: 0.7;
   }
 }
 

@@ -10,6 +10,7 @@ class UserPermissions(BaseModel):
     AllowPreset: bool = False
     AllowTemplate: bool = False
     AllowPreview: bool = False
+    AllowTemplateConfig: bool = False
 
 
 class Company(BaseModel):

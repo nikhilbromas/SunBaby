@@ -1,117 +1,35 @@
 import React, { useState, useRef } from 'react';
 import { useDrag } from 'react-dnd';
-import './DataPreview.css';
+import { useMobile } from '../../contexts/MobileContext';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { Search, ChevronDown, GripVertical } from 'lucide-react';
+
+/* ================= TYPES ================= */
 
 interface DataPreviewProps {
   headerData: Record<string, any> | null;
   headerFields: string[];
   itemsData: Record<string, any>[];
   itemsFields: string[];
-  contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
+  contentDetails?: Record<
+    string,
+    {
+      data: Record<string, any>[] | Record<string, any> | null;
+      fields: string[];
+      sampleCount: number;
+      dataType?: 'array' | 'object';
+    }
+  >;
 }
-
-const DraggableHeaderField: React.FC<{
-  field: string;
-  sampleValue: any;
-  targetSection?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
-}> = ({ field, sampleValue, targetSection }) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'data-field',
-    item: {
-      fieldType: 'header',
-      fieldName: field,
-      bind: `header.${field}`,
-      label: field,
-      targetSection,
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  return (
-    <div
-      ref={drag}
-      className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
-      title="Drag to canvas to add field"
-    >
-      <code>header.{field}</code>
-      {sampleValue !== null && sampleValue !== undefined && (
-        <span className="field-value">
-          Sample: {String(sampleValue)}
-        </span>
-      )}
-    </div>
-  );
-};
-
-const DraggableItemField: React.FC<{
-  field: string;
-  sampleValue: any;
-}> = ({ field, sampleValue }) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'data-field',
-    item: {
-      fieldType: 'item',
-      fieldName: field,
-      bind: field,
-      label: field,
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  return (
-    <div
-      ref={drag}
-      className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
-      title="Drag to canvas to add field"
-    >
-      <code>{field}</code>
-      {sampleValue !== null && sampleValue !== undefined && (
-        <span className="field-value">
-          Sample: {String(sampleValue)}
-        </span>
-      )}
-    </div>
-  );
-};
-
-const DraggableContentDetailField: React.FC<{
-  contentName: string;
-  field: string;
-  sampleValue: any;
-}> = ({ contentName, field, sampleValue }) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'data-field',
-    item: {
-      fieldType: 'contentDetail',
-      contentName,
-      fieldName: field,
-      bind: field,
-      label: field,
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  return (
-    <div
-      ref={drag}
-      className={`field-item draggable-field ${isDragging ? 'dragging' : ''}`}
-      title="Drag to content detail table to add column"
-    >
-      <code>{field}</code>
-      {sampleValue !== null && sampleValue !== undefined && (
-        <span className="field-value">
-          Sample: {String(sampleValue)}
-        </span>
-      )}
-    </div>
-  );
-};
 
 interface ZoneField {
   fieldType: 'header' | 'item' | 'contentDetail';
@@ -122,21 +40,206 @@ interface ZoneField {
   contentName?: string;
 }
 
-interface DraggableSelectionZoneProps {
-  targetSection: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
-  label: string;
-  hint: string;
-  headerData: Record<string, any> | null;
-  headerFields: string[];
-  itemsData: Record<string, any>[];
-  itemsFields: string[];
-  contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
-  DraggableHeaderFieldComponent: React.FC<{ field: string; sampleValue: any; targetSection?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' }>;
-  DraggableItemFieldComponent: React.FC<{ field: string; sampleValue: any }>;
-  DraggableContentDetailFieldComponent: React.FC<{ contentName: string; field: string; sampleValue: any }>;
-}
+type ZoneKey =
+  | 'pageHeader'
+  | 'header'
+  | 'billContent'
+  | 'billFooter'
+  | 'pageFooter';
 
-const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
+const ZONE_META: Record<
+  ZoneKey,
+  { label: string; hint: string }
+> = {
+  pageHeader: { label: 'Page Header Fields', hint: 'Top of page' },
+  header: { label: 'Bill Header Fields', hint: 'Main bill header' },
+  billContent: {
+    label: 'Bill Content Fields',
+    hint: 'Items & detail tables',
+  },
+  billFooter: { label: 'Bill Footer Fields', hint: 'Totals & summaries' },
+  pageFooter: { label: 'Page Footer Fields', hint: 'Bottom of page' },
+};
+
+/* ================= FIELD UI ================= */
+
+const FieldBox: React.FC<{
+  dragging?: boolean;
+  children: React.ReactNode;
+}> = ({ dragging, children }) => (
+  <div
+    className={cn(
+      'rounded-md border border-white/20 bg-black px-3 py-2 text-sm space-y-1 cursor-grab text-white',
+      'hover:bg-white/10 transition',
+      dragging && 'opacity-60 ring-2 ring-white'
+    )}
+  >
+    {children}
+  </div>
+);
+
+/* ================= FIELD COMPONENTS ================= */
+
+const DraggableHeaderField: React.FC<{
+  field: string;
+  sampleValue: any;
+  targetSection: ZoneKey;
+}> = ({ field, sampleValue, targetSection }) => {
+  const { isMobile, enterPlacementMode } = useMobile();
+  const [{ isDragging }, drag] = useDrag({
+    type: 'data-field',
+    item: {
+      fieldType: 'header',
+      fieldName: field,
+      bind: `header.${field}`,
+      label: field,
+      targetSection,
+    },
+    collect: (m) => ({ isDragging: m.isDragging() }),
+  });
+
+  return (
+    <div
+      ref={!isMobile ? drag : undefined}
+      onClick={
+        isMobile
+          ? () =>
+              enterPlacementMode({
+                type: 'data-field',
+                field: `header.${field}`,
+                targetSection,
+              })
+          : undefined
+      }
+    >
+      <FieldBox dragging={isDragging}>
+        <code className="text-xs font-mono text-white">
+          header.{field}
+        </code>
+        {sampleValue !== undefined && (
+          <p className="text-xs text-white/60">
+            Sample: {String(sampleValue)}
+          </p>
+        )}
+      </FieldBox>
+    </div>
+  );
+};
+
+const DraggableItemField: React.FC<{
+  field: string;
+  sampleValue: any;
+}> = ({ field, sampleValue }) => {
+  const { isMobile, enterPlacementMode } = useMobile();
+  const [{ isDragging }, drag] = useDrag({
+    type: 'data-field',
+    item: {
+      fieldType: 'item',
+      fieldName: field,
+      bind: field,
+      label: field,
+    },
+    collect: (m) => ({ isDragging: m.isDragging() }),
+  });
+
+  return (
+    <div
+      ref={!isMobile ? drag : undefined}
+      onClick={
+        isMobile
+          ? () =>
+              enterPlacementMode({
+                type: 'data-field',
+                field,
+                targetSection: 'billContent',
+              })
+          : undefined
+      }
+    >
+      <FieldBox dragging={isDragging}>
+        <code className="text-xs font-mono text-white">{field}</code>
+        {sampleValue !== undefined && (
+          <p className="text-xs text-white/60">
+            Sample: {String(sampleValue)}
+          </p>
+        )}
+      </FieldBox>
+    </div>
+  );
+};
+
+const DraggableContentDetailField: React.FC<{
+  contentName: string;
+  field: string;
+  sampleValue: any;
+  bind: string;
+  label: string;
+  dataType?: 'array' | 'object';
+}> = ({
+  contentName,
+  field,
+  sampleValue,
+  bind,
+  label,
+  dataType,
+}) => {
+  const { isMobile, enterPlacementMode } = useMobile();
+  const [{ isDragging }, drag] = useDrag({
+    type: 'data-field',
+    item: {
+      fieldType: 'contentDetail',
+      contentName,
+      fieldName: field,
+      bind,
+      label,
+    },
+    collect: (m) => ({ isDragging: m.isDragging() }),
+  });
+
+  return (
+    <div
+      ref={!isMobile ? drag : undefined}
+      onClick={
+        isMobile
+          ? () =>
+              enterPlacementMode({
+                type: 'data-field',
+                field: bind,
+                targetSection:
+                  dataType === 'object'
+                    ? 'header'
+                    : 'billContent',
+              })
+          : undefined
+      }
+    >
+      <FieldBox dragging={isDragging}>
+        <div className="flex gap-2 items-center">
+          <code className="text-xs font-mono text-white">{label}</code>
+          <Badge variant="secondary" className="text-[10px] bg-white/20 text-white border-white/30">
+            {contentName}
+          </Badge>
+        </div>
+        {sampleValue !== undefined && (
+          <p className="text-xs text-white/60">
+            Sample: {String(sampleValue)}
+          </p>
+        )}
+      </FieldBox>
+    </div>
+  );
+};
+
+/* ================= SELECTION ZONE ================= */
+
+const DraggableSelectionZone: React.FC<
+  DataPreviewProps & {
+    targetSection: ZoneKey;
+    label: string;
+    hint: string;
+    searchTerm: string;
+  }
+> = ({
   targetSection,
   label,
   hint,
@@ -145,280 +248,194 @@ const DraggableSelectionZone: React.FC<DraggableSelectionZoneProps> = ({
   itemsData,
   itemsFields,
   contentDetails,
-  DraggableHeaderFieldComponent,
-  DraggableItemFieldComponent,
-  DraggableContentDetailFieldComponent,
 }) => {
+  const [collapsed, setCollapsed] = useState(true);
   const [canDragZone, setCanDragZone] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed by default
-  const zoneDragRef = useRef<HTMLDivElement>(null);
+  const zoneRef = useRef<HTMLDivElement>(null);
 
-  // Collect all fields for this zone
   const zoneFields: ZoneField[] = [];
-  
-  // Add header fields
-  headerFields.forEach((field) => {
+
+  headerFields.forEach((f: string) => {
     zoneFields.push({
       fieldType: 'header',
-      fieldName: field,
-      bind: `header.${field}`,
-      label: field,
-      sampleValue: headerData?.[field],
+      fieldName: f,
+      bind: `header.${f}`,
+      label: f,
+      sampleValue: headerData?.[f],
     });
   });
 
-  // Add item fields (only for billContent section)
   if (targetSection === 'billContent') {
-    itemsFields.forEach((field) => {
+    itemsFields.forEach((f: string) => {
       zoneFields.push({
         fieldType: 'item',
-        fieldName: field,
-        bind: field,
-        label: field,
-        sampleValue: itemsData.length > 0 ? itemsData[0][field] : null,
+        fieldName: f,
+        bind: f,
+        label: f,
+        sampleValue: itemsData[0]?.[f],
       });
     });
   }
 
-  // Add content detail fields
   if (contentDetails) {
-    Object.entries(contentDetails).forEach(([contentName, contentData]) => {
-      const dataType = contentData.dataType || 'array';
-      
-      if (dataType === 'object') {
-        // Object type: treat like header fields - available in ALL sections
-        contentData.fields.forEach((field) => {
-          const sampleValue = contentData.data && typeof contentData.data === 'object' && !Array.isArray(contentData.data)
-            ? (contentData.data as Record<string, any>)[field]
-            : null;
+    const typedEntries = Object.entries(
+      contentDetails
+    ) as [
+      string,
+      {
+        data: Record<string, any>[] | Record<string, any> | null;
+        fields: string[];
+        sampleCount: number;
+        dataType?: 'array' | 'object';
+      }
+    ][];
+
+    typedEntries.forEach(([name, data]) => {
+      if (data.dataType === 'object') {
+        data.fields.forEach((f: string) => {
           zoneFields.push({
             fieldType: 'contentDetail',
-            fieldName: field,
-            bind: `contentDetails.${contentName}.${field}`,
-            label: `${contentName}.${field}`,
-            sampleValue,
-            contentName,
+            fieldName: f,
+            bind: `contentDetails.${name}.${f}`,
+            label: `${name}.${f}`,
+            sampleValue:
+              data.data &&
+              typeof data.data === 'object' &&
+              !Array.isArray(data.data)
+                ? (data.data as Record<string, any>)[f]
+                : null,
+            contentName: name,
           });
         });
-      } else {
-        // Array type: treat like item fields (for tables) - only in billContent section
-        if (targetSection === 'billContent') {
-          contentData.fields.forEach((field) => {
-            const dataArray = Array.isArray(contentData.data) ? contentData.data : [];
-            const sampleValue = dataArray.length > 0 ? dataArray[0][field] : null;
-            zoneFields.push({
-              fieldType: 'contentDetail',
-              fieldName: field,
-              bind: field,
-              label: field,
-              sampleValue,
-              contentName,
-            });
+      } else if (targetSection === 'billContent') {
+        const arr = Array.isArray(data.data) ? data.data : [];
+        data.fields.forEach((f: string) => {
+          zoneFields.push({
+            fieldType: 'contentDetail',
+            fieldName: f,
+            bind: f,
+            label: f,
+            sampleValue: arr[0]?.[f],
+            contentName: name,
           });
-        }
+        });
       }
     });
   }
 
   const [{ isDragging }, drag] = useDrag({
     type: 'data-field',
-    item: () => {
-      return {
-        fieldType: 'selectionZone',
-        targetSection,
-        fields: zoneFields,
-      };
+    item: {
+      fieldType: 'selectionZone',
+      targetSection,
+      fields: zoneFields,
     },
     canDrag: canDragZone && zoneFields.length > 0,
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: () => {
-      setCanDragZone(false);
-    },
+    collect: (m) => ({ isDragging: m.isDragging() }),
+    end: () => setCanDragZone(false),
   });
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (zoneFields.length > 0 && !canDragZone) {
-      setCanDragZone(true);
-    }
-  };
-
-  const handleToggleCollapse = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsCollapsed(!isCollapsed);
-  };
-
-  // Attach drag ref to zone container
   React.useEffect(() => {
-    if (zoneDragRef.current) {
-      drag(zoneDragRef);
-    }
+    if (zoneRef.current) drag(zoneRef);
   }, [drag]);
 
-  const hasFields = zoneFields.length > 0;
-
   return (
-    <div
-      ref={zoneDragRef}
-      className={`preview-section selection-zone ${isDragging ? 'zone-dragging' : ''} ${canDragZone ? 'zone-draggable' : ''}`}
-      onDoubleClick={handleDoubleClick}
-      title={hasFields ? "Double-click to drag all fields in this zone" : undefined}
-      style={canDragZone ? { cursor: 'grab' } : undefined}
-    >
-      <div className="zone-header">
-        <div className="zone-header-left">
-          <button
-            className="collapse-toggle"
-            onClick={handleToggleCollapse}
-            title={isCollapsed ? "Expand zone" : "Collapse zone"}
-            aria-label={isCollapsed ? "Expand zone" : "Collapse zone"}
-          >
-            <span className={`collapse-icon ${isCollapsed ? 'collapsed' : ''}`}>▼</span>
-          </button>
-          <h5>{label}</h5>
-        </div>
-        {canDragZone && (
-          <span className="zone-drag-indicator">🎯 Ready to drag all fields - start dragging now</span>
-        )}
-      </div>
-      {!isCollapsed && (
-        <>
-          <p className="section-hint">{hint}</p>
-          {hasFields ? (
-            <div className="fields-list">
-              {zoneFields.map((zoneField, index) => {
-                if (zoneField.fieldType === 'header') {
-                  return (
-                    <DraggableHeaderFieldComponent
-                      key={`${targetSection}-header-${zoneField.fieldName}-${index}`}
-                      field={zoneField.fieldName}
-                      sampleValue={zoneField.sampleValue}
-                      targetSection={targetSection}
-                    />
-                  );
-                } else if (zoneField.fieldType === 'item') {
-                  return (
-                    <DraggableItemFieldComponent
-                      key={`${targetSection}-item-${zoneField.fieldName}-${index}`}
-                      field={zoneField.fieldName}
-                      sampleValue={zoneField.sampleValue}
-                    />
-                  );
-                } else if (zoneField.fieldType === 'contentDetail' && zoneField.contentName) {
-                  return (
-                    <DraggableContentDetailFieldComponent
-                      key={`${targetSection}-contentDetail-${zoneField.contentName}-${zoneField.fieldName}-${index}`}
-                      contentName={zoneField.contentName}
-                      field={zoneField.fieldName}
-                      sampleValue={zoneField.sampleValue}
-                    />
-                  );
-                }
-                return null;
-              })}
-            </div>
-          ) : (
-            <p className="no-fields-hint">No fields available for this zone</p>
-          )}
-        </>
+    <Card
+      ref={zoneRef}
+      onDoubleClick={() => setCanDragZone(true)}
+      className={cn(
+        'bg-black border-white/20 text-white',
+        canDragZone && 'ring-2 ring-white cursor-grab',
+        isDragging && 'opacity-60'
       )}
-    </div>
+    >
+      <CardHeader onClick={() => setCollapsed(!collapsed)} className="text-white">
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-sm flex items-center gap-2 text-white">
+            <GripVertical size={14} className="text-white" /> {label}
+          </CardTitle>
+          <ChevronDown
+            size={16}
+            className={cn('transition text-white', collapsed && '-rotate-90')}
+          />
+        </div>
+        <p className="text-xs text-white/60">{hint}</p>
+        {canDragZone && (
+          <p className="text-xs text-white">
+            🎯 Drag now to place all fields
+          </p>
+        )}
+      </CardHeader>
+
+      {!collapsed && (
+        <CardContent className="p-0 overflow-hidden bg-black">
+          <ScrollArea className="h-[280px]">
+            <div className="flex flex-col gap-2 p-4 bg-black">
+              {zoneFields.map((zf, i) =>
+                zf.fieldType === 'header' ? (
+                  <DraggableHeaderField
+                    key={i}
+                    field={zf.fieldName}
+                    sampleValue={zf.sampleValue}
+                    targetSection={targetSection}
+                  />
+                ) : zf.fieldType === 'item' ? (
+                  <DraggableItemField
+                    key={i}
+                    field={zf.fieldName}
+                    sampleValue={zf.sampleValue}
+                  />
+                ) : (
+                  <DraggableContentDetailField
+                    key={i}
+                    contentName={zf.contentName!}
+                    field={zf.fieldName}
+                    sampleValue={zf.sampleValue}
+                    bind={zf.bind}
+                    label={zf.label}
+                    dataType={
+                      contentDetails?.[zf.contentName!]?.dataType
+                    }
+                  />
+                )
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      )}
+    </Card>
   );
 };
 
-const DataPreview: React.FC<DataPreviewProps> = ({
-  headerData,
-  headerFields,
-  itemsData,
-  itemsFields,
-  contentDetails,
-}) => {
-  const hasData = headerFields.length > 0 || itemsFields.length > 0 || (contentDetails && Object.keys(contentDetails).length > 0);
+/* ================= MAIN ================= */
+
+const DataPreview: React.FC<DataPreviewProps> = (props) => {
+  const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <div className="data-preview">
-      <p className="drag-hint">💡 Drag fields to appropriate section on canvas. Double-click a zone to drag all its fields at once.</p>
-      
-      {hasData && (
-        <>
-          <DraggableSelectionZone
-            targetSection="pageHeader"
-            label="Page Header Fields"
-            hint="Drag to page header zone (top of page)"
-            headerData={headerData}
-            headerFields={headerFields}
-            itemsData={itemsData}
-            itemsFields={itemsFields}
-            contentDetails={contentDetails}
-            DraggableHeaderFieldComponent={DraggableHeaderField}
-            DraggableItemFieldComponent={DraggableItemField}
-            DraggableContentDetailFieldComponent={DraggableContentDetailField}
-          />
-          <DraggableSelectionZone
-            targetSection="header"
-            label="Bill Header Fields"
-            hint="Drag to bill header zone (main area)"
-            headerData={headerData}
-            headerFields={headerFields}
-            itemsData={itemsData}
-            itemsFields={itemsFields}
-            contentDetails={contentDetails}
-            DraggableHeaderFieldComponent={DraggableHeaderField}
-            DraggableItemFieldComponent={DraggableItemField}
-            DraggableContentDetailFieldComponent={DraggableContentDetailField}
-          />
-          <DraggableSelectionZone
-            targetSection="billContent"
-            label="Bill Content Fields"
-            hint="Drag to bill content zone (main content area between header and footer). Includes header, item, and content detail fields."
-            headerData={headerData}
-            headerFields={headerFields}
-            itemsData={itemsData}
-            itemsFields={itemsFields}
-            contentDetails={contentDetails}
-            DraggableHeaderFieldComponent={DraggableHeaderField}
-            DraggableItemFieldComponent={DraggableItemField}
-            DraggableContentDetailFieldComponent={DraggableContentDetailField}
-          />
-          <DraggableSelectionZone
-            targetSection="billFooter"
-            label="Bill Footer Fields"
-            hint="Drag to bill footer zone (above page footer)"
-            headerData={headerData}
-            headerFields={headerFields}
-            itemsData={itemsData}
-            itemsFields={itemsFields}
-            contentDetails={contentDetails}
-            DraggableHeaderFieldComponent={DraggableHeaderField}
-            DraggableItemFieldComponent={DraggableItemField}
-            DraggableContentDetailFieldComponent={DraggableContentDetailField}
-          />
-          <DraggableSelectionZone
-            targetSection="pageFooter"
-            label="Page Footer Fields"
-            hint="Drag to page footer zone (bottom of page)"
-            headerData={headerData}
-            headerFields={headerFields}
-            itemsData={itemsData}
-            itemsFields={itemsFields}
-            contentDetails={contentDetails}
-            DraggableHeaderFieldComponent={DraggableHeaderField}
-            DraggableItemFieldComponent={DraggableItemField}
-            DraggableContentDetailFieldComponent={DraggableContentDetailField}
-          />
-        </>
-      )}
+    <div className="space-y-4 bg-black p-4 rounded-lg">
+      <div className="relative">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+        <Input
+          className="pl-9 bg-black border-white/20 text-white placeholder:text-white/40"
+          placeholder="Search fields..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
-     
-
-      {!hasData && (
-        <p className="no-data">No data fields available. Execute query with parameters first.</p>
-      )}
+      {(Object.keys(ZONE_META) as ZoneKey[]).map((zone) => (
+        <DraggableSelectionZone
+          key={zone}
+          {...props}
+          targetSection={zone}
+          label={ZONE_META[zone].label}
+          hint={ZONE_META[zone].hint}
+          searchTerm={searchTerm}
+        />
+      ))}
     </div>
   );
 };
 
 export default DataPreview;
-

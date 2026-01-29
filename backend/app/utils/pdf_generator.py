@@ -7,7 +7,6 @@ from reportlab.pdfgen import canvas
 from io import BytesIO
 from typing import Dict, Any, List
 import json
-import logging
 
 from .pdf_utils import get_page_size, page_has_content
 from .pdf_field_renderer import render_field
@@ -17,8 +16,6 @@ from .pdf_table_renderer import (
     calculate_table_height_simple,
     calculate_bill_footer_height
 )
-
-logger = logging.getLogger(__name__)
 
 
 class PDFGenerator:

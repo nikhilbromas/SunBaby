@@ -37,6 +37,7 @@ async def login(payload: LoginRequest):
             AllowPreset=bool(r.get("AllowPreset", False)),
             AllowTemplate=bool(r.get("AllowTemplate", False)),
             AllowPreview=bool(r.get("AllowPreview", False)),
+            AllowTemplateConfig=bool(r.get("AllowTemplateConfig", False)),
         )
         companies.append(
             Company(
@@ -68,6 +69,7 @@ async def select_company(payload: CompanySelectRequest, session=Depends(require_
         "AllowPreset": bool(match.get("AllowPreset", False)),
         "AllowTemplate": bool(match.get("AllowTemplate", False)),
         "AllowPreview": bool(match.get("AllowPreview", False)),
+        "AllowTemplateConfig": bool(match.get("AllowTemplateConfig", False)),
     }
 
     # Switch global db connection to company DB (per your selected approach)
@@ -101,7 +103,7 @@ async def me(session=Depends(require_session)):
         email=session.email,
         company_id=session.company_id,
         company_name=session.company_name,
-        permissions=UserPermissions(**(session.permissions or {"AllowPreset": False, "AllowTemplate": False, "AllowPreview": False}))
+        permissions=UserPermissions(**(session.permissions or {"AllowPreset": False, "AllowTemplate": False, "AllowPreview": False, "AllowTemplateConfig": False}))
         if session.company_id
         else None,
     )
@@ -109,9 +111,20 @@ async def me(session=Depends(require_session)):
 
 @router.post("/logout")
 async def logout(session=Depends(require_session)):
-    # Reset DB back to auth DB and delete session
-    db.switch_to_auth_db()
+    """
+    Logout endpoint that resets database context and cleans up session.
+    Ensures all database connections are properly closed.
+    """
+    try:
+        # Reset DB back to auth DB before deleting session
+        db.switch_to_auth_db()
+    except Exception:
+        # Continue with logout even if DB switch fails
+        pass
+    
+    # Delete session (this cleans up the in-memory session data)
     session_store.delete(session.token)
-    return {"success": True}
+    
+    return {"success": True, "message": "Logged out successfully"}
 
 
