@@ -244,11 +244,11 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
       />
 
       {/* Panel */}
-      <div className="relative ml-auto w-full max-w-[900px] bg-white h-full flex flex-col shadow-xl">
+      <div className="relative ml-auto w-full max-w-[900px] bg-black h-full flex flex-col shadow-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
+          <h2 className="text-lg font-semibold text-white">
             {{
               template: 'Select Template',
               preset: 'Select Preset',
@@ -257,7 +257,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
             }[step]}
           </h2>
 
-          <Button variant="ghost" onClick={onClose}>✕</Button>
+          <Button variant="ghost" onClick={onClose} className="text-white hover:bg-white/10">✕</Button>
         </div>
 
         {/* Lottie */}
@@ -271,9 +271,9 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
           {/* Search */}
           {(step === 'template' || step === 'preset') && (
             <div className="relative mb-4">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
               <Input
-                className="pl-9"
+                className="pl-9 bg-black border-white/20 text-white placeholder:text-white/40"
                 placeholder="Search…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
@@ -285,12 +285,12 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
           {step === 'template' && (
             <div className="grid sm:grid-cols-2 gap-4">
               <Card
-                className="border-dashed cursor-pointer hover:bg-muted"
+                className="border-dashed border-white/20 cursor-pointer hover:bg-white/10 bg-black"
                 onClick={() => setStep('preset')}
               >
                 <CardContent className="flex flex-col items-center justify-center py-10">
-                  <div className="text-3xl">＋</div>
-                  <p className="mt-2 text-sm font-medium">Create New Template</p>
+                  <div className="text-3xl text-white">＋</div>
+                  <p className="mt-2 text-sm font-medium text-white">Create New Template</p>
                 </CardContent>
               </Card>
 
@@ -298,8 +298,8 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                 <Card
                   key={t.TemplateId}
                   className={cn(
-                    'cursor-pointer hover:border-primary',
-                    localTemplateId === t.TemplateId && 'border-primary'
+                    'cursor-pointer hover:border-white/40 bg-black border-white/20',
+                    localTemplateId === t.TemplateId && 'border-white'
                   )}
                   onClick={() => {
                     setLocalTemplateId(t.TemplateId);
@@ -310,9 +310,9 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                   }}
                 >
                   <CardHeader>
-                    <CardTitle className="text-sm">{t.TemplateName}</CardTitle>
+                    <CardTitle className="text-sm text-white">{t.TemplateName}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-xs text-muted-foreground">
+                  <CardContent className="text-xs text-white/60">
                     Preset #{t.PresetId}
                   </CardContent>
                 </Card>
@@ -326,7 +326,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
               {filteredPresets.map(p => (
                 <Card
                   key={p.PresetId}
-                  className="cursor-pointer hover:border-primary"
+                  className="cursor-pointer hover:border-white/40 bg-black border-white/20"
                   onClick={() => {
                     setLocalPresetId(p.PresetId);
                     onPresetSelect(p.PresetId);
@@ -334,7 +334,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                   }}
                 >
                   <CardHeader>
-                    <CardTitle className="text-sm">{p.PresetName}</CardTitle>
+                    <CardTitle className="text-sm text-white">{p.PresetName}</CardTitle>
                   </CardHeader>
                 </Card>
               ))}
@@ -343,15 +343,16 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
 
           {/* CREATE TEMPLATE */}
           {step === 'createTemplate' && currentPreset && (
-            <Card>
+            <Card className="bg-black border-white/20">
               <CardHeader>
-                <CardTitle>Template Name</CardTitle>
+                <CardTitle className="text-white">Template Name</CardTitle>
               </CardHeader>
               <CardContent className="flex gap-3">
                 <Input
                   placeholder="Enter template name"
                   value={templateName}
                   onChange={e => setTemplateName(e.target.value)}
+                  className="bg-black border-white/20 text-white placeholder:text-white/40"
                 />
                 <Button
                   onClick={async () => {
@@ -364,6 +365,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                     setLocalTemplateId(t.TemplateId);
                     setStep('parameters');
                   }}
+                  className="bg-white text-black hover:bg-white/90"
                 >
                   Create
                 </Button>
@@ -381,6 +383,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                     setCopyModalType('template');
                     setShowParameterCopyModal(true);
                   }}
+                  className="border-white/20 text-white hover:bg-white/10"
                 >
                   Copy from Template
                 </Button>
@@ -390,6 +393,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                     setCopyModalType('preset');
                     setShowParameterCopyModal(true);
                   }}
+                  className="border-white/20 text-white hover:bg-white/10"
                 >
                   Copy from Preset
                 </Button>
@@ -431,8 +435,8 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
 
         {/* Footer */}
         {step !== 'template' && (
-          <div className="border-t px-6 py-3">
-            <Button variant="ghost" onClick={() => setStep('template')}>
+          <div className="border-t border-white/20 px-6 py-3">
+            <Button variant="ghost" onClick={() => setStep('template')} className="text-white hover:bg-white/10">
               ← Back
             </Button>
           </div>

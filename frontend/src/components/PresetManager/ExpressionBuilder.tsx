@@ -217,7 +217,7 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const functionsInCategory = getFunctionsByCategory(selectedCategory);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-black p-6">
       <div className="max-w-6xl mx-auto">
       <div className="bg-black rounded-lg shadow-md border border-neutral-800 mb-6 p-6">
   <div className="flex items-center gap-3 mb-2">
@@ -252,25 +252,25 @@ const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
 
 
         <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
+          <div className="bg-black rounded-lg shadow-md border border-white/20 p-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Display Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Display Name <span className="text-red-400">*</span>
                 </label>
                 <Input
                   type="text"
                   value={alias}
                   onChange={(e) => setAlias(e.target.value)}
                   placeholder="e.g., Total Amount, Full Name, Tax Percentage"
-                  className="w-full"
+                  className="w-full bg-black border-white/20 text-white placeholder:text-white/40"
                 />
-                <p className="text-xs text-slate-500 mt-1.5">This name will appear as the column header</p>
+                <p className="text-xs text-white/60 mt-1.5">This name will appear as the column header</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Formula <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Formula <span className="text-red-400">*</span>
                 </label>
                 <textarea
                   ref={textareaRef}
@@ -285,9 +285,9 @@ Examples:
                   • CAST(Amount AS DECIMAL(18,2))
                  • ROUND(Amount * 0.18, 2)`}
                   rows={6}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y bg-black text-white              "
+                  className="w-full px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 font-mono text-sm resize-y bg-black text-white placeholder:text-white/40"
                 />
-                <div className="mt-2 flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                <div className="mt-2 flex items-start gap-2 text-xs text-white bg-white/10 border border-white/20 rounded px-3 py-2">
                   <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -297,14 +297,14 @@ Examples:
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
+          <div className="bg-black rounded-lg shadow-md border border-white/20 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h4 className="text-base font-semibold text-slate-900">Quick Templates</h4>
+              <h4 className="text-base font-semibold text-white">Quick Templates</h4>
             </div>
-            <p className="text-sm text-slate-600 mb-4">Click a template to insert a common formula pattern</p>
+            <p className="text-sm text-white/60 mb-4">Click a template to insert a common formula pattern</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {FORMULA_TEMPLATES.map((tmpl, idx) => (
                 <button
@@ -312,21 +312,21 @@ Examples:
                   type="button"
                   onClick={() => handleInsertTemplate(tmpl.template)}
                   title={tmpl.description}
-                  className="text-left p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  className="text-left p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors"
                 >
-                  <div className="font-medium text-sm text-slate-900 mb-1">{tmpl.name}</div>
-                  <div className="text-xs text-slate-500">{tmpl.description}</div>
+                  <div className="font-medium text-sm text-white mb-1">{tmpl.name}</div>
+                  <div className="text-xs text-white/60">{tmpl.description}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
+          <div className="bg-black rounded-lg shadow-md border border-white/20 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              <h4 className="text-base font-semibold text-slate-900">Available Fields</h4>
+              <h4 className="text-base font-semibold text-white">Available Fields</h4>
             </div>
             <div className="flex flex-wrap gap-2">
               {availableColumns.slice(0, 12).map(col => (
@@ -335,68 +335,68 @@ Examples:
                   type="button"
                   onClick={() => handleInsertColumn(col)}
                   title={`Insert ${col}`}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 rounded-md text-sm font-mono transition-colors"
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-md text-sm font-mono transition-colors"
                 >
                   {col.length > 15 ? col.substring(0, 15) + '...' : col}
                 </button>
               ))}
               {availableColumns.length > 12 && (
-                <span className="px-3 py-1.5 text-sm text-slate-500 italic">
+                <span className="px-3 py-1.5 text-sm text-white/60 italic">
                   +{availableColumns.length - 12} more
                 </span>
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
+          <div className="bg-black rounded-lg shadow-md border border-white/20 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
-              <h4 className="text-base font-semibold text-slate-900">Math Operators</h4>
+              <h4 className="text-base font-semibold text-white">Math Operators</h4>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-              <button type="button" onClick={() => handleInsertOperator('+')} className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-center">
-                <div className="text-2xl font-bold text-slate-700">+</div>
-                <div className="text-xs text-slate-500 mt-1">Add</div>
+              <button type="button" onClick={() => handleInsertOperator('+')} className="p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors text-center">
+                <div className="text-2xl font-bold text-white">+</div>
+                <div className="text-xs text-white/60 mt-1">Add</div>
               </button>
-              <button type="button" onClick={() => handleInsertOperator('-')} className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-center">
-                <div className="text-2xl font-bold text-slate-700">−</div>
-                <div className="text-xs text-slate-500 mt-1">Subtract</div>
+              <button type="button" onClick={() => handleInsertOperator('-')} className="p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors text-center">
+                <div className="text-2xl font-bold text-white">−</div>
+                <div className="text-xs text-white/60 mt-1">Subtract</div>
               </button>
-              <button type="button" onClick={() => handleInsertOperator('*')} className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-center">
-                <div className="text-2xl font-bold text-slate-700">×</div>
-                <div className="text-xs text-slate-500 mt-1">Multiply</div>
+              <button type="button" onClick={() => handleInsertOperator('*')} className="p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors text-center">
+                <div className="text-2xl font-bold text-white">×</div>
+                <div className="text-xs text-white/60 mt-1">Multiply</div>
               </button>
-              <button type="button" onClick={() => handleInsertOperator('/')} className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-center">
-                <div className="text-2xl font-bold text-slate-700">÷</div>
-                <div className="text-xs text-slate-500 mt-1">Divide</div>
+              <button type="button" onClick={() => handleInsertOperator('/')} className="p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors text-center">
+                <div className="text-2xl font-bold text-white">÷</div>
+                <div className="text-xs text-white/60 mt-1">Divide</div>
               </button>
-              <button type="button" onClick={() => handleInsertOperator('(')} className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-center">
-                <div className="text-2xl font-bold text-slate-700">(</div>
-                <div className="text-xs text-slate-500 mt-1">Open</div>
+              <button type="button" onClick={() => handleInsertOperator('(')} className="p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors text-center">
+                <div className="text-2xl font-bold text-white">(</div>
+                <div className="text-xs text-white/60 mt-1">Open</div>
               </button>
-              <button type="button" onClick={() => handleInsertOperator(')')} className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-center">
-                <div className="text-2xl font-bold text-slate-700">)</div>
-                <div className="text-xs text-slate-500 mt-1">Close</div>
+              <button type="button" onClick={() => handleInsertOperator(')')} className="p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors text-center">
+                <div className="text-2xl font-bold text-white">)</div>
+                <div className="text-xs text-white/60 mt-1">Close</div>
               </button>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
+          <div className="bg-black rounded-lg shadow-md border border-white/20 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <h4 className="text-base font-semibold text-slate-900">Functions</h4>
+              <h4 className="text-base font-semibold text-white">Functions</h4>
             </div>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+              className="w-full px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 mb-4 bg-black text-white"
             >
               {SQL_FUNCTION_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>
+                <option key={cat} value={cat} className="bg-black text-white">
                   {CATEGORY_LABELS[cat] || cat}
                 </option>
               ))}
@@ -408,11 +408,11 @@ Examples:
                   type="button"
                   onClick={() => handleInsertFunction(func.name)}
                   title={`${func.signature}\n${func.description || ''}`}
-                  className="text-left p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  className="text-left p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors"
                 >
-                  <div className="font-mono font-semibold text-sm text-slate-900 mb-1">{func.name}</div>
+                  <div className="font-mono font-semibold text-sm text-white mb-1">{func.name}</div>
                   {func.description && (
-                    <div className="text-xs text-slate-500 line-clamp-2">{func.description}</div>
+                    <div className="text-xs text-white/60 line-clamp-2">{func.description}</div>
                   )}
                 </button>
               ))}
@@ -420,12 +420,12 @@ Examples:
           </div>
 
           {selectedCategory === 'Conversion' && (
-            <div className="bg-white rounded-lg shadow-md border border-slate-200 p-6">
+            <div className="bg-black rounded-lg shadow-md border border-white/20 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
-                <h4 className="text-base font-semibold text-slate-900">Common Data Types</h4>
+                <h4 className="text-base font-semibold text-white">Common Data Types</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                 {COMMON_DATA_TYPES.map(dt => (
@@ -434,23 +434,23 @@ Examples:
                     type="button"
                     onClick={() => handleInsertDataType(dt.value)}
                     title={`Insert ${dt.value}`}
-                    className="text-left p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                    className="text-left p-3 border border-white/20 rounded-lg hover:bg-white/10 hover:border-white/40 transition-colors"
                   >
-                    <div className="font-mono text-xs font-semibold text-slate-900 mb-1">{dt.value}</div>
-                    <div className="text-xs text-slate-500">{dt.label}</div>
+                    <div className="font-mono text-xs font-semibold text-white mb-1">{dt.value}</div>
+                    <div className="text-xs text-white/60">{dt.label}</div>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="sticky bottom-0 bg-white border-t border-slate-200 shadow-lg rounded-t-lg p-4">
+          <div className="sticky bottom-0 bg-black border-t border-white/20 shadow-lg rounded-t-lg p-4">
             <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
               <Button
                 type="button"
                 onClick={onCancel}
                 variant="outline"
-                className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                className="border-white/20 text-white hover:bg-white/10"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -461,7 +461,7 @@ Examples:
                 type="button"
                 onClick={handleAdd}
                 disabled={!alias.trim() || !expressionText.trim()}
-                className="bg-blue-600 text-white hover:bg-blue-700 font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-white text-black hover:bg-white/90 font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

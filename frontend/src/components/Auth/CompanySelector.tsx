@@ -83,7 +83,7 @@ export default function CompanySelector() {
   };
 
   return (
-    <div className="min-h-screen  flex items-center justify-center px-6 py-8">
+    <div className="min-h-screen bg-black flex items-center justify-center px-6 py-8">
     <Card className="w-full max-w-6xl  border border-neutral-800 shadow-xl">
       
       <CardHeader className="border-b border-neutral-800 bg-neutral-950 text-white">

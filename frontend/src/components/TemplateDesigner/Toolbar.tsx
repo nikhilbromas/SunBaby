@@ -29,15 +29,15 @@ const Toolbar: React.FC = () => {
       tabIndex={onClick ? 0 : undefined}
       className={cn(
         'flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer',
-        'border border-neutral-200 bg-white',
-        'hover:bg-neutral-100 transition',
+        'border border-white/20 bg-black',
+        'hover:bg-white/10 transition',
         isDragging && 'opacity-50'
       )}
     >
-      <div className="flex items-center justify-center w-8 h-8 rounded bg-black text-white">
+      <div className="flex items-center justify-center w-8 h-8 rounded bg-white text-black">
         {icon}
       </div>
-      <span className="text-sm font-medium text-black">{label}</span>
+      <span className="text-sm font-medium text-white">{label}</span>
     </div>
   );
 
@@ -121,8 +121,8 @@ const Toolbar: React.FC = () => {
     title: string;
     children: React.ReactNode;
   }) => (
-    <Card className="p-4 space-y-3 border-neutral-200">
-      <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">
+    <Card className="p-4 space-y-3 border-white/20 bg-black">
+      <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
         {title}
       </h3>
       <div className="grid gap-2">{children}</div>
@@ -130,7 +130,7 @@ const Toolbar: React.FC = () => {
   );
 
   return (
-    <div className="w-full space-y-4 p-4 bg-neutral-50">
+    <div className="w-full space-y-4 p-4 bg-black">
       <Section title="Page Header">
         <TextField targetSection="pageHeader" />
         <PageNumber targetSection="pageHeader" />

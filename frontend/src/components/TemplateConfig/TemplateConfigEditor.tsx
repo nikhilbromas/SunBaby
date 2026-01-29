@@ -167,7 +167,7 @@ const TemplateConfigEditor: React.FC<Props> = ({
 
   /* ---------------- UI ---------------- */
   return (
-    <div className="min-h-screen  ">
+    <div className="min-h-screen  bg-black">
     {/* Header */}
     <div className="bg-black border-b border-neutral-800 shadow">
       <div className="max-w-5xl mx-auto px-6 py-6">
@@ -328,7 +328,7 @@ const TemplateConfigEditor: React.FC<Props> = ({
         <Button
           variant="outline"
           onClick={onCancel}
-          className="border-white bg-black text-white hover:bg-white hover:text-black"
+          className="border-white bg-white text-black hover:bg-black hover:text-white"
         >
           Cancel
         </Button>
@@ -336,7 +336,7 @@ const TemplateConfigEditor: React.FC<Props> = ({
         <Button
           onClick={handleSave}
           disabled={loading || !templateId || !presetId || !interfaceId || !type.trim()}
-          className="bg-black text-white hover:bg-white hover:text-black disabled:opacity-50"
+          className="bg-white text-black hover:bg-black hover:text-white disabled:opacity-50"
         >
           {loading ? 'Saving…' : 'Save Configuration'}
         </Button>

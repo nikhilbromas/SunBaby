@@ -1,17 +1,17 @@
 .side-panel {
   width: 450px;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
+  background: #000000;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 30px rgba(15, 23, 42, 0.06);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
 
 .side-panel-tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.8);
-  border-bottom: 1px solid var(--border);
+  background: #000000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 10px;
   gap: 8px;
   flex-wrap: wrap;
@@ -26,7 +26,7 @@
   padding: 10px 12px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
@@ -36,15 +36,15 @@
 }
 
 .tab-button:hover:not(:disabled) {
-  background: rgba(15, 23, 42, 0.04);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .tab-button.active {
-  background: var(--surface);
-  color: var(--brand-600);
-  border-color: rgba(11, 99, 255, 0.22);
-  box-shadow: var(--shadow-sm);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
 }
 
 .tab-button.active::after {
@@ -64,7 +64,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 0;
-  background: var(--surface);
+  background: #000000;
 }
 
 .side-panel-content > * {
@@ -75,7 +75,7 @@
 .no-data-message {
   padding: 2rem;
   text-align: center;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.6);
   font-style: italic;
 }
 
@@ -88,7 +88,7 @@
   .side-panel {
     width: 100%;
     border-left: none;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
     max-height: 400px;
   }
   
@@ -135,8 +135,8 @@
   .side-panel-tabs {
     padding: 12px;
     gap: 8px;
-    border-bottom: 1px solid var(--border);
-    background: white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: #000000;
   }
   
   .tab-button {

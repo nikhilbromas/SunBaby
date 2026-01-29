@@ -26,24 +26,24 @@ const SidePanel: React.FC<SidePanelProps> = ({
   return (
     <div className="side-panel">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="w-full h-full flex flex-col">
-        <TabsList className="side-panel-tabs flex-shrink-0">
-          <TabsTrigger value="elements" className="tab-button">
+        <TabsList className="side-panel-tabs flex-shrink-0 bg-black border-b border-white/20">
+          <TabsTrigger value="elements" className="tab-button text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10 data-[state=active]:border-white/30">
             <span className="tab-icon"><Puzzle size={16} /></span>
             Elements
           </TabsTrigger>
-          <TabsTrigger value="data" className="tab-button" disabled={!sampleData}>
+          <TabsTrigger value="data" className="tab-button text-white/60 data-[state=active]:text-white data-[state=active]:bg-white/10 data-[state=active]:border-white/30" disabled={!sampleData}>
             <span className="tab-icon"><BarChart size={16} /></span>
             Data Fields
           </TabsTrigger>
         </TabsList>
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <TabsContent value="elements" className="side-panel-content h-full m-0">
+        <div className="flex-1 min-h-0 overflow-hidden bg-black">
+          <TabsContent value="elements" className="side-panel-content h-full m-0 bg-black">
             <ScrollArea className="h-full">
               <ImageGallery />
               <Toolbar />
             </ScrollArea>
           </TabsContent>
-          <TabsContent value="data" className="side-panel-content h-full m-0">
+          <TabsContent value="data" className="side-panel-content h-full m-0 bg-black">
             <ScrollArea className="h-full">
               {sampleData ? (
                 <DataPreview
@@ -55,7 +55,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
                 />
               ) : (
                 <div className="no-data-message">
-                  <p>Execute query to see available data fields</p>
+                  <p className="text-white/60">Execute query to see available data fields</p>
                 </div>
               )}
             </ScrollArea>

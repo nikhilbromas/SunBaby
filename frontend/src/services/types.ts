@@ -285,6 +285,9 @@ export interface UserPermissions {
   AllowTemplate: boolean;
   AllowPreview: boolean;
   AllowTemplateConfig: boolean;
+  // New analytics/dashboards permissions (optional for backward compatibility)
+  AllowAnalytics?: boolean;
+  AllowDashboard?: boolean;
 }
 
 export interface Company {
@@ -563,5 +566,195 @@ export interface FunctionParameter {
   type: string;
   required: boolean;
   description?: string;
+}
+
+// ============================================================================
+// Analytics & Dashboards Types
+// ============================================================================
+
+export type AnalyticsFieldType = 'number' | 'string' | 'date' | 'boolean' | 'unknown';
+
+export interface AnalyticsFieldsMetadata {
+  header?: Record<string, AnalyticsFieldType>;
+  items?: Record<string, AnalyticsFieldType>;
+  contentDetails?: Record<string, Record<string, AnalyticsFieldType>>;
+}
+
+export interface AnalyticsDataset {
+  headerRow: Record<string, any> | null;
+  itemsRows: Record<string, any>[];
+  contentDetails: Record<string, Record<string, any>[]>;
+  fieldsMetadata: AnalyticsFieldsMetadata;
+}
+
+export type AnalyticsWidgetType = 'kpi' | 'chart' | 'table';
+
+export interface AnalyticsWidgetRequest {
+  id: string;
+  type: AnalyticsWidgetType;
+  config: Record<string, any>;
+}
+
+export interface AnalyticsWidgetResult {
+  id: string;
+  type: AnalyticsWidgetType;
+  // Shape depends on widget type (value/series/rows/etc.)
+  [key: string]: any;
+}
+
+export interface AnalyticsRunRequest {
+  preset_id: number;
+  parameters: Record<string, any>;
+  company_id?: number;
+  widgetRequests?: AnalyticsWidgetRequest[];
+}
+
+export interface AnalyticsRunResponse {
+  dataset: AnalyticsDataset;
+  widgets?: AnalyticsWidgetResult[];
+}
+
+export interface AnalyticsRunMultiPresetSpec {
+  preset_id: number;
+  parameters: Record<string, any>;
+}
+
+export interface AnalyticsRunMultiRequest {
+  presets: AnalyticsRunMultiPresetSpec[];
+  company_id?: number;
+  unionMode?: string | null;
+}
+
+export interface AnalyticsRunMultiResponse {
+  results: AnalyticsDataset[];
+}
+
+export interface AnalyticsCompareSide {
+  preset_id: number;
+  parameters: Record<string, any>;
+}
+
+export interface AnalyticsCompareRequest {
+  left: AnalyticsCompareSide;
+  right: AnalyticsCompareSide;
+  company_id?: number;
+  joinKeys?: string[];
+}
+
+export interface AnalyticsCompareSummary {
+  leftCount: number;
+  rightCount: number;
+  countVariance: {
+    absolute: number | null;
+    percent: number | null;
+  };
+}
+
+export interface AnalyticsCompareResponse {
+  left: AnalyticsDataset;
+  right: AnalyticsDataset;
+  summary: AnalyticsCompareSummary;
+}
+
+// Dashboards
+
+export type DashboardWidgetType = 'kpi' | 'chart' | 'table';
+
+export interface DashboardWidgetConfig {
+  chartType?: string;
+  datasetRef?: string;
+  xField?: string;
+  yField?: string;
+  seriesField?: string;
+  agg?: string;
+  sort?: string;
+  limit?: number;
+  filters?: Record<string, any>[];
+  metric?: string;
+  field?: string;
+  columns?: string[];
+  pageSize?: number;
+}
+
+export interface DashboardPresetBinding {
+  presetId: number;
+  parameters: Record<string, any>;
+}
+
+export interface DashboardWidget {
+  WidgetId: number;
+  DashboardId: number;
+  Title: string;
+  Type: DashboardWidgetType;
+  Config: DashboardWidgetConfig;
+  PresetBinding: DashboardPresetBinding;
+  OrderIndex: number;
+  CreatedOn: string;
+  UpdatedOn?: string | null;
+  IsActive: boolean;
+}
+
+export interface DashboardWidgetCreate {
+  Title: string;
+  Type: DashboardWidgetType;
+  Config: DashboardWidgetConfig;
+  PresetBinding: DashboardPresetBinding;
+  OrderIndex?: number;
+}
+
+export interface Dashboard {
+  DashboardId: number;
+  Name: string;
+  Description?: string | null;
+  CreatedBy?: string | null;
+  CreatedOn: string;
+  UpdatedOn?: string | null;
+  IsActive: boolean;
+  Widgets: DashboardWidget[];
+}
+
+export interface DashboardListItem {
+  DashboardId: number;
+  Name: string;
+  Description?: string | null;
+  CreatedBy?: string | null;
+  CreatedOn: string;
+  UpdatedOn?: string | null;
+  IsActive: boolean;
+}
+
+export interface DashboardListResponse {
+  dashboards: DashboardListItem[];
+  total: number;
+}
+
+export interface DashboardCreate {
+  Name: string;
+  Description?: string | null;
+  CreatedBy?: string | null;
+  Widgets: DashboardWidgetCreate[];
+}
+
+export interface DashboardUpdate {
+  Name?: string;
+  Description?: string | null;
+  Widgets?: DashboardWidgetCreate[];
+}
+
+export interface RunDashboardResponse {
+  dashboard: Dashboard;
+  widgets: Record<
+    string,
+    {
+      widgetId: number;
+      dashboardId: number;
+      title: string;
+      type: DashboardWidgetType;
+      config: DashboardWidgetConfig;
+      presetBinding: DashboardPresetBinding;
+      dataset: AnalyticsDataset;
+      output?: any;
+    }
+  >;
 }
 

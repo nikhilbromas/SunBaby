@@ -148,16 +148,16 @@ const BillPreview: React.FC = () => {
 
   /* -------------------- UI -------------------- */
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <div className="min-h-screen bg-black p-4">
       <div className="max-w-[1700px] mx-auto space-y-4">
 
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-white">
               Bill Preview Studio
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-white/60">
               Generate and preview PDF bills
             </p>
           </div>
@@ -165,21 +165,22 @@ const BillPreview: React.FC = () => {
           <Button
             onClick={generatePdf}
             disabled={loading || !selectedTemplate}
+            className="bg-white text-black hover:bg-white/90"
           >
             {loading ? 'Generating…' : 'Generate PDF'}
           </Button>
         </div>
 
         {/* Template Selector */}
-        <Card>
+        <Card className="bg-black border-white/20">
   <CardContent className="pt-6">
     <div className="flex items-center gap-4">
-      <span className="text-sm font-medium text-slate-700">
+      <span className="text-sm font-medium text-white">
         Template
       </span>
 
       <select
-        className="border rounded-md px-3 py-2 text-sm w-[260px]"
+        className="border border-white/20 rounded-md px-3 py-2 text-sm w-[260px] bg-black text-white"
         value={selectedTemplate?.TemplateId || ''}
         onChange={(e) => {
           const t = templates.find(
@@ -188,9 +189,9 @@ const BillPreview: React.FC = () => {
           setSelectedTemplate(t || null);
         }}
       >
-        <option value="">Select Template</option>
+        <option value="" className="bg-black text-white">Select Template</option>
         {templates.map(t => (
-          <option key={t.TemplateId} value={t.TemplateId}>
+          <option key={t.TemplateId} value={t.TemplateId} className="bg-black text-white">
             {t.TemplateName}
           </option>
         ))}
@@ -208,17 +209,17 @@ const BillPreview: React.FC = () => {
             <div
               ref={sidebarRef}
               style={{ width: sidebarWidth }}
-              className="relative bg-white border-r"
+              className="relative bg-black border-r border-white/20"
             >
               <div
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-white/20"
                 onMouseDown={() => (resizingRef.current = true)}
               />
 
-              <Card className="h-full rounded-none">
-                <CardHeader className="flex-row justify-between">
-                  <CardTitle>Parameters</CardTitle>
-                  <Button size="sm" onClick={() => setCollapsed(true)}>
+              <Card className="h-full rounded-none bg-black border-white/20">
+                <CardHeader className="flex-row justify-between text-white">
+                  <CardTitle className="text-white">Parameters</CardTitle>
+                  <Button size="sm" onClick={() => setCollapsed(true)} className="bg-white/10 text-white hover:bg-white/20 border-white/20">
                     ◀
                   </Button>
                 </CardHeader>
@@ -235,7 +236,7 @@ const BillPreview: React.FC = () => {
                     {pdfBase64 && (
                       <Button
                         variant="outline"
-                        className="w-full mt-4"
+                        className="w-full mt-4 border-white/20 text-white hover:bg-white/10"
                         onClick={downloadPdf}
                       >
                         Download PDF
@@ -249,7 +250,7 @@ const BillPreview: React.FC = () => {
 
           {collapsed && (
             <Button
-              className="h-full rounded-none"
+              className="h-full rounded-none bg-black border-white/20 text-white hover:bg-white/10"
               onClick={() => setCollapsed(false)}
             >
               ▶
@@ -258,20 +259,20 @@ const BillPreview: React.FC = () => {
 
           {/* Preview */}
           <div className="flex-1 px-4">
-            <Card className="h-full">
-              <CardHeader className="flex-row justify-between">
-                <CardTitle>PDF Preview</CardTitle>
+            <Card className="h-full bg-black border-white/20">
+              <CardHeader className="flex-row justify-between text-white">
+                <CardTitle className="text-white">PDF Preview</CardTitle>
 
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => setZoom(z => z + 0.1)}>+</Button>
-                  <Button size="sm" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}>-</Button>
-                  <Button size="sm" onClick={() => setZoom(1)}>Reset</Button>
+                  <Button size="sm" onClick={() => setZoom(z => z + 0.1)} className="bg-white/10 text-white hover:bg-white/20 border-white/20">+</Button>
+                  <Button size="sm" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="bg-white/10 text-white hover:bg-white/20 border-white/20">-</Button>
+                  <Button size="sm" onClick={() => setZoom(1)} className="bg-white/10 text-white hover:bg-white/20 border-white/20">Reset</Button>
                 </div>
               </CardHeader>
 
               <CardContent className="h-[calc(100%-64px)] p-2">
                 {error && (
-                  <div className="text-sm text-red-600 mb-2">{error}</div>
+                  <div className="text-sm text-red-400 mb-2">{error}</div>
                 )}
 
                 {pdfUrl ? (
@@ -286,12 +287,12 @@ const BillPreview: React.FC = () => {
                       <iframe
                         src={pdfUrl}
                         title="PDF Preview"
-                        className="w-full h-full border rounded"
+                        className="w-full h-full border border-white/20 rounded"
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-slate-400">
+                  <div className="h-full flex items-center justify-center text-white/60">
                     Generate PDF to preview
                   </div>
                 )}

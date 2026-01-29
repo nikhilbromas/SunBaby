@@ -354,7 +354,7 @@ setFilteredInterfaces(allInterfaces);
   
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-black">
       {/* Header */}
       <div className="bg-black text-white shadow-lg">
   <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

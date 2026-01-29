@@ -135,13 +135,13 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-base font-semibold text-slate-900">Link Data Sources</h4>
+        <h4 className="text-base font-semibold text-white">Link Data Sources</h4>
         <Button
           type="button"
           onClick={addJoin}
           disabled={availableTables.length === 0}
           size="sm"
-          className="bg-blue-600 text-white hover:bg-blue-700"
+          className="bg-white text-black hover:bg-white/90"
         >
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -151,25 +151,25 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
       </div>
 
       {availableTables.length <= 1 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-3 flex items-start gap-3">
+          <svg className="w-5 h-5 text-white flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-sm text-blue-900">
+          <p className="text-sm text-white">
             You have only one data source selected. Add more data sources in Step 1 to link them together.
           </p>
         </div>
       )}
 
       {joins.length === 0 && availableTables.length > 1 ? (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-slate-200 rounded-lg bg-white">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-white/20 rounded-lg bg-black">
+          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
           </div>
-          <h4 className="text-sm font-semibold text-slate-900 mb-1">No links created</h4>
-          <p className="text-xs text-slate-500">Link your data sources to combine related information</p>
+          <h4 className="text-sm font-semibold text-white mb-1">No links created</h4>
+          <p className="text-xs text-white/60">Link your data sources to combine related information</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -178,11 +178,11 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
             return (
               <Card key={joinIndex} className={cn(
                 "border shadow-md",
-                !isValid ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
+                !isValid ? "border-amber-500/50 bg-amber-500/10" : "border-white/20 bg-black"
               )}>
                 <div className="p-4 space-y-4">
                   {!isValid && (
-                    <div className="flex items-start gap-2 text-amber-800 text-sm">
+                    <div className="flex items-start gap-2 text-amber-300 text-sm">
                       <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
@@ -192,39 +192,39 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         Link Type
                       </label>
                       <select
                         value={join.type}
                         onChange={(e) => updateJoin(joinIndex, { type: e.target.value as JoinType })}
                         title={JOIN_TYPE_LABELS[join.type].description}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 text-sm bg-black text-white"
                       >
                         {JOIN_TYPES.map(type => (
-                          <option key={type} value={type}>{JOIN_TYPE_LABELS[type].label}</option>
+                          <option key={type} value={type} className="bg-black text-white">{JOIN_TYPE_LABELS[type].label}</option>
                         ))}
                       </select>
-                      <p className="text-xs text-slate-500 mt-1">{JOIN_TYPE_LABELS[join.type].description}</p>
+                      <p className="text-xs text-white/60 mt-1">{JOIN_TYPE_LABELS[join.type].description}</p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         Connect To
                       </label>
                       <select
                         value={join.table}
                         onChange={(e) => updateJoin(joinIndex, { table: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 text-sm bg-black text-white"
                       >
                         {availableTables.map(table => (
-                          <option key={table} value={table}>{table}</option>
+                          <option key={table} value={table} className="bg-black text-white">{table}</option>
                         ))}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <label className="block text-sm font-medium text-white mb-2">
                         Short Name (optional)
                       </label>
                       <input
@@ -232,34 +232,34 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
                         placeholder="e.g., ord"
                         value={join.alias || ''}
                         onChange={(e) => updateJoin(joinIndex, { alias: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 text-sm bg-black text-white placeholder:text-white/40"
                       />
                     </div>
                   </div>
 
                   {join.type !== 'CROSS' && (
-                    <div className="pt-4 border-t border-slate-200 space-y-3">
+                    <div className="pt-4 border-t border-white/20 space-y-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                         </svg>
-                        <span className="text-sm font-medium text-slate-700">Match Where:</span>
+                        <span className="text-sm font-medium text-white">Match Where:</span>
                       </div>
 
                       {join.conditions.map((cond, condIndex) => (
                         <div key={condIndex} className="space-y-2">
                           {condIndex > 0 && (
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 border-t border-slate-200"></div>
+                              <div className="flex-1 border-t border-white/20"></div>
                               <select
                                 value={cond.andOr || 'AND'}
                                 onChange={(e) => updateCondition(joinIndex, condIndex, { andOr: e.target.value })}
-                                className="px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium bg-slate-50"
+                                className="px-3 py-1.5 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 text-sm font-medium bg-black text-white"
                               >
-                                <option value="AND">AND</option>
-                                <option value="OR">OR</option>
+                                <option value="AND" className="bg-black text-white">AND</option>
+                                <option value="OR" className="bg-black text-white">OR</option>
                               </select>
-                              <div className="flex-1 border-t border-slate-200"></div>
+                              <div className="flex-1 border-t border-white/20"></div>
                             </div>
                           )}
 
@@ -267,22 +267,22 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
                             <select
                               value={cond.leftColumn}
                               onChange={(e) => updateCondition(joinIndex, condIndex, { leftColumn: e.target.value })}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                              className="flex-1 px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 text-sm bg-black text-white"
                             >
-                              <option value="">Select field...</option>
+                              <option value="" className="bg-black text-white">Select field...</option>
                               {availableColumns.map(col => (
-                                <option key={col} value={col}>{col}</option>
+                                <option key={col} value={col} className="bg-black text-white">{col}</option>
                               ))}
                             </select>
-                            <span className="flex-shrink-0 text-slate-600 font-bold">=</span>
+                            <span className="flex-shrink-0 text-white font-bold">=</span>
                             <select
                               value={cond.rightColumn}
                               onChange={(e) => updateCondition(joinIndex, condIndex, { rightColumn: e.target.value })}
-                              className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                              className="flex-1 px-3 py-2 border border-white/20 rounded-md focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 text-sm bg-black text-white"
                             >
-                              <option value="">Select field...</option>
+                              <option value="" className="bg-black text-white">Select field...</option>
                               {availableColumns.map(col => (
-                                <option key={col} value={col}>{col}</option>
+                                <option key={col} value={col} className="bg-black text-white">{col}</option>
                               ))}
                             </select>
                             <Button
@@ -290,7 +290,7 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
                               onClick={() => removeCondition(joinIndex, condIndex)}
                               variant="outline"
                               size="sm"
-                              className="border-red-200 text-red-600 hover:bg-red-50"
+                              className="border-red-500/50 text-red-400 hover:bg-red-500/20"
                               title="Remove condition"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,7 +306,7 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
                         onClick={() => addCondition(joinIndex)}
                         variant="outline"
                         size="sm"
-                        className="w-full border-slate-300 text-slate-700 hover:bg-slate-50"
+                        className="w-full border-white/20 text-white hover:bg-white/10"
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -316,13 +316,13 @@ const JoinBuilder: React.FC<JoinBuilderProps> = ({
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-slate-200 flex justify-end">
+                  <div className="pt-4 border-t border-white/20 flex justify-end">
                     <Button
                       type="button"
                       onClick={() => removeJoin(joinIndex)}
                       variant="outline"
                       size="sm"
-                      className="border-red-200 text-red-600 hover:bg-red-50"
+                      className="border-red-500/50 text-red-400 hover:bg-red-500/20"
                     >
                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

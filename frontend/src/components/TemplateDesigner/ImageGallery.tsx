@@ -78,17 +78,21 @@ const ImageGallery: React.FC = () => {
     return (
       <div
         ref={drag}
-        className={`image-card ${isDragging ? 'dragging' : ''}`}
+        className={cn(
+          'bg-black border border-white/20 rounded-md overflow-hidden cursor-grab transition-all',
+          'hover:border-white/40 hover:shadow-lg hover:-translate-y-0.5',
+          isDragging && 'opacity-60 cursor-grabbing scale-95'
+        )}
         title="Drag to canvas to add image"
       >
-        <div className="image-card-thumbnail">
-          <img src={image.Base64Data} alt={image.ImageName} />
+        <div className="w-full aspect-square overflow-hidden bg-black/50 flex items-center justify-center">
+          <img src={image.Base64Data} alt={image.ImageName} className="w-full h-full object-cover" />
         </div>
-        <div className="image-card-info">
-          <div className="image-card-name" title={image.ImageName}>
+        <div className="p-3 bg-black">
+          <div className="text-xs font-semibold text-white whitespace-nowrap overflow-hidden text-ellipsis mb-1" title={image.ImageName}>
             {image.ImageName}
           </div>
-          <div className="image-card-dimensions">
+          <div className="text-[0.7rem] text-white/60">
             {image.Width} × {image.Height}
           </div>
         </div>
@@ -97,28 +101,28 @@ const ImageGallery: React.FC = () => {
   };
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4 space-y-4">
+    <div className="rounded-lg border border-white/20 bg-black p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
-        <h3 className="text-base font-semibold text-black">
+      <div className="flex items-center justify-between border-b border-white/20 pb-3">
+        <h3 className="text-base font-semibold text-white">
           Images
         </h3>
   
         <Button
           variant="outline"
           size="sm"
-          className="border-black text-black hover:bg-black hover:text-white"
+          className="border-white/30 text-black hover:text-white hover:bg-black"
           onClick={handleUploadClick}
           disabled={uploading}
         >
           {uploading ? (
             <>
-              <Loader2 size={16} className="mr-2 animate-spin" />
+              <Loader2 size={16} className="mr-2 animate-spin text-black" />
               Uploading...
             </>
           ) : (
             <>
-              <Upload size={16} className="mr-2" />
+              <Upload size={16} className="mr-2 text-black" />
               Upload
             </>
           )}
@@ -135,16 +139,16 @@ const ImageGallery: React.FC = () => {
   
       {/* Content */}
       {loading ? (
-        <div className="text-sm text-neutral-600 py-8 text-center">
+        <div className="text-sm text-white/60 py-8 text-center">
           Loading images…
         </div>
       ) : images.length === 0 ? (
         <div className="py-10 text-center space-y-1">
-          <p className="text-sm text-neutral-700">
+          <p className="text-sm text-white/80">
             No images uploaded yet.
           </p>
-          <p className="text-xs text-neutral-500">
-            Click <span className="font-medium text-black">Upload</span> to add images.
+          <p className="text-xs text-white/60">
+            Click <span className="font-medium text-white">Upload</span> to add images.
           </p>
         </div>
       ) : (

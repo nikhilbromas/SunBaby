@@ -69,9 +69,9 @@ const FieldBox: React.FC<{
 }> = ({ dragging, children }) => (
   <div
     className={cn(
-      'rounded-md border bg-background px-3 py-2 text-sm space-y-1 cursor-grab',
-      'hover:bg-muted transition',
-      dragging && 'opacity-60 ring-2 ring-primary'
+      'rounded-md border border-white/20 bg-black px-3 py-2 text-sm space-y-1 cursor-grab text-white',
+      'hover:bg-white/10 transition',
+      dragging && 'opacity-60 ring-2 ring-white'
     )}
   >
     {children}
@@ -113,11 +113,11 @@ const DraggableHeaderField: React.FC<{
       }
     >
       <FieldBox dragging={isDragging}>
-        <code className="text-xs font-mono text-primary">
+        <code className="text-xs font-mono text-white">
           header.{field}
         </code>
         {sampleValue !== undefined && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-white/60">
             Sample: {String(sampleValue)}
           </p>
         )}
@@ -157,9 +157,9 @@ const DraggableItemField: React.FC<{
       }
     >
       <FieldBox dragging={isDragging}>
-        <code className="text-xs font-mono">{field}</code>
+        <code className="text-xs font-mono text-white">{field}</code>
         {sampleValue !== undefined && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-white/60">
             Sample: {String(sampleValue)}
           </p>
         )}
@@ -215,13 +215,13 @@ const DraggableContentDetailField: React.FC<{
     >
       <FieldBox dragging={isDragging}>
         <div className="flex gap-2 items-center">
-          <code className="text-xs font-mono">{label}</code>
-          <Badge variant="secondary" className="text-[10px]">
+          <code className="text-xs font-mono text-white">{label}</code>
+          <Badge variant="secondary" className="text-[10px] bg-white/20 text-white border-white/30">
             {contentName}
           </Badge>
         </div>
         {sampleValue !== undefined && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-white/60">
             Sample: {String(sampleValue)}
           </p>
         )}
@@ -344,32 +344,33 @@ const DraggableSelectionZone: React.FC<
       ref={zoneRef}
       onDoubleClick={() => setCanDragZone(true)}
       className={cn(
-        canDragZone && 'ring-2 ring-primary cursor-grab',
+        'bg-black border-white/20 text-white',
+        canDragZone && 'ring-2 ring-white cursor-grab',
         isDragging && 'opacity-60'
       )}
     >
-      <CardHeader onClick={() => setCollapsed(!collapsed)}>
+      <CardHeader onClick={() => setCollapsed(!collapsed)} className="text-white">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <GripVertical size={14} /> {label}
+          <CardTitle className="text-sm flex items-center gap-2 text-white">
+            <GripVertical size={14} className="text-white" /> {label}
           </CardTitle>
           <ChevronDown
             size={16}
-            className={cn('transition', collapsed && '-rotate-90')}
+            className={cn('transition text-white', collapsed && '-rotate-90')}
           />
         </div>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="text-xs text-white/60">{hint}</p>
         {canDragZone && (
-          <p className="text-xs text-primary">
+          <p className="text-xs text-white">
             🎯 Drag now to place all fields
           </p>
         )}
       </CardHeader>
 
       {!collapsed && (
-        <CardContent className="p-0 overflow-hidden">
+        <CardContent className="p-0 overflow-hidden bg-black">
           <ScrollArea className="h-[280px]">
-            <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-col gap-2 p-4 bg-black">
               {zoneFields.map((zf, i) =>
                 zf.fieldType === 'header' ? (
                   <DraggableHeaderField
@@ -412,11 +413,11 @@ const DataPreview: React.FC<DataPreviewProps> = (props) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-black p-4 rounded-lg">
       <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
         <Input
-          className="pl-9"
+          className="pl-9 bg-black border-white/20 text-white placeholder:text-white/40"
           placeholder="Search fields..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}

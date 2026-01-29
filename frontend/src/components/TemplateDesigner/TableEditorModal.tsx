@@ -932,8 +932,8 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
-      <DialogContent className="max-w-5xl sm:max-w-5xl w-[100vw] sm:w-auto h-[100vh] sm:h-[90vh] p-0 gap-0 flex flex-col sm:rounded-lg rounded-none">
-        <DialogHeader className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white border-b-0 flex-shrink-0">
+      <DialogContent className="max-w-5xl sm:max-w-5xl w-full max-w-5xl  h-[100vh] sm:h-[90vh] p-0 gap-0 flex flex-col sm:rounded-lg rounded-none">
+        <DialogHeader className="px-6 py-4  bg-black text-white border-b-0 flex-shrink-0">
           <DialogTitle className="flex items-center gap-3 text-2xl font-semibold">
             <Table className="w-8 h-8" />
             <span>
@@ -943,9 +943,8 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
             </span>
           </DialogTitle>
         </DialogHeader>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col flex-1 min-h-0">
-          <TabsList className="w-full justify-start rounded-none border-b bg-gradient-to-b from-blue-50 to-white px-6 h-auto gap-2 overflow-x-auto flex-shrink-0">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="flex flex-col flex-1 min-h-0  ">
+          <TabsList className="w-full justify-start rounded-none border-b bg-gradient-to-b from-blue-50 to-white px-6 h-auto gap-2 overflow-x-auto flex-shrink-0 bg-black text-white">
             <TabsTrigger value="general" className="gap-2 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:shadow-md">
               <FileText className="w-4 h-4" /> General
             </TabsTrigger>
@@ -963,25 +962,25 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
         <div className="flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-white to-blue-50">
           <ScrollArea className="h-full">
           <TabsContent value="general" className="p-6 space-y-6 m-0">
-            <Card className="p-6 bg-gradient-to-b from-white to-blue-50 border-blue-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-700 mb-6 pb-2 border-b-2 border-blue-200">Layout</h3>
+            <Card className="p-6  shadow-sm bg-black text-white">
+              <h3 className="text-lg font-semibold text-white mb-6 pb-2 border-b-2 border-blue-200">Layout</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="orientation" className="text-sm font-semibold text-gray-700">
+                  <Label htmlFor="orientation" className="text-sm font-semibold text-white">
                     Orientation:
                   </Label>
                   <select
                     id="orientation"
                     value={editedTable.orientation || 'vertical'}
                     onChange={(e) => updateTable({ orientation: e.target.value as 'vertical' | 'horizontal' })}
-                    className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-black"
                   >
                     <option value="vertical">Vertical (Normal)</option>
                     <option value="horizontal">Horizontal (Transposed)</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="positionX" className="text-sm font-semibold text-gray-700">
+                  <Label htmlFor="positionX" className="text-sm font-semibold text-white">
                     Position X:
                   </Label>
                   <Input
@@ -989,11 +988,11 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                     type="number"
                     value={editedTable.x || 0}
                     onChange={(e) => updateTable({ x: parseFloat(e.target.value) || 0 })}
-                    className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
+                    className="border-blue-200 text-black focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="positionY" className="text-sm font-semibold text-gray-700">
+                  <Label htmlFor="positionY" className="text-sm font-semibold text-white">
                     Position Y:
                   </Label>
                   <Input
@@ -1001,12 +1000,12 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                     type="number"
                     value={editedTable.y || 0}
                     onChange={(e) => updateTable({ y: parseFloat(e.target.value) || 0 })}
-                    className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
+                    className="border-blue-200 text-black focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 {tableType === 'contentDetailTable' && (
                   <div className="space-y-2">
-                    <Label htmlFor="rowsPerPage" className="text-sm font-semibold text-gray-700">
+                    <Label htmlFor="rowsPerPage" className="text-sm font-semibold text-white">
                       Rows Per Page:
                     </Label>
                     <Input
@@ -1018,7 +1017,7 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
                         rowsPerPage: e.target.value ? parseInt(e.target.value) : undefined 
                       } as ContentDetailsTableConfig)}
                       placeholder="Auto"
-                      className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
+                      className="border-blue-200 text-black focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 )}
@@ -1026,385 +1025,174 @@ const TableEditorModal: React.FC<TableEditorModalProps> = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="columns" className="p-6 space-y-6 m-0">
-            <div className="flex gap-3 flex-wrap">
-              <Button onClick={addColumn} className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-md">
+          <TabsContent value="columns" className="p-6 space-y-6 m-0 bg-black text-white p-4 rounded-lg">
+            <div className="flex gap-3 flex-wrap ">
+              <Button onClick={addColumn} className="bg-white text-black hover:bg-black hover:text-white shadow-md">
                 + Add Column
               </Button>
-              <Button onClick={toggleAllColumns} variant="outline" className="border-blue-300 hover:bg-blue-50">
+              <Button onClick={toggleAllColumns} variant="outline" className="bg-white text-black hover:bg-black hover:text-white">
                 {selectedColumns.size === editedTable.columns.length ? 'Deselect All' : 'Select All'}
               </Button>
               {selectedColumns.size > 0 && (
-                <Button onClick={deleteSelectedColumns} variant="destructive" className="shadow-md">
+                <Button onClick={deleteSelectedColumns} variant="destructive" className="bg-white text-black hover:bg-black hover:text-white">
                   Delete Selected ({selectedColumns.size})
                 </Button>
               )}
             </div>
 
             <div className="space-y-4">
-                {editedTable.columns.map((col, index) => (
-                  <Card
-                    key={index}
-                    className={cn(
-                      "p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 border-2",
-                      selectedColumns.has(index) 
-                        ? "border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 shadow-md" 
-                        : "border-gray-200 bg-white hover:border-blue-400",
-                      expandedColumn === index && "border-blue-500 shadow-xl"
-                    )}
-                  >
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-semibold text-gray-700">
-                        <Checkbox
-                          checked={selectedColumns.has(index)}
-                          onCheckedChange={() => toggleColumnSelection(index)}
-                          className="border-blue-500"
-                        />
-                        <span>Column #{index + 1}</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setExpandedColumn(expandedColumn === index ? null : index)}
-                          className="h-8 w-8 p-0 border-gray-300 hover:border-gray-400"
-                        >
-                          {expandedColumn === index ? '▼' : '▶'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteColumn(index)}
-                          className="h-8 w-8 p-0 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    </div>
+            {editedTable.columns.map((col, index) => (
+  <Card
+    key={index}
+    className={cn(
+      "p-4 transition-all duration-200 rounded-lg border",
+      selectedColumns.has(index)
+        ? "bg-white text-black border-blue-500 shadow-md"
+        : "bg-black text-white border-gray-700 hover:border-blue-400 hover:shadow-lg",
+      expandedColumn === index && "shadow-xl"
+    )}
+  >
+    {/* HEADER */}
+    <div className="flex justify-between items-center mb-3">
+      <label className="flex items-center gap-2 cursor-pointer font-semibold">
+        <Checkbox
+          checked={selectedColumns.has(index)}
+          onCheckedChange={() => toggleColumnSelection(index)}
+          className={cn(
+            "h-4 w-4",
+            selectedColumns.has(index)
+              ? "border-black text-black"
+              : "border-white text-white"
+          )}
+        />
+        <span>Column #{index + 1}</span>
+      </label>
 
-                    {expandedColumn === index && (
-                      <div className="pt-4 border-t border-gray-200 space-y-4 animate-in slide-in-from-top-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <Tag className="w-4 h-4" /> Column Label
-                            </Label>
-                            <Input
-                              type="text"
-                              value={col.label}
-                              onChange={(e) => updateColumn(index, { label: e.target.value })}
-                              placeholder="e.g., Item Name, Quantity, Price"
-                              className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <small className="text-xs text-blue-600 italic">The text displayed in the table header</small>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold text-gray-700">
-                              Data Binding:
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                type="text"
-                                value={col.bind}
-                                onChange={(e) => updateColumn(index, { bind: e.target.value })}
-                                placeholder="Select or type field name"
-                                onFocus={() => setShowBindingSuggestions({ ...showBindingSuggestions, [index]: true })}
-                                onBlur={() => setTimeout(() => setShowBindingSuggestions({ ...showBindingSuggestions, [index]: false }), 200)}
-                                className="pr-12 border-blue-200 focus:ring-blue-500 focus:border-blue-500"
-                              />
-                              {bindingOptions.length > 0 && (
-                                <Button
-                                  type="button"
-                                  onClick={() => setShowBindingSuggestions({ ...showBindingSuggestions, [index]: !showBindingSuggestions[index] })}
-                                  title="Select from available fields"
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
-                                  size="sm"
-                                >
-                                  <ClipboardList className="w-4 h-4" />
-                                </Button>
-                              )}
-                              {showBindingSuggestions[index] && bindingOptions.length > 0 && (
-                                <Card className="absolute top-full left-0 right-0 mt-2 z-50 border-2 border-blue-500 shadow-xl max-h-80 overflow-hidden flex flex-col">
-                                  <div className="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold text-sm">
-                                    <span>Available Fields</span>
-                                    <Button
-                                      type="button"
-                                      onClick={() => setShowBindingSuggestions({ ...showBindingSuggestions, [index]: false })}
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 text-white hover:bg-white/20 rounded-full"
-                                    >
-                                      ×
-                                    </Button>
-                                  </div>
-                                  <ScrollArea className="flex-1 p-2">
-                                    {Object.entries(groupedBindings).map(([category, fields]) => (
-                                      <div key={category} className="mb-3">
-                                        <div className="px-3 py-2 bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 font-semibold text-sm rounded mb-2">
-                                          {category}
-                                        </div>
-                                        {fields.map((field) => (
-                                          <div
-                                            key={field.value}
-                                            onClick={() => {
-                                              updateColumn(index, { bind: field.value });
-                                              setShowBindingSuggestions({ ...showBindingSuggestions, [index]: false });
-                                            }}
-                                            className="flex justify-between items-center px-3 py-2 mb-1 rounded cursor-pointer transition-all hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:border-blue-200 hover:translate-x-1 border border-transparent"
-                                          >
-                                            <span className="font-medium text-gray-700 text-sm">{field.label}</span>
-                                            <code className="font-mono text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                              {field.value}
-                                            </code>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ))}
-                                  </ScrollArea>
-                                </Card>
-                              )}
-                            </div>
-                            <small className="text-xs text-blue-600 italic flex items-center gap-1">
-                              <Lightbulb className="w-3 h-3" /> Click the <ClipboardList className="w-3 h-3 inline" /> button to see available fields from your data
-                            </small>
-                          </div>
-                        </div>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setExpandedColumn(expandedColumn === index ? null : index)
+          }
+          className={cn(
+            "h-8 w-8 p-0",
+            selectedColumns.has(index)
+              ? "border-gray-300 text-black hover:bg-gray-100"
+              : "border-gray-600 text-white hover:bg-white/10"
+          )}
+        >
+          {expandedColumn === index ? "▼" : "▶"}
+        </Button>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <Ruler className="w-4 h-4" /> Width (px)
-                            </Label>
-                            <Input
-                              type="number"
-                              value={col.width || ''}
-                              min="0"
-                              onChange={(e) => updateColumn(index, { width: e.target.value ? parseFloat(e.target.value) : undefined })}
-                              placeholder="Auto - fits content"
-                              className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <Triangle className="w-4 h-4" /> Height (px)
-                            </Label>
-                            <Input
-                              type="number"
-                              value={col.height || ''}
-                              min="0"
-                              onChange={(e) => updateColumn(index, { height: e.target.value ? parseFloat(e.target.value) : undefined })}
-                              placeholder="Auto - fits content"
-                              className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => deleteColumn(index)}
+          className="h-8 w-8 p-0 border-red-400 text-red-500 hover:bg-red-50"
+        >
+          ×
+        </Button>
+      </div>
+    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <AlignCenter className="w-4 h-4" /> Text Alignment
-                            </Label>
-                            <select
-                              value={col.align || 'left'}
-                              onChange={(e) => updateColumn(index, { align: e.target.value as 'left' | 'center' | 'right' })}
-                              className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            >
-                              <option value="left">Left</option>
-                              <option value="center">Center</option>
-                              <option value="right">Right</option>
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <ArrowUp className="w-4 h-4" /> Row Span
-                            </Label>
-                            <Input
-                              type="number"
-                              value={col.rowSpan || ''}
-                              min="1"
-                              onChange={(e) => updateColumn(index, { rowSpan: e.target.value ? parseInt(e.target.value) : undefined })}
-                              placeholder="1 (default)"
-                              className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <small className="text-xs text-blue-600 italic">Number of rows to merge</small>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <Columns className="w-4 h-4" /> Column Span
-                            </Label>
-                            <Input
-                              type="number"
-                              value={col.colSpan || ''}
-                              min="1"
-                              onChange={(e) => updateColumn(index, { colSpan: e.target.value ? parseInt(e.target.value) : undefined })}
-                              placeholder="1 (default)"
-                              className="border-blue-200 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <small className="text-xs text-blue-600 italic">Number of columns to merge</small>
-                          </div>
-                        </div>
+    {/* EXPANDED EDITOR */}
+    {expandedColumn === index && (
+      <div className="mt-4 rounded-lg bg-white text-black p-4 space-y-4 shadow-inner">
 
-                        <Card className="mt-4 p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-                          <h4 className="flex items-center gap-2 mb-2 text-base font-semibold text-gray-700">
-                            <Calculator className="w-4 h-4" /> Data Calculation
-                          </h4>
-                          <small className="block mb-5 text-gray-600 italic">
-                            Automatically calculate values from your data
-                          </small>
-                          
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                              <Settings className="w-4 h-4" /> Calculation Type
-                            </Label>
-                            <select
-                              value={col.calculationType || 'none'}
-                              onChange={(e) => {
-                                const newType = e.target.value as any;
-                                updateColumn(index, { 
-                                  calculationType: newType,
-                                  calculationSource: newType === 'none' ? undefined : col.calculationSource,
-                                  calculationField: newType === 'none' ? undefined : col.calculationField,
-                                  calculationFormula: newType !== 'custom' ? undefined : col.calculationFormula
-                                });
-                              }}
-                              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            >
-                              <option value="none">None - No calculation</option>
-                              <option value="sum">Sum - Add all values</option>
-                              <option value="avg">Average - Calculate mean</option>
-                              <option value="count">Count - Count items</option>
-                              <option value="min">Min - Find minimum</option>
-                              <option value="max">Max - Find maximum</option>
-                              <option value="custom">Custom Formula - Advanced calculation</option>
-                            </select>
-                            {col.calculationType && col.calculationType !== 'none' && (
-                              <div className={cn(
-                                "mt-3 p-3 rounded-md border transition-all",
-                                col.calculationSource && (col.calculationType === 'custom' ? col.calculationFormula : col.calculationField)
-                                  ? "bg-blue-100 border-blue-300" 
-                                  : "bg-yellow-50 border-yellow-300"
-                              )}>
-                                <strong className={cn(
-                                  "text-sm flex items-center gap-2",
-                                  col.calculationSource && (col.calculationType === 'custom' ? col.calculationFormula : col.calculationField)
-                                    ? "text-blue-700" 
-                                    : "text-yellow-700"
-                                )}>
-                                  {col.calculationSource && (col.calculationType === 'custom' ? col.calculationFormula : col.calculationField)
-                                    ? <ClipboardList className="w-4 h-4" />
-                                    : <AlertTriangle className="w-4 h-4" />} {getCalculationDescription(col.calculationType, col.calculationSource, col.calculationField)}
-                                  {!col.calculationSource && col.calculationType !== 'custom' && ' - Please select a data source'}
-                                  {col.calculationSource && !col.calculationField && col.calculationType !== 'custom' && ' - Please select a field'}
-                                  {col.calculationType === 'custom' && !col.calculationFormula && ' - Please enter a formula'}
-                                </strong>
-                              </div>
-                            )}
-                          </div>
+        {/* LABEL + BIND */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">
+              Column Label
+            </Label>
+            <Input
+              value={col.label}
+              onChange={(e) =>
+                updateColumn(index, { label: e.target.value })
+              }
+              className="bg-white text-black border border-gray-300 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-                          {col.calculationType && col.calculationType !== 'none' && (
-                            <>
-                              {col.calculationType !== 'custom' && (
-                                <>
-                                  <div className="space-y-2">
-                                    <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                      <BarChart3 className="w-4 h-4" /> Data Source
-                                    </Label>
-                                    <select
-                                      value={col.calculationSource || ''}
-                                      onChange={(e) => {
-                                        updateColumn(index, { 
-                                          calculationSource: e.target.value,
-                                          calculationField: undefined
-                                        });
-                                      }}
-                                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                                    >
-                                      <option value="">Select data source...</option>
-                                      {calculationSources.map(source => (
-                                        <option key={source.value} value={source.value}>
-                                          {source.label} - {source.description}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <small className="text-xs text-blue-600 italic flex items-center gap-1">
-                                      <Lightbulb className="w-3 h-3" /> Select which table/array to calculate from
-                                    </small>
-                                  </div>
-                                  
-                                  {col.calculationSource && (
-                                    <div className="space-y-2">
-                                      <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                        <Type className="w-4 h-4" /> Field to Calculate
-                                      </Label>
-                                      <select
-                                        value={col.calculationField || ''}
-                                        onChange={(e) => updateColumn(index, { calculationField: e.target.value })}
-                                        className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                                      >
-                                        <option value="">Select field...</option>
-                                        {getFieldsFromSource(col.calculationSource).map(field => (
-                                          <option key={field.value} value={field.value}>
-                                            {field.label}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <small className="text-xs text-blue-600 italic flex items-center gap-1">
-                                        <Lightbulb className="w-3 h-3" /> Choose which field to perform the calculation on
-                                      </small>
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                              {col.calculationType === 'custom' && (
-                                <div className="space-y-2">
-                                  <Label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                    <Sparkles className="w-4 h-4" /> Custom Formula
-                                  </Label>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      type="text"
-                                      value={col.calculationFormula || ''}
-                                      onChange={(e) => updateColumn(index, { calculationFormula: e.target.value })}
-                                      placeholder="e.g., sum(items.rate) * header.exchangeRate"
-                                      className="flex-1 font-mono text-sm border-blue-300 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                    <Button
-                                      type="button"
-                                      onClick={() => setShowFormulaBuilder({ ...showFormulaBuilder, [`col-${index}`]: !showFormulaBuilder[`col-${index}`] })}
-                                      className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 whitespace-nowrap"
-                                    >
-                                      🧮 {showFormulaBuilder[`col-${index}`] ? 'Hide' : 'Show'} Builder
-                                    </Button>
-                                  </div>
-                                  <small className="text-xs text-blue-600 italic flex items-center gap-1">
-                                    <Lightbulb className="w-3 h-3" /> Use the formula builder below or type directly
-                                  </small>
-                                  <FormulaBuilder
-                                    formula={col.calculationFormula || ''}
-                                    onFormulaChange={(formula) => updateColumn(index, { calculationFormula: formula })}
-                                    id={`col-${index}`}
-                                  />
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </Card>
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold text-gray-700">
+              Data Binding
+            </Label>
+            <Input
+              value={col.bind}
+              onChange={(e) =>
+                updateColumn(index, { bind: e.target.value })
+              }
+              className="bg-white text-black border border-gray-300 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
 
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`visible-${index}`}
-                            checked={col.visible}
-                            onCheckedChange={(checked) => updateColumn(index, { visible: !!checked })}
-                            className="border-blue-500"
-                          />
-                          <Label htmlFor={`visible-${index}`} className="text-sm font-medium cursor-pointer">
-                            Visible
-                          </Label>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                ))}
+        {/* WIDTH + HEIGHT */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            type="number"
+            value={col.width || ""}
+            placeholder="Width (px)"
+            onChange={(e) =>
+              updateColumn(index, {
+                width: e.target.value
+                  ? parseFloat(e.target.value)
+                  : undefined,
+              })
+            }
+            className="bg-white text-black border border-gray-300 focus:ring-2 focus:ring-blue-500"
+          />
+          <Input
+            type="number"
+            value={col.height || ""}
+            placeholder="Height (px)"
+            onChange={(e) =>
+              updateColumn(index, {
+                height: e.target.value
+                  ? parseFloat(e.target.value)
+                  : undefined,
+              })
+            }
+            className="bg-white text-black border border-gray-300 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* ALIGN */}
+        <select
+          value={col.align || "left"}
+          onChange={(e) =>
+            updateColumn(index, {
+              align: e.target.value as "left" | "center" | "right",
+            })
+          }
+          className="w-full px-3 py-2 bg-white text-black border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+
+        {/* VISIBLE */}
+        <div className="flex items-center gap-2 pt-2">
+          <Checkbox
+            checked={col.visible}
+            onCheckedChange={(checked) =>
+              updateColumn(index, { visible: !!checked })
+            }
+            className="border-gray-400 text-black"
+          />
+          <Label className="text-sm font-medium cursor-pointer">
+            Visible
+          </Label>
+        </div>
+      </div>
+    )}
+  </Card>
+))}
+
+
               </div>
           </TabsContent>
 
