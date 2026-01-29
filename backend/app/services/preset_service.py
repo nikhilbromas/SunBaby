@@ -8,9 +8,6 @@ from app.database import db
 from app.models.preset import PresetCreate, PresetUpdate, PresetResponse
 from app.utils.sql_validator import validator, SQLValidationError
 from app.utils.cache import preset_cache, make_cache_key
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class PresetService:

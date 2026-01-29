@@ -5,9 +5,6 @@ Provides information about tables, views, columns, and relationships.
 from typing import List, Optional, Dict, Any
 from app.database import db
 from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class SchemaService:
@@ -88,7 +85,7 @@ class SchemaService:
                     )
                     table_info['rowCount'] = int(row_count) if row_count else None
                 except Exception as e:
-                    logger.debug(f"Could not get row count for {table_info['name']}: {e}")
+                    pass
                     table_info['rowCount'] = None
             
             tables.append(table_info)

@@ -72,6 +72,6 @@ async def generate_company_pdf_base64(company_id: int, template_id: int, paramet
         try:
             db.switch_to_auth_db()
         except Exception:
-            logger.exception("Failed to switch back to auth DB")
+            pass
 
 

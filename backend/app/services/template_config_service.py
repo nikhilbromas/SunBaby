@@ -5,9 +5,6 @@ Handles CRUD operations for template configurations.
 from typing import List, Optional
 from app.database import db
 from app.models.template_config import TemplateConfigCreate, TemplateConfigUpdate, TemplateConfigResponse
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class TemplateConfigService:

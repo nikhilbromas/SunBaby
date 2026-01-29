@@ -6,9 +6,6 @@ from typing import List, Optional
 from app.database import db
 from app.models.template import TemplateCreate, TemplateUpdate, TemplateResponse
 from app.utils.cache import template_cache, make_cache_key
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class TemplateService:

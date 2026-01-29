@@ -10,9 +10,6 @@ from PIL import Image
 from io import BytesIO
 from app.database import db
 from app.models.image import ImageCreate, ImageResponse
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Allowed image MIME types
 ALLOWED_MIME_TYPES = {
@@ -181,7 +178,7 @@ class ImageService:
                     cursor.close()
         
         except Exception as e:
-            logger.error(f"Error processing image: {str(e)}", exc_info=True)
+            raise
             raise ValueError(f"Failed to process image: {str(e)}")
     
     def get_image(self, image_id: int, company_id: Optional[int] = None) -> Optional[ImageResponse]:
@@ -209,7 +206,7 @@ class ImageService:
                     if company_id is not None:
                         expected_path_prefix = os.path.join(UPLOAD_BASE_DIR, str(company_id))
                         if not image.FilePath.startswith(expected_path_prefix):
-                            logger.warning(f"Image {image_id} path doesn't match company_id {company_id}")
+                            pass
                             return None
                     return image
                 return None
