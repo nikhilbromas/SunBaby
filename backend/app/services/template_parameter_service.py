@@ -10,9 +10,6 @@ from app.models.template_parameter import (
     TemplateParameterResponse,
     BulkTemplateParameterUpdate
 )
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class TemplateParameterService:
@@ -38,7 +35,6 @@ class TemplateParameterService:
         # Verify table exists
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if not table_exists:
-            logger.warning("ReportTemplateParameters table not found in create_parameter, attempting to create...")
             ensure_company_schema()
             table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
             if not table_exists:
@@ -102,7 +98,6 @@ class TemplateParameterService:
         # Double-check table exists, if not, return None (table will be created on next request)
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if not table_exists:
-            logger.debug(f"ReportTemplateParameters table not found when querying parameter '{parameter_name}' for template {template_id}")
             return None
         
         query = """
@@ -139,7 +134,6 @@ class TemplateParameterService:
         # Verify table exists
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if not table_exists:
-            logger.debug(f"ReportTemplateParameters table not found when getting parameters for template {template_id}")
             return []
         
         query = """
@@ -159,7 +153,6 @@ class TemplateParameterService:
                 finally:
                     cursor.close()
         except Exception as e:
-            logger.error(f"Error getting parameters for template {template_id}: {e}", exc_info=True)
             raise
     
     def get_parameters_as_dict(self, template_id: int) -> Dict[str, str]:
@@ -179,7 +172,6 @@ class TemplateParameterService:
         # Verify table exists
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if not table_exists:
-            logger.debug(f"ReportTemplateParameters table not found when getting parameters dict for template {template_id}")
             return {}
         
         # Use sync method since this is called from sync contexts
@@ -202,7 +194,6 @@ class TemplateParameterService:
                 finally:
                     cursor.close()
         except Exception as e:
-            logger.error(f"Error getting parameters dict for template {template_id}: {e}", exc_info=True)
             return {}
     
     async def update_parameter(self, parameter_id: int, parameter_data: TemplateParameterUpdate) -> Optional[TemplateParameterResponse]:
@@ -331,15 +322,11 @@ class TemplateParameterService:
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if not table_exists:
             # Table doesn't exist, try to create it one more time
-            logger.warning("ReportTemplateParameters table not found, attempting to create...")
             ensure_company_schema()
             table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
             if not table_exists:
                 error_msg = "ReportTemplateParameters table could not be created. Please check database permissions and ensure ReportTemplates table exists."
-                logger.error(error_msg)
                 raise ValueError(error_msg)
-            else:
-                logger.info("ReportTemplateParameters table created successfully")
         
         results = []
         
@@ -384,15 +371,12 @@ class TemplateParameterService:
                             if row:
                                 results.append(self._row_to_parameter_response(row))
                     except Exception as e:
-                        logger.error(f"Error processing parameter '{param_name}': {e}", exc_info=True)
                         raise
                 
                 conn.commit()
-                logger.debug(f"Bulk updated {len(results)} parameters for template {bulk_data.templateId}")
                 return results
             except Exception as e:
                 conn.rollback()
-                logger.error(f"Error in bulk_update_parameters: {e}", exc_info=True)
                 raise
             finally:
                 cursor.close()

@@ -10,9 +10,6 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Global thread pool executor for async database operations
 _db_executor: Optional[ThreadPoolExecutor] = None
@@ -52,7 +49,7 @@ class ConnectionPool:
                 self._pool.put(conn)
                 self._created_connections += 1
             except Exception as e:
-                logger.warning(f"Failed to pre-create connection: {e}")
+                pass
     
     def _create_connection(self) -> pyodbc.Connection:
         """Create a new database connection."""
@@ -93,7 +90,6 @@ class ConnectionPool:
                     return conn
                 else:
                     # Connection is dead, create a new one
-                    logger.debug("Connection from pool was dead, creating new one")
                     try:
                         conn.close()
                     except Exception:
@@ -106,7 +102,6 @@ class ConnectionPool:
             if self._overflow_count < self.max_overflow:
                 self._overflow_count += 1
                 self._created_connections += 1
-                logger.debug(f"Creating overflow connection ({self._overflow_count}/{self.max_overflow})")
                 return self._create_connection()
             
             # Wait a bit more for a connection from pool
@@ -124,7 +119,6 @@ class ConnectionPool:
                     return self._create_connection()
             except Empty:
                 # Timeout - create a temporary connection
-                logger.warning("Connection pool exhausted, creating temporary connection")
                 return self._create_connection()
     
     def return_connection(self, conn: pyodbc.Connection) -> None:
@@ -397,7 +391,6 @@ class Database:
                 except Exception:
                     # Connection might already be closed or in invalid state
                     pass
-            logger.error(f"Database error: {str(e)}")
             raise
         finally:
             if conn and pool:
@@ -512,12 +505,7 @@ class Database:
                 )
                 
                 if is_connection_error and attempt < max_retries - 1:
-                    # Log the retry attempt
                     wait_time = 0.5 * (2 ** attempt)  # Exponential backoff: 0.5s, 1s, 2s
-                    logger.warning(
-                        f"Database connection error (attempt {attempt + 1}/{max_retries}): {error_msg}. "
-                        f"Retrying in {wait_time:.1f}s..."
-                    )
                     time.sleep(wait_time)
                     
                     # Force connection pool to refresh by clearing dead connections
@@ -525,11 +513,9 @@ class Database:
                     continue
                 else:
                     # Not a retryable error or max retries reached
-                    logger.error(f"Database error: {error_msg}")
                     raise
             except Exception as e:
                 # Non-connection errors should not be retried
-                logger.error(f"Database error: {str(e)}")
                 raise
         
         # If we exhausted all retries, raise the last exception
@@ -627,21 +613,14 @@ class Database:
                 )
                 
                 if is_connection_error and attempt < max_retries - 1:
-                    # Log the retry attempt
                     wait_time = 0.5 * (2 ** attempt)  # Exponential backoff: 0.5s, 1s, 2s
-                    logger.warning(
-                        f"Database connection error in execute_scalar (attempt {attempt + 1}/{max_retries}): {error_msg}. "
-                        f"Retrying in {wait_time:.1f}s..."
-                    )
                     time.sleep(wait_time)
                     continue
                 else:
                     # Not a retryable error or max retries reached
-                    logger.error(f"Database error in execute_scalar: {error_msg}")
                     raise
             except Exception as e:
                 # Non-connection errors should not be retried
-                logger.error(f"Database error in execute_scalar: {str(e)}")
                 raise
         
         # If we exhausted all retries, raise the last exception

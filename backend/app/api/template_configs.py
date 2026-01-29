@@ -8,9 +8,6 @@ from app.services.template_config_service import template_config_service
 from app.services.auth_service import auth_service
 from app.database import db
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/template-configs", tags=["Template Configs"])
 
@@ -60,14 +57,13 @@ async def create_template_config(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to create template configs",
             )
-        logger.error(f"Error creating template config: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/{config_id}", response_model=TemplateConfigResponse)
@@ -104,7 +100,6 @@ async def get_template_config(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to access template configs",
             )
-        logger.error(f"Error getting template config: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
@@ -155,7 +150,6 @@ async def list_template_configs(
         raise
     except Exception as e:
         msg = str(e)
-        logger.error(f"Error listing template configs: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
@@ -202,7 +196,6 @@ async def update_template_config(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to update template configs",
             )
-        logger.error(f"Error updating template config: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
@@ -246,7 +239,6 @@ async def delete_template_config(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to delete template configs",
             )
-        logger.error(f"Error deleting template config: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:

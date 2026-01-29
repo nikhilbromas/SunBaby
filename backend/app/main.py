@@ -6,17 +6,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
-from app.api import presets, templates, preview, auth, generate_pdf, images, template_configs, lookups, template_parameters, schema
-import logging
-
-# Configure logging
-log_level = logging.DEBUG if settings.DEBUG else logging.INFO
-logging.basicConfig(
-    level=log_level,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+from app.api import (
+    presets,
+    templates,
+    preview,
+    auth,
+    generate_pdf,
+    images,
+    template_configs,
+    lookups,
+    template_parameters,
+    schema,
+    analytics,
+    dashboards,
 )
-
-logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -49,6 +52,8 @@ app.include_router(template_configs.router, prefix=settings.API_PREFIX)
 app.include_router(lookups.router, prefix=settings.API_PREFIX)
 app.include_router(template_parameters.router, prefix=settings.API_PREFIX)
 app.include_router(schema.router, prefix=settings.API_PREFIX)
+app.include_router(analytics.router, prefix=settings.API_PREFIX)
+app.include_router(dashboards.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")
@@ -69,5 +74,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="debug" if settings.DEBUG else "info")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 

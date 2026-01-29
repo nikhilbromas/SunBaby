@@ -10,9 +10,6 @@ from app.utils.sql_validator import SQLValidationError
 from app.services.auth_service import auth_service
 from app.database import db
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/presets", tags=["Presets"])
 
@@ -65,14 +62,13 @@ async def create_preset(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to create presets",
             )
-        logger.error(f"Error creating preset: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/{preset_id}", response_model=PresetResponse)
@@ -103,14 +99,13 @@ async def get_preset(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting preset: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("", response_model=PresetListResponse)
@@ -140,14 +135,13 @@ async def list_presets(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error listing presets: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.put("/{preset_id}", response_model=PresetResponse)
@@ -187,14 +181,13 @@ async def update_preset(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to update presets",
             )
-        logger.error(f"Error updating preset: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.delete("/{preset_id}", status_code=204)
@@ -231,14 +224,13 @@ async def delete_preset(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to delete presets",
             )
-        logger.error(f"Error deleting preset: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.post("/{preset_id}/test")
@@ -330,28 +322,21 @@ async def test_preset_queries(
         if 'headerQuery' in sql_json:
             try:
                 query = sql_json['headerQuery']
-                logger.debug(f"Executing header query: {query[:500]}...")  # Log first 500 chars
-                logger.debug(f"With parameters: {exec_params}")
                 header_data = db.execute_query(query, exec_params)
                 if header_data and len(header_data) > 0:
                     header_fields = list(header_data[0].keys())
                     header_data = header_data[0]  # Return first row as sample
             except Exception as e:
-                logger.error(f"Error executing header query: {str(e)}")
-                logger.error(f"Query was: {sql_json['headerQuery'][:1000]}")  # Log the failing query
                 raise HTTPException(status_code=400, detail=f"Error executing header query: {str(e)}")
         
         if 'itemQuery' in sql_json:
             try:
                 query = sql_json['itemQuery']
-                logger.debug(f"Executing item query: {query[:500]}...")
                 items_data = db.execute_query(query, exec_params)
                 if items_data and len(items_data) > 0:
                     items_fields = list(items_data[0].keys())
                     items_data = items_data[:5]  # Return first 5 rows as samples
             except Exception as e:
-                logger.error(f"Error executing item query: {str(e)}")
-                logger.error(f"Query was: {sql_json['itemQuery'][:1000]}")
                 raise HTTPException(status_code=400, detail=f"Error executing item query: {str(e)}")
         
         # Execute contentDetails queries
@@ -397,7 +382,6 @@ async def test_preset_queries(
                             "dataType": "array"
                         }
                 except Exception as e:
-                    logger.error(f"Error executing content detail '{name}' query: {str(e)}")
                     content_details_data[name] = {
                         "data": [] if data_type == 'array' else None,
                         "fields": [],
@@ -421,12 +405,11 @@ async def test_preset_queries(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error testing preset: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 

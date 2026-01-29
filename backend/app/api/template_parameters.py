@@ -14,9 +14,6 @@ from app.services.template_parameter_service import template_parameter_service
 from app.services.auth_service import auth_service
 from app.database import db
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/template-parameters", tags=["Template Parameters"])
 
@@ -62,14 +59,13 @@ async def create_template_parameter(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to create template parameters",
             )
-        logger.error(f"Error creating template parameter: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/template/{template_id}", response_model=TemplateParameterListResponse)
@@ -104,14 +100,13 @@ async def get_template_parameters(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to access template parameters",
             )
-        logger.error(f"Error getting template parameters: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/{parameter_id}", response_model=TemplateParameterResponse)
@@ -148,14 +143,13 @@ async def get_template_parameter(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to access template parameters",
             )
-        logger.error(f"Error getting template parameter: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.put("/{parameter_id}", response_model=TemplateParameterResponse)
@@ -195,14 +189,13 @@ async def update_template_parameter(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to update template parameters",
             )
-        logger.error(f"Error updating template parameter: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.delete("/{parameter_id}", status_code=204)
@@ -239,14 +232,13 @@ async def delete_template_parameter(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to delete template parameters",
             )
-        logger.error(f"Error deleting template parameter: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.post("/bulk", response_model=TemplateParameterListResponse)
@@ -283,12 +275,11 @@ async def bulk_update_template_parameters(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to bulk update template parameters",
             )
-        logger.error(f"Error bulk updating template parameters: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 

@@ -12,9 +12,6 @@ from app.services.schema_service import schema_service
 from app.services.auth_service import auth_service
 from app.database import db
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/schema", tags=["Schema"])
 
@@ -51,14 +48,13 @@ async def get_tables(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting tables: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/tables/{table_name}/columns", response_model=ColumnListResponse)
@@ -91,14 +87,13 @@ async def get_table_columns(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting columns for {table_name}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/relationships", response_model=RelationshipListResponse)
@@ -123,12 +118,11 @@ async def get_relationships(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting relationships: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 

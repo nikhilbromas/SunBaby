@@ -2,7 +2,6 @@
 FastAPI endpoints for authentication and company selection.
 """
 
-import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.auth import (
@@ -18,8 +17,6 @@ from app.services.auth_service import auth_service
 from app.utils.session import session_store, require_session
 from app.utils.company_schema import ensure_company_schema
 from app.database import db
-
-logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -121,9 +118,9 @@ async def logout(session=Depends(require_session)):
     try:
         # Reset DB back to auth DB before deleting session
         db.switch_to_auth_db()
-    except Exception as e:
-        logger.error(f"Error switching to auth DB during logout: {str(e)}")
+    except Exception:
         # Continue with logout even if DB switch fails
+        pass
     
     # Delete session (this cleans up the in-memory session data)
     session_store.delete(session.token)

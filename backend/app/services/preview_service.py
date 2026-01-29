@@ -10,9 +10,6 @@ from app.services.preset_service import preset_service
 from app.services.template_service import template_service
 from app.utils.cache import query_cache, make_cache_key
 from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class PreviewService:
@@ -60,7 +57,6 @@ class PreviewService:
         cache_key = make_cache_key("preview_data", template_id, **parameters)
         cached_result = query_cache.get(cache_key)
         if cached_result is not None:
-            logger.debug(f"Cache hit for preview data: template_id={template_id}")
             return cached_result
         
         # Execute queries in parallel
@@ -100,7 +96,6 @@ class PreviewService:
             try:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
             except Exception as e:
-                logger.error(f"Error executing queries in parallel: {str(e)}")
                 raise ValueError(f"Error executing queries: {str(e)}")
         
         # Process results
@@ -112,13 +107,11 @@ class PreviewService:
             query_type = query_types[i]
             
             if isinstance(result, Exception):
-                logger.error(f"Error executing {query_type} query: {str(result)}")
                 raise ValueError(f"Error executing {query_type} query: {str(result)}")
             
             # Limit rows for preview
             if len(result) > settings.MAX_QUERY_ROWS:
                 result = result[:settings.MAX_QUERY_ROWS]
-                logger.warning(f"{query_type} query returned more than {settings.MAX_QUERY_ROWS} rows, truncated")
             
             if query_type == 'header':
                 header_data = result

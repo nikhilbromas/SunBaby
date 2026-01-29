@@ -33,6 +33,17 @@ import type {
   TableListResponse,
   ColumnListResponse,
   RelationshipListResponse,
+  AnalyticsRunRequest,
+  AnalyticsRunResponse,
+  AnalyticsRunMultiRequest,
+  AnalyticsRunMultiResponse,
+  AnalyticsCompareRequest,
+  AnalyticsCompareResponse,
+  Dashboard,
+  DashboardCreate,
+  DashboardUpdate,
+  DashboardListResponse,
+  RunDashboardResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -465,6 +476,60 @@ class ApiClient {
     const response = await this.client.get<RelationshipListResponse>('/schema/relationships', {
       params: companyId ? { company_id: companyId } : {},
     });
+    return response.data;
+  }
+
+  // Analytics endpoints
+  async runAnalytics(request: AnalyticsRunRequest): Promise<AnalyticsRunResponse> {
+    const companyId = this.getCompanyId();
+    const payload = companyId && !request.company_id ? { ...request, company_id: companyId } : request;
+    const response = await this.client.post<AnalyticsRunResponse>('/analytics/run', payload);
+    return response.data;
+  }
+
+  async runMultiAnalytics(request: AnalyticsRunMultiRequest): Promise<AnalyticsRunMultiResponse> {
+    const companyId = this.getCompanyId();
+    const payload = companyId && !request.company_id ? { ...request, company_id: companyId } : request;
+    const response = await this.client.post<AnalyticsRunMultiResponse>('/analytics/run-multi', payload);
+    return response.data;
+  }
+
+  async compareAnalytics(request: AnalyticsCompareRequest): Promise<AnalyticsCompareResponse> {
+    const companyId = this.getCompanyId();
+    const payload = companyId && !request.company_id ? { ...request, company_id: companyId } : request;
+    const response = await this.client.post<AnalyticsCompareResponse>('/analytics/compare', payload);
+    return response.data;
+  }
+
+  // Dashboard endpoints
+  async getDashboards(skip = 0, limit = 100): Promise<DashboardListResponse> {
+    const response = await this.client.get<DashboardListResponse>('/dashboards', {
+      params: { skip, limit },
+    });
+    return response.data;
+  }
+
+  async getDashboard(dashboardId: number): Promise<Dashboard> {
+    const response = await this.client.get<Dashboard>(`/dashboards/${dashboardId}`);
+    return response.data;
+  }
+
+  async createDashboard(data: DashboardCreate): Promise<Dashboard> {
+    const response = await this.client.post<Dashboard>('/dashboards', data);
+    return response.data;
+  }
+
+  async updateDashboard(dashboardId: number, data: DashboardUpdate): Promise<Dashboard> {
+    const response = await this.client.put<Dashboard>(`/dashboards/${dashboardId}`, data);
+    return response.data;
+  }
+
+  async deleteDashboard(dashboardId: number): Promise<void> {
+    await this.client.delete(`/dashboards/${dashboardId}`);
+  }
+
+  async runDashboard(dashboardId: number): Promise<RunDashboardResponse> {
+    const response = await this.client.get<RunDashboardResponse>(`/dashboards/${dashboardId}/run`);
     return response.data;
   }
 }

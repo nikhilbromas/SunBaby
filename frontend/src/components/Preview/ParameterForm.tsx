@@ -174,12 +174,12 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ template, onSubmit }) => 
   };
 
   if (loading) {
-    return <div className="parameter-form loading">Loading preset...</div>;
+    return <div className="text-center py-12 text-white/60">Loading preset...</div>;
   }
 
   if (!preset) {
     return (
-      <div className="parameter-form">
+      <div className="text-white/60">
         <p>Please select a template first</p>
       </div>
     );
@@ -188,34 +188,42 @@ const ParameterForm: React.FC<ParameterFormProps> = ({ template, onSubmit }) => 
   const paramNames = Object.keys(parameters);
 
   return (
-    <form className="parameter-form" onSubmit={handleSubmit}>
-      <h3>Enter Parameters</h3>
-      {error && <div className="error-message">{error}</div>}
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      <h3 className="text-lg font-semibold text-white mb-4">Enter Parameters</h3>
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-md text-sm">
+          {error}
+        </div>
+      )}
       
       {paramNames.length === 0 ? (
-        <p>No parameters required for this preset</p>
+        <p className="text-white/60">No parameters required for this preset</p>
       ) : (
-        <div className="parameter-inputs">
+        <div className="space-y-4">
           {paramNames.map((paramName) => (
-            <div key={paramName} className="parameter-input-group">
-              <label>
+            <div key={paramName} className="space-y-2">
+              <Label className="text-sm font-medium text-white">
                 {paramName}:
-                <input
-                  type="text"
-                  value={parameters[paramName] || ''}
-                  onChange={(e) => handleParameterChange(paramName, e.target.value)}
-                  placeholder={`Enter ${paramName}`}
-                  required
-                />
-              </label>
+              </Label>
+              <Input
+                type="text"
+                value={parameters[paramName] || ''}
+                onChange={(e) => handleParameterChange(paramName, e.target.value)}
+                placeholder={`Enter ${paramName}`}
+                required
+                className="bg-black border-white/20 text-white placeholder:text-white/40 focus-visible:border-white/40"
+              />
             </div>
           ))}
         </div>
       )}
       
-      <button type="submit" className="submit-button">
+      <Button
+        type="submit"
+        className="w-full bg-white text-black hover:bg-white/90 mt-6"
+      >
         Generate Preview
-      </button>
+      </Button>
     </form>
   );
 };

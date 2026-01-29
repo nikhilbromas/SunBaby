@@ -14,9 +14,6 @@ from app.utils.html_organizer import html_organizer
 from app.utils.pdf_engine import pdf_engine
 from app.services.company_pdf_service import generate_company_pdf_base64
 import base64
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Thread pool executor for CPU-intensive PDF generation
 _pdf_executor: Optional[ThreadPoolExecutor] = None
@@ -75,7 +72,6 @@ async def generate_preview_html(request: PreviewRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error generating preview: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -125,7 +121,6 @@ async def generate_pdf(request: PreviewRequest):
             raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error generating PDF: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -172,7 +167,6 @@ async def generate_preview_pdf(request: PreviewRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error generating PDF: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -205,6 +199,5 @@ async def get_preview_data(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error getting preview data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 

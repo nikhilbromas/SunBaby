@@ -7,9 +7,6 @@ from pydantic import BaseModel
 from app.database import db
 from app.services.auth_service import auth_service
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lookups", tags=["Lookups"])
 
@@ -73,14 +70,13 @@ async def get_departments(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting departments: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/shops", response_model=List[Shop])
@@ -127,14 +123,13 @@ async def get_shops(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting shops: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/interfaces", response_model=List[Interface])
@@ -202,12 +197,11 @@ async def get_interfaces(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting interfaces: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 

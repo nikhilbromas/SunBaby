@@ -596,3 +596,111 @@ def ensure_company_schema() -> None:
         logger.error(f"Error in ReportTemplateParameters safety check: {e}", exc_info=True)
 
 
+    # ------------------------------------------------------------------
+    # Dashboards (ReportDashboards / ReportDashboardWidgets)
+    # ------------------------------------------------------------------
+    # These are used by analytics/dashboards module. Keep them idempotent.
+
+    try:
+        db.execute_non_query(
+            """
+            IF OBJECT_ID('dbo.ReportDashboards', 'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReportDashboards (
+                    DashboardId INT IDENTITY(1,1) PRIMARY KEY,
+                    Name NVARCHAR(200) NOT NULL,
+                    Description NVARCHAR(1000) NULL,
+                    CreatedBy VARCHAR(50) NULL,
+                    CreatedOn DATETIME DEFAULT GETDATE(),
+                    UpdatedOn DATETIME NULL,
+                    IsActive BIT DEFAULT 1
+                );
+            END
+            """,
+            autocommit=True,
+        )
+    except Exception as e:
+        logger.error(f"Error creating ReportDashboards table: {e}", exc_info=True)
+
+    try:
+        db.execute_non_query(
+            """
+            IF OBJECT_ID('dbo.ReportDashboardWidgets', 'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReportDashboardWidgets (
+                    WidgetId INT IDENTITY(1,1) PRIMARY KEY,
+                    DashboardId INT NOT NULL,
+                    Title NVARCHAR(200) NOT NULL,
+                    Type NVARCHAR(50) NOT NULL,
+                    ConfigJson NVARCHAR(MAX) NOT NULL,
+                    PresetBindingsJson NVARCHAR(MAX) NOT NULL,
+                    OrderIndex INT NOT NULL DEFAULT 0,
+                    CreatedOn DATETIME DEFAULT GETDATE(),
+                    UpdatedOn DATETIME NULL,
+                    IsActive BIT DEFAULT 1
+                );
+            END
+            """,
+            autocommit=True,
+        )
+    except Exception as e:
+        logger.error(f"Error creating ReportDashboardWidgets table: {e}", exc_info=True)
+
+    # Indexes
+    try:
+        db.execute_non_query(
+            """
+            IF OBJECT_ID('dbo.ReportDashboards', 'U') IS NOT NULL
+               AND COL_LENGTH('dbo.ReportDashboards','IsActive') IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportDashboards_IsActive' AND object_id = OBJECT_ID('dbo.ReportDashboards'))
+            BEGIN
+                CREATE INDEX IX_ReportDashboards_IsActive ON dbo.ReportDashboards(IsActive);
+            END
+            """,
+            autocommit=True,
+        )
+    except Exception:
+        pass
+
+    try:
+        db.execute_non_query(
+            """
+            IF OBJECT_ID('dbo.ReportDashboardWidgets', 'U') IS NOT NULL
+               AND COL_LENGTH('dbo.ReportDashboardWidgets','DashboardId') IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReportDashboardWidgets_DashboardId' AND object_id = OBJECT_ID('dbo.ReportDashboardWidgets'))
+            BEGIN
+                CREATE INDEX IX_ReportDashboardWidgets_DashboardId ON dbo.ReportDashboardWidgets(DashboardId);
+            END
+            """,
+            autocommit=True,
+        )
+    except Exception:
+        pass
+
+    # FK (best-effort)
+    try:
+        db.execute_non_query(
+            """
+            IF OBJECT_ID('dbo.ReportDashboardWidgets', 'U') IS NOT NULL
+               AND OBJECT_ID('dbo.ReportDashboards', 'U') IS NOT NULL
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM sys.foreign_keys
+                   WHERE name = 'FK_ReportDashboardWidgets_ReportDashboards'
+                     AND parent_object_id = OBJECT_ID('dbo.ReportDashboardWidgets')
+               )
+            BEGIN
+                BEGIN TRY
+                    ALTER TABLE dbo.ReportDashboardWidgets
+                    ADD CONSTRAINT FK_ReportDashboardWidgets_ReportDashboards
+                        FOREIGN KEY (DashboardId) REFERENCES dbo.ReportDashboards(DashboardId) ON DELETE CASCADE;
+                END TRY
+                BEGIN CATCH
+                END CATCH
+            END
+            """,
+            autocommit=True,
+        )
+    except Exception:
+        pass
+

@@ -8,9 +8,6 @@ from app.services.image_service import image_service
 from app.services.auth_service import auth_service
 from app.database import db
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/images", tags=["Images"])
 
@@ -70,14 +67,13 @@ async def upload_image(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to upload images",
             )
-        logger.error(f"Error uploading image: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/{image_id}", response_model=ImageResponse)
@@ -114,7 +110,6 @@ async def get_image(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to access images",
             )
-        logger.error(f"Error getting image: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
@@ -152,7 +147,6 @@ async def list_images(
         raise
     except Exception as e:
         msg = str(e)
-        logger.error(f"Error listing images: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
@@ -196,7 +190,6 @@ async def delete_image(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to delete images",
             )
-        logger.error(f"Error deleting image: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:

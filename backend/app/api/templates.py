@@ -8,9 +8,6 @@ from app.services.template_service import template_service
 from app.services.auth_service import auth_service
 from app.database import db
 from app.utils.company_schema import ensure_company_schema
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
@@ -56,14 +53,13 @@ async def create_template(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to create templates",
             )
-        logger.error(f"Error creating template: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
@@ -103,14 +99,13 @@ async def get_template(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to access templates",
             )
-        logger.error(f"Error getting template: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.get("", response_model=TemplateListResponse)
@@ -142,14 +137,13 @@ async def list_templates(
         raise
     except Exception as e:
         msg = str(e)
-        logger.error(f"Error listing templates: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.put("/{template_id}", response_model=TemplateResponse)
@@ -189,14 +183,13 @@ async def update_template(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to update templates",
             )
-        logger.error(f"Error updating template: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
 
 @router.delete("/{template_id}", status_code=204)
@@ -233,12 +226,11 @@ async def delete_template(
                 status_code=400,
                 detail="company_id is required (or select company via /auth/select-company) to delete templates",
             )
-        logger.error(f"Error deleting template: {msg}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         if company_id is not None:
             try:
                 db.switch_to_auth_db()
             except Exception:
-                logger.exception("Failed to switch back to auth DB")
+                pass
 
