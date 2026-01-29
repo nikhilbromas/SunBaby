@@ -289,8 +289,8 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
 
   if (!preset) {
     return (
-      <div className="parameter-input">
-        <p className="no-preset">Select a preset to enter parameters</p>
+      <div className="parameter-input bg-black">
+        <p className="no-preset text-white/60">Select a preset to enter parameters</p>
       </div>
     );
   }
@@ -298,10 +298,10 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
   const paramNames = Object.keys(parameters);
 
   return (
-    <Card className="parameter-input">
+    <Card className="parameter-input bg-black border-white/20">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg font-semibold">Query Parameters</CardTitle>
+          <CardTitle className="text-lg font-semibold text-white">Query Parameters</CardTitle>
           {templateId && (
             <div className="flex gap-2">
               {hasDefaults && defaultParameters && Object.keys(defaultParameters).length > 0 && (
@@ -345,19 +345,19 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
       <CardContent className="space-y-4">
         {error && (
           <div className="error-message flex items-start gap-2">
-            <span className="text-sm">{error}</span>
+            <span className="text-sm text-white">{error}</span>
           </div>
         )}
         
         {hasDefaults && (
-          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-white bg-black border border-white rounded-md px-3 py-2">
             <CheckCircle2 size={16} />
             <span>Default parameters loaded</span>
           </div>
         )}
 
         {paramNames.length === 0 ? (
-          <p className="no-params text-muted-foreground text-sm italic text-center py-4">
+          <p className="no-params text-white/60 text-sm italic text-center py-4">
             No parameters required for this preset
           </p>
         ) : (
@@ -365,7 +365,7 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
             <div className="space-y-3">
               {paramNames.map((paramName) => (
                 <div key={paramName} className="space-y-2">
-                  <Label htmlFor={`param-${paramName}`} className="text-sm font-medium">
+                  <Label htmlFor={`param-${paramName}`} className="text-sm font-medium text-white">
                     {paramName}
                   </Label>
                   <Input
@@ -375,7 +375,7 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
                     onChange={(e) => handleParameterChange(paramName, e.target.value)}
                     placeholder={`Enter ${paramName}`}
                     required
-                    className="w-full"
+                    className="w-full bg-black border-white/20 text-white placeholder:text-white/40"
                   />
                 </div>
               ))}
@@ -406,5 +406,5 @@ const ParameterInput: React.FC<ParameterInputProps> = ({
   );
 };
 
-export default ParameterInput;
+export default React.memo(ParameterInput);
 

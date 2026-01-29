@@ -91,6 +91,8 @@ class ApiClient {
             localStorage.removeItem('auth_user_id');
             localStorage.removeItem('auth_company_id');
             this.invalidateCompanyIdCache();
+            // Dispatch custom event to notify AuthContext
+            window.dispatchEvent(new CustomEvent('auth:session-expired'));
           }
           const message = (error.response.data as any)?.detail || error.message;
           console.error('API Error:', message);

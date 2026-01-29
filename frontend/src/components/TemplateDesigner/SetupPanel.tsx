@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import Lottie from 'lottie-react';
 import ParameterInput from './ParameterInput';
 import ParameterCopyModal from './ParameterCopyModal';
@@ -18,7 +18,33 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type SetupStep = 'template' | 'preset' | 'createTemplate' | 'parameters';
+type SetupStep = 'preset' | 'createTemplate' | 'params';
+
+// Memoized Preset List Component
+interface PresetListProps {
+  presets: Preset[];
+  onSelect: (presetId: number) => void;
+}
+
+const PresetList: React.FC<PresetListProps> = React.memo(({ presets, onSelect }) => {
+  return (
+    <div className="grid sm:grid-cols-2 gap-4">
+      {presets.map(p => (
+        <Card
+          key={p.PresetId}
+          className="cursor-pointer hover:border-white/40 bg-black border-white/20"
+          onClick={() => onSelect(p.PresetId)}
+        >
+          <CardHeader>
+            <CardTitle className="text-sm text-white">{p.PresetName}</CardTitle>
+          </CardHeader>
+        </Card>
+      ))}
+    </div>
+  );
+});
+
+PresetList.displayName = 'PresetList';
 
 interface SetupPanelProps {
   isOpen: boolean;
@@ -41,8 +67,8 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
     onDataReceived,
   } = props;
 
-  /* ---------------- State (UNCHANGED) ---------------- */
-  const [step, setStep] = useState<SetupStep>('template');
+  /* ---------------- State ---------------- */
+  const [step, setStep] = useState<SetupStep>('preset');
   const [presets, setPresets] = useState<Preset[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,13 +90,8 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
     setLocalPresetId(selectedPresetId ?? null);
     setLocalTemplateId(selectedTemplateId ?? null);
     setSearchQuery('');
+    setStep('preset');
     loadData();
-
-    setStep(
-      selectedTemplateId && selectedPresetId
-        ? 'parameters'
-        : 'template'
-    );
   }, [isOpen]);
 
   const loadData = async () => {
@@ -99,8 +120,12 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
     );
   }, [presets, searchQuery]);
 
-  if (!isOpen) return null;
-  const loadDefaultParameters = async () => {
+  const templatesForPreset = useMemo(() => {
+    if (!localPresetId) return [];
+    return templates.filter(t => t.PresetId === localPresetId);
+  }, [templates, localPresetId]);
+
+  const loadDefaultParameters = useCallback(async () => {
     if (!localTemplateId) return;
   
     try {
@@ -125,30 +150,42 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
     } finally {
       setLoadingParameters(false);
     }
-  };
+  }, [localTemplateId]);
+
+  // Load default parameters when entering params step
+  useEffect(() => {
+    if (step === 'params' && localTemplateId) {
+      loadDefaultParameters();
+    }
+  }, [step, localTemplateId, loadDefaultParameters]);
+
+  const handleParameterExecute = useCallback(async (dataOrParams: any) => {
+    if (dataOrParams && (dataOrParams.header || dataOrParams.items)) {
+      onDataReceived(dataOrParams);
+      // Close panel after execution completes
+      setTimeout(() => { onClose(); }, 300);
+    }
+  }, [onDataReceived, onClose]);
+
+  const handleSaveParameters = useCallback(async (
+    parameters: Record<string, string>
+  ) => {
+    if (!localTemplateId) return;
   
-  const handleParameterExecute = async (dataOrParams: any) => { // If it's data (has header/items structure), it's from onDataReceived // If it's just parameters object, we need to fetch data 
-  if (dataOrParams && (dataOrParams.header || dataOrParams.items)) { onDataReceived(dataOrParams); 
-    // Close panel after execution completes 
-    setTimeout(() => { onClose(); }, 300); } };
-    const handleSaveParameters = async (
-      parameters: Record<string, string>
-    ) => {
-      if (!localTemplateId) return;
-    
-      try {
-        await apiClient.bulkUpdateTemplateParameters(
-          localTemplateId,
-          parameters
-        );
-    
-        // Reload to refresh state
-        await loadDefaultParameters();
-      } catch (error: any) {
-        throw new Error(error.message || 'Failed to save parameters');
-      }
-    };
-    const handleCopyFromTemplate = async (sourceTemplateId: number) => {
+    try {
+      await apiClient.bulkUpdateTemplateParameters(
+        localTemplateId,
+        parameters
+      );
+  
+      // Reload to refresh state
+      await loadDefaultParameters();
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to save parameters');
+    }
+  }, [localTemplateId, loadDefaultParameters]);
+
+  const handleCopyFromTemplate = useCallback(async (sourceTemplateId: number) => {
       if (!localTemplateId) return;
     
       try {
@@ -163,6 +200,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
         });
     
         // Filter parameters based on current preset SQL
+        const currentPreset = presets.find(p => p.PresetId === localPresetId);
         if (currentPreset) {
           const sqlJson = JSON.parse(currentPreset.SqlJson);
           const paramRegex = /@(\w+)/g;
@@ -211,28 +249,31 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
       } catch (error: any) {
         alert(`Failed to copy parameters: ${error.message}`);
       }
-    };
-    const handleCopyFromPreset = async (sourcePresetId: number) => {
-      if (!localTemplateId) return;
-    
-      try {
-        const templatesWithPreset = templates.filter(
-          t =>
-            t.PresetId === sourcePresetId &&
-            t.TemplateId !== localTemplateId
+    }, [localTemplateId, presets, localPresetId, loadDefaultParameters]);
+
+  const handleCopyFromPreset = useCallback(async (sourcePresetId: number) => {
+    if (!localTemplateId) return;
+  
+    try {
+      const templatesWithPreset = templates.filter(
+        t =>
+          t.PresetId === sourcePresetId &&
+          t.TemplateId !== localTemplateId
+      );
+  
+      if (templatesWithPreset.length > 0) {
+        await handleCopyFromTemplate(
+          templatesWithPreset[0].TemplateId
         );
-    
-        if (templatesWithPreset.length > 0) {
-          await handleCopyFromTemplate(
-            templatesWithPreset[0].TemplateId
-          );
-        } else {
-          alert('No templates found with this preset to copy parameters from');
-        }
-      } catch (error: any) {
-        alert(`Failed to copy parameters: ${error.message}`);
+      } else {
+        alert('No templates found with this preset to copy parameters from');
       }
-    };
+    } catch (error: any) {
+      alert(`Failed to copy parameters: ${error.message}`);
+    }
+  }, [localTemplateId, templates, handleCopyFromTemplate]);
+
+  if (!isOpen) return null;
         
   /* ================= UI ================= */
   return (
@@ -250,14 +291,13 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
           <h2 className="text-lg font-semibold text-white">
             {{
-              template: 'Select Template',
               preset: 'Select Preset',
               createTemplate: 'Create Template',
-              parameters: 'Enter Parameters',
+              params: 'Enter Parameters',
             }[step]}
           </h2>
 
-          <Button variant="ghost" onClick={onClose} className="text-white hover:bg-white/10">✕</Button>
+          <Button variant="ghost" onClick={onClose} className="text-black bg-white hover:bg-neutral-300 hover:text-black">✕</Button>
         </div>
 
         {/* Lottie */}
@@ -269,7 +309,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
         <ScrollArea className="flex-1 px-6 pb-6">
 
           {/* Search */}
-          {(step === 'template' || step === 'preset') && (
+          {step === 'preset' && (
             <div className="relative mb-4">
               <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
               <Input
@@ -281,112 +321,94 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
             </div>
           )}
 
-          {/* TEMPLATE LIST */}
-          {step === 'template' && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Card
-                className="border-dashed border-white/20 cursor-pointer hover:bg-white/10 bg-black"
-                onClick={() => setStep('preset')}
-              >
-                <CardContent className="flex flex-col items-center justify-center py-10">
-                  <div className="text-3xl text-white">＋</div>
-                  <p className="mt-2 text-sm font-medium text-white">Create New Template</p>
-                </CardContent>
-              </Card>
-
-              {filteredTemplates.map(t => (
-                <Card
-                  key={t.TemplateId}
-                  className={cn(
-                    'cursor-pointer hover:border-white/40 bg-black border-white/20',
-                    localTemplateId === t.TemplateId && 'border-white'
-                  )}
-                  onClick={() => {
-                    setLocalTemplateId(t.TemplateId);
-                    setLocalPresetId(t.PresetId);
-                    onPresetSelect(t.PresetId);
-                    onTemplateSelect(t.TemplateId);
-                    setStep('parameters');
-                  }}
-                >
-                  <CardHeader>
-                    <CardTitle className="text-sm text-white">{t.TemplateName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-xs text-white/60">
-                    Preset #{t.PresetId}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
           {/* PRESET LIST */}
           {step === 'preset' && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {filteredPresets.map(p => (
-                <Card
-                  key={p.PresetId}
-                  className="cursor-pointer hover:border-white/40 bg-black border-white/20"
-                  onClick={() => {
-                    setLocalPresetId(p.PresetId);
-                    onPresetSelect(p.PresetId);
-                    setStep('createTemplate');
-                  }}
-                >
-                  <CardHeader>
-                    <CardTitle className="text-sm text-white">{p.PresetName}</CardTitle>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
+            <PresetList
+              presets={filteredPresets}
+              onSelect={(presetId) => {
+                setLocalPresetId(presetId);
+                onPresetSelect(presetId);
+                setStep('createTemplate');
+              }}
+            />
           )}
 
           {/* CREATE TEMPLATE */}
           {step === 'createTemplate' && currentPreset && (
-            <Card className="bg-black border-white/20">
-              <CardHeader>
-                <CardTitle className="text-white">Template Name</CardTitle>
-              </CardHeader>
-              <CardContent className="flex gap-3">
-                <Input
-                  placeholder="Enter template name"
-                  value={templateName}
-                  onChange={e => setTemplateName(e.target.value)}
-                  className="bg-black border-white/20 text-white placeholder:text-white/40"
-                />
-                <Button
-                  onClick={async () => {
-                    // Create template with default page configuration
-                    const defaultTemplateJson = JSON.stringify({
-                      page: {
-                        size: 'A4',
-                        orientation: 'portrait'
-                      },
-                      header: [],
-                      pageHeader: [],
-                      pageFooter: []
-                    });
-                    
-                    const t = await apiClient.createTemplate({
-                      presetId: currentPreset.PresetId,
-                      templateName,
-                      templateJson: defaultTemplateJson,
-                    });
-                    onTemplateSelect(t.TemplateId);
-                    setLocalTemplateId(t.TemplateId);
-                    setStep('parameters');
-                  }}
-                  className="bg-white text-black hover:bg-white/90"
-                  disabled={!templateName.trim()}
-                >
-                  Create
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {/* Existing Templates */}
+              {templatesForPreset.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-white mb-3">Or select existing template:</h3>
+                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    {templatesForPreset.map(t => (
+                      <Card
+                        key={t.TemplateId}
+                        className={cn(
+                          'cursor-pointer hover:border-white/40 bg-black border-white/20',
+                          localTemplateId === t.TemplateId && 'border-white'
+                        )}
+                        onClick={() => {
+                          setLocalTemplateId(t.TemplateId);
+                          onTemplateSelect(t.TemplateId);
+                          setStep('params');
+                        }}
+                      >
+                        <CardHeader>
+                          <CardTitle className="text-sm text-white">{t.TemplateName}</CardTitle>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Create New Template */}
+              <Card className="bg-black border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Create New Template</CardTitle>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Input
+                    placeholder="Enter template name"
+                    value={templateName}
+                    onChange={e => setTemplateName(e.target.value)}
+                    className="bg-black border-white/20 text-white placeholder:text-white/40"
+                  />
+                  <Button
+                    onClick={async () => {
+                      // Create template with default page configuration
+                      const defaultTemplateJson = JSON.stringify({
+                        page: {
+                          size: 'A4',
+                          orientation: 'portrait'
+                        },
+                        header: [],
+                        pageHeader: [],
+                        pageFooter: []
+                      });
+                      
+                      const t = await apiClient.createTemplate({
+                        presetId: currentPreset.PresetId,
+                        templateName,
+                        templateJson: defaultTemplateJson,
+                      });
+                      onTemplateSelect(t.TemplateId);
+                      setLocalTemplateId(t.TemplateId);
+                      setStep('params');
+                    }}
+                    className="border-white/20 bg-white text-black hover:bg-black hover:text-white/40"
+                    disabled={!templateName.trim()}
+                  >
+                    Create
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* PARAMETERS */}
-          {step === 'parameters' && currentPreset && (
+          {step === 'params' && currentPreset && (
             <>
               <div className="flex gap-2 mb-4">
                 <Button
@@ -395,7 +417,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                     setCopyModalType('template');
                     setShowParameterCopyModal(true);
                   }}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 bg-white text-black hover:bg-black hover:text-white/40"
                 >
                   Copy from Template
                 </Button>
@@ -405,7 +427,7 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
                     setCopyModalType('preset');
                     setShowParameterCopyModal(true);
                   }}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 bg-white text-black hover:bg-black hover:text-white/40"
                 >
                   Copy from Preset
                 </Button>
@@ -446,9 +468,19 @@ const SetupPanel: React.FC<SetupPanelProps> = (props) => {
         </ScrollArea>
 
         {/* Footer */}
-        {step !== 'template' && (
+        {step !== 'preset' && (
           <div className="border-t border-white/20 px-6 py-3">
-            <Button variant="ghost" onClick={() => setStep('template')} className="text-white hover:bg-white/10">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (step === 'params') {
+                  setStep('createTemplate');
+                } else if (step === 'createTemplate') {
+                  setStep('preset');
+                }
+              }}
+              className="text-white hover:bg-white/10"
+            >
               ← Back
             </Button>
           </div>

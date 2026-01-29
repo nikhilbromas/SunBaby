@@ -33,7 +33,7 @@
 .canvas-container {
   flex: 1;
   overflow: auto;
-  background: black;
+  background:#161414;
   padding: 2rem;
   display: flex;
   justify-content: center;
