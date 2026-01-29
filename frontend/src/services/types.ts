@@ -656,6 +656,53 @@ export interface AnalyticsCompareResponse {
   summary: AnalyticsCompareSummary;
 }
 
+// Data Analytics (new preset analytics service)
+export interface AnalyticsFilter {
+  field: string;
+  operator: 'equals' | 'in' | 'range' | 'contains';
+  value?: any;
+  min?: any;
+  max?: any;
+}
+
+export interface DataAnalyticsDataset {
+  data: {
+    header: Record<string, any> | null;
+    items: Record<string, any> | Record<string, any>[]; // object if 1 row, array if 0 or >1
+    contentDetails: Record<string, Record<string, any> | Record<string, any>[]>; // same shape rule
+  };
+  fieldsMetadata: AnalyticsFieldsMetadata;
+  shape: {
+    header: 'object' | 'none';
+    items: 'object' | 'array';
+    contentDetails: Record<string, 'object' | 'array'>;
+  };
+  references: Record<string, any>; // billId, documentNo, createdAt, etc.
+  insights: Array<{
+    id: string;
+    type: 'anomaly' | 'summary';
+    severity: 'info' | 'warning' | 'error';
+    message: string;
+    field?: string;
+    value?: any;
+    stats?: Record<string, any>;
+    affectedKeys?: any[];
+  }>;
+}
+
+export interface PresetAnalyticsRunRequest {
+  preset_id: number;
+  parameters: Record<string, any>;
+  company_id?: number;
+  filters?: AnalyticsFilter[];
+  widgetRequests?: AnalyticsWidgetRequest[];
+}
+
+export interface PresetAnalyticsRunResponse {
+  dataset: DataAnalyticsDataset;
+  widgets?: AnalyticsWidgetResult[];
+}
+
 // Dashboards
 
 export type DashboardWidgetType = 'kpi' | 'chart' | 'table';
@@ -753,6 +800,7 @@ export interface RunDashboardResponse {
       config: DashboardWidgetConfig;
       presetBinding: DashboardPresetBinding;
       dataset: AnalyticsDataset;
+      analyticsDataset?: DataAnalyticsDataset;
       output?: any;
     }
   >;

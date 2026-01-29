@@ -39,6 +39,8 @@ import type {
   AnalyticsRunMultiResponse,
   AnalyticsCompareRequest,
   AnalyticsCompareResponse,
+  PresetAnalyticsRunRequest,
+  PresetAnalyticsRunResponse,
   Dashboard,
   DashboardCreate,
   DashboardUpdate,
@@ -498,6 +500,13 @@ class ApiClient {
     const companyId = this.getCompanyId();
     const payload = companyId && !request.company_id ? { ...request, company_id: companyId } : request;
     const response = await this.client.post<AnalyticsCompareResponse>('/analytics/compare', payload);
+    return response.data;
+  }
+
+  async runPresetAnalytics(request: PresetAnalyticsRunRequest): Promise<PresetAnalyticsRunResponse> {
+    const companyId = this.getCompanyId();
+    const payload = companyId && !request.company_id ? { ...request, company_id: companyId } : request;
+    const response = await this.client.post<PresetAnalyticsRunResponse>('/analytics/preset-analytics', payload);
     return response.data;
   }
 

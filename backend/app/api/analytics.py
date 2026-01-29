@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 from app.database import db
 from app.services.analytics_service import analytics_service
 from app.services.auth_service import auth_service
+from app.services.data_analytics_preset_execution_service import (
+    data_analytics_preset_execution_service,
+)
 from app.services.preset_execution_service import preset_execution_service
 from app.utils.company_schema import ensure_company_schema
 from app.utils.session import require_session
@@ -63,6 +66,35 @@ class AnalyticsRunRequest(BaseModel):
 
 class AnalyticsRunResponse(BaseModel):
     dataset: AnalyticsDataset
+    widgets: Optional[List[Dict[str, Any]]] = None
+
+
+class AnalyticsFilter(BaseModel):
+    field: str
+    operator: str
+    value: Optional[Any] = None
+    min: Optional[Any] = None
+    max: Optional[Any] = None
+
+
+class DataAnalyticsDataset(BaseModel):
+    data: Dict[str, Any]
+    fieldsMetadata: Dict[str, Any] = Field(default_factory=dict)
+    shape: Dict[str, Any] = Field(default_factory=dict)
+    references: Dict[str, Any] = Field(default_factory=dict)
+    insights: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class PresetAnalyticsRunRequest(BaseModel):
+    preset_id: int
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    company_id: Optional[int] = None
+    filters: Optional[List[AnalyticsFilter]] = None
+    widgetRequests: Optional[List[WidgetRequest]] = None
+
+
+class PresetAnalyticsRunResponse(BaseModel):
+    dataset: DataAnalyticsDataset
     widgets: Optional[List[Dict[str, Any]]] = None
 
 
@@ -151,6 +183,42 @@ async def run_analytics(payload: AnalyticsRunRequest, session=Depends(require_se
                 widgets.append({"id": w.id, "type": "table", "rows": filtered})
 
     return AnalyticsRunResponse(dataset=dataset, widgets=widgets or None)
+
+
+@router.post("/preset-analytics", response_model=PresetAnalyticsRunResponse)
+async def run_preset_analytics(payload: PresetAnalyticsRunRequest, session=Depends(require_session)):
+    """
+    Execute a single preset and return an analytics-oriented dataset that is easy to
+    visualise (object vs array shaping, insights, references) plus optional widgets.
+    """
+    company_id = payload.company_id or session.company_id
+    if company_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Company context not selected. Please select a company before running analytics.",
+        )
+
+    _ensure_company_db_context(int(company_id))
+
+    try:
+        # Convert filter models to plain dicts for the service layer.
+        filters_dicts: Optional[List[Dict[str, Any]]] = None
+        if payload.filters:
+            filters_dicts = [f.model_dump(exclude_none=True) for f in payload.filters]
+
+        result = await data_analytics_preset_execution_service.execute_preset_analytics(
+            preset_id=payload.preset_id,
+            parameters=payload.parameters,
+            company_id=company_id,
+            filters=filters_dicts,
+            widget_requests=[w.model_dump(exclude_none=True) for w in (payload.widgetRequests or [])],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    dataset = DataAnalyticsDataset(**result["dataset"])
+    widgets = result.get("widgets") or None
+    return PresetAnalyticsRunResponse(dataset=dataset, widgets=widgets)
 
 
 @router.post("/run-multi", response_model=AnalyticsRunMultiResponse)

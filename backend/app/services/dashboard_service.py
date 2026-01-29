@@ -18,6 +18,9 @@ from app.models.dashboard import (
 )
 from app.services.preset_execution_service import preset_execution_service
 from app.services.analytics_service import analytics_service
+from app.services.data_analytics_preset_execution_service import (
+    data_analytics_preset_execution_service,
+)
 import json
 
 
@@ -305,6 +308,9 @@ class DashboardService:
                     company_id=None,
                 )
 
+                # Build analytics-friendly dataset (object/array shaping, insights, references)
+                analytics_dataset = data_analytics_preset_execution_service.build_dataset_from_raw(result)
+
                 # Compute widget output based on type + config
                 wtype = (w.Type or "").lower()
                 cfg = w.Config
@@ -371,6 +377,7 @@ class DashboardService:
                     "config": w.Config.model_dump(exclude_none=True),
                     "presetBinding": binding.model_dump(exclude_none=True),
                     "dataset": result,
+                    "analyticsDataset": analytics_dataset,
                     "output": output,
                 }
             except Exception as exc:  # noqa: BLE001

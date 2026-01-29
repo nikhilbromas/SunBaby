@@ -6,11 +6,26 @@ import type {
   DashboardWidgetType,
   Preset,
   RunDashboardResponse,
+  DataAnalyticsDataset,
 } from '@/services/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+
+function prettifyKey(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatDateTime(value: any): string {
+  if (!value) return '';
+  const s = String(value);
+  return s.replace('T', ' ').replace('Z', '');
+}
 
 const DashboardsPage: React.FC = () => {
   const [dashboards, setDashboards] = useState<DashboardListItem[]>([]);
@@ -111,7 +126,104 @@ const DashboardsPage: React.FC = () => {
     const type = (w?.type || '').toLowerCase();
     const title = w?.title ?? 'Widget';
     const output = w?.output;
+    const analyticsDataset: DataAnalyticsDataset | undefined = w?.analyticsDataset;
 
+    // If we have analyticsDataset, use it for richer rendering
+    if (analyticsDataset) {
+      const ds = analyticsDataset;
+      const items = Array.isArray(ds.data.items) ? ds.data.items : (ds.data.items ? [ds.data.items] : []);
+
+      return (
+        <div className="border border-neutral-800 rounded bg-neutral-950 space-y-3">
+          <div className="px-4 py-3 border-b border-neutral-800">
+            <div className="text-xs text-neutral-400">{title}</div>
+            {ds.references.billId && (
+              <div className="text-[11px] text-neutral-500 mt-1">Bill: {ds.references.billId}</div>
+            )}
+          </div>
+
+          {/* Insights */}
+          {ds.insights && ds.insights.length > 0 && (
+            <div className="px-4 space-y-1">
+              {ds.insights.slice(0, 3).map((insight, idx) => (
+                <div
+                  key={idx}
+                  className={`text-xs p-2 rounded border ${
+                    insight.severity === 'error'
+                      ? 'border-red-500 bg-red-950/20'
+                      : insight.severity === 'warning'
+                      ? 'border-yellow-500 bg-yellow-950/20'
+                      : 'border-blue-500 bg-blue-950/20'
+                  }`}
+                >
+                  {insight.message}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Widget content based on type */}
+          {type === 'kpi' && (
+            <div className="px-4 pb-4">
+              <div className="text-2xl font-semibold text-white">
+                {output?.value ?? (ds.references.billId ? ds.references.billId : '-')}
+              </div>
+              {output?.field && <div className="text-xs text-neutral-500 mt-1">{output.field}</div>}
+            </div>
+          )}
+
+          {type === 'chart' && (
+            <div className="px-4 pb-4">
+              {output?.series && output.series.length > 0 ? (
+                <div className="space-y-1 max-h-48 overflow-auto">
+                  {output.series.slice(0, 20).map((s: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between text-xs">
+                      <div className="text-white">{String(s[output.groupBy || 'x'] ?? '-')}</div>
+                      <div className="text-neutral-300">{String(s.value ?? '-')}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-neutral-500">No chart data</div>
+              )}
+            </div>
+          )}
+
+          {type === 'table' && (
+            <div className="px-4 pb-4 overflow-auto max-h-64">
+              {items.length > 0 ? (
+                <table className="w-full text-xs">
+                  <thead className="text-neutral-400">
+                    <tr className="border-b border-neutral-800">
+                      {items[0] && Object.keys(items[0]).slice(0, 8).map((k) => (
+                        <th key={k} className="py-2 pr-2 text-left font-medium">
+                          {prettifyKey(k)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="text-white">
+                    {items.slice(0, 25).map((r, i) => (
+                      <tr key={i} className="border-b border-neutral-900">
+                        {items[0] && Object.keys(items[0]).slice(0, 8).map((k) => (
+                          <td key={k} className="py-2 pr-2">
+                            {String(r[k] ?? '-')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-xs text-neutral-500">No items</div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback to original rendering if no analyticsDataset
     if (type === 'kpi') {
       const value = output?.value;
       return (
@@ -150,12 +262,12 @@ const DashboardsPage: React.FC = () => {
     const cols = columns && columns.length ? columns : (rows[0] ? Object.keys(rows[0]).slice(0, 8) : []);
 
     return (
-      <div className="border min-h-screen border-neutral-800 rounded bg-neutral-950">
+      <div className="border border-neutral-800 rounded bg-neutral-950">
         <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
           <div className="text-xs text-neutral-400">{title}</div>
           <div className="text-[11px] text-neutral-500">{rows.length} rows</div>
         </div>
-        <div className="p-3 overflow-auto">
+        <div className="p-3 overflow-auto max-h-64">
           {rows.length === 0 ? (
             <div className="text-xs text-neutral-500">No data</div>
           ) : (
@@ -164,7 +276,7 @@ const DashboardsPage: React.FC = () => {
                 <tr className="border-b border-neutral-800">
                   {cols.map((c) => (
                     <th key={c} className="py-2 pr-2 text-left font-medium">
-                      {c}
+                      {prettifyKey(c)}
                     </th>
                   ))}
                 </tr>
