@@ -7,10 +7,7 @@ import hashlib
 import json
 from typing import Any, Optional, Dict
 from threading import Lock
-import logging
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class TTLCache:

@@ -5,11 +5,8 @@ Converts template JSON to HTML.
 from jinja2 import Environment, BaseLoader, Template
 from typing import Dict, Any, Tuple, List
 import json
-import logging
 import math
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
 
 
 class TemplateEngine:

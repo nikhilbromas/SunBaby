@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import base64
 import asyncio
-import logging
 from typing import Any, Dict
 from concurrent.futures import ThreadPoolExecutor
 
@@ -21,8 +20,6 @@ from app.services.auth_service import auth_service
 from app.services.preview_service import preview_service
 from app.utils.company_schema import ensure_company_schema
 from app.utils.pdf_engine import pdf_engine
-
-logger = logging.getLogger(__name__)
 
 # Thread pool executor for PDF generation
 _pdf_executor: ThreadPoolExecutor = None

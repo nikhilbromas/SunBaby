@@ -6,9 +6,6 @@ Matches backend/migrations/001_initial_schema.sql tables/indexes.
 """
 
 from app.database import db
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 def ensure_company_schema() -> None:
@@ -441,11 +438,11 @@ def ensure_company_schema() -> None:
         # Verify table was created
         table_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
         if table_exists:
-            logger.debug("ReportTemplateParameters table created or already exists")
+            pass
         else:
-            logger.warning("ReportTemplateParameters table creation may have failed")
+            pass
     except Exception as e:
-        logger.error(f"Error creating ReportTemplateParameters table: {e}", exc_info=True)
+        pass
 
     # Patch missing columns in dbo.ReportTemplateParameters (if table exists but schema differs)
     db.execute_non_query(
@@ -559,7 +556,7 @@ def ensure_company_schema() -> None:
         templates_exists = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplates','U')")
         
         if not table_exists and templates_exists:
-            logger.info("ReportTemplateParameters table missing, attempting to create...")
+            pass
             db.execute_non_query(
                 """
                 BEGIN TRY
@@ -589,11 +586,11 @@ def ensure_company_schema() -> None:
             # Verify creation succeeded
             table_exists_after = db.execute_scalar("SELECT OBJECT_ID('dbo.ReportTemplateParameters','U')")
             if table_exists_after:
-                logger.info("ReportTemplateParameters table created successfully in safety check")
+                pass
             else:
-                logger.error("ReportTemplateParameters table creation failed in safety check")
+                pass
     except Exception as e:
-        logger.error(f"Error in ReportTemplateParameters safety check: {e}", exc_info=True)
+        pass
 
 
     # ------------------------------------------------------------------
@@ -620,7 +617,7 @@ def ensure_company_schema() -> None:
             autocommit=True,
         )
     except Exception as e:
-        logger.error(f"Error creating ReportDashboards table: {e}", exc_info=True)
+        pass
 
     try:
         db.execute_non_query(
@@ -644,7 +641,7 @@ def ensure_company_schema() -> None:
             autocommit=True,
         )
     except Exception as e:
-        logger.error(f"Error creating ReportDashboardWidgets table: {e}", exc_info=True)
+        pass
 
     # Indexes
     try:

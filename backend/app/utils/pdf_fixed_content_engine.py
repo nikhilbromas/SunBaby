@@ -12,12 +12,9 @@ Responsibilities:
 
 from reportlab.pdfgen import canvas
 from typing import Dict, Any, List
-import logging
 
 from .pdf_field_renderer import render_field, render_image
 from .pdf_table_renderer import calculate_bill_footer_height
-
-logger = logging.getLogger(__name__)
 
 
 class FixedContentRenderEngine:

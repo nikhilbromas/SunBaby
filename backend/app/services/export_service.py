@@ -96,7 +96,7 @@ class ExportService:
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
         except Exception as e:
-            logger.error(f"Error saving HTML file: {str(e)}")
+            raise
             raise RuntimeError(f"Failed to save HTML file: {str(e)}")
 
 

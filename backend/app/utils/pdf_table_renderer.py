@@ -9,11 +9,8 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.lib import colors
 from typing import Dict, Any, List, Tuple
 import html
-import logging
 from .pdf_utils import hex_to_rgb
 from .pdf_field_renderer import get_field_value
-
-logger = logging.getLogger(__name__)
 
 
 def create_paragraph_style(font_name: str, font_size: float, 

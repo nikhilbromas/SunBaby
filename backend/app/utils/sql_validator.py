@@ -11,9 +11,6 @@ Supports complex queries with multiple JOINs:
 import re
 from typing import List, Set, Optional
 from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class SQLValidationError(Exception):
@@ -237,7 +234,7 @@ class SQLValidator:
         
         for pattern in dangerous_patterns:
             if re.search(pattern, sql, re.IGNORECASE | re.DOTALL):
-                logger.debug(f"Dangerous pattern matched: {pattern}")
+                pass
                 return True
         
         # Note: We don't block -- comments here because:

@@ -6,12 +6,9 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from typing import Dict, Any, Optional
 from datetime import datetime
-import logging
 import base64
 import io
 from .pdf_utils import hex_to_rgb
-
-logger = logging.getLogger(__name__)
 
 
 def get_field_value(bind_path: str, data: Dict[str, Any], 
@@ -73,10 +70,10 @@ def get_field_value(bind_path: str, data: Dict[str, Any],
         
         return value_str
     except (KeyError, AttributeError, IndexError, TypeError) as e:
-        logger.debug(f"Field value not found for {bind_path}: {str(e)}")
+        pass
         return ''
     except Exception as e:
-        logger.warning(f"Error getting field value for {bind_path}: {str(e)}")
+        pass
         return ''
 
 
@@ -195,7 +192,7 @@ def render_image(c: canvas.Canvas, image_field: Dict[str, Any], company_id: Opti
         
         image_id = image_field.get('imageId')
         if not image_id:
-            logger.warning("Image field missing imageId")
+            pass
             return
         
         # Switch to company DB if needed
@@ -210,11 +207,11 @@ def render_image(c: canvas.Canvas, image_field: Dict[str, Any], company_id: Opti
         try:
             image = image_service.get_image(image_id, company_id)
         except Exception as e:
-            logger.error(f"Error getting image {image_id} from database: {str(e)}", exc_info=True)
+            raise
             return
             
         if not image:
-            logger.warning(f"Image {image_id} not found in database")
+            pass
             return
         
         # Extract base64 data (remove data URI prefix if present)

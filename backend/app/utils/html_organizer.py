@@ -6,9 +6,6 @@ import re
 import json
 from typing import Dict, Any, List, Tuple
 from bs4 import BeautifulSoup
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class HtmlOrganizer:
@@ -116,19 +113,13 @@ class HtmlOrganizer:
             # Try to consolidate last page content onto previous page
             self._consolidate_last_page(bill_pages, available_height_first_page, available_height_other_pages, bill_header_height)
             
-            # Fix bill-content child elements: convert to relative positioning, remove top, keep only left
-            self._fix_bill_content_positioning(bill_pages)
-            
-            # Fix bill-footer positioning: remove top/absolute, place before page-footer
-            self._fix_bill_footer_positioning(bill_pages)
-            
             # Remove empty pages (pages with no bill-content or only empty bill-content)
             self._remove_empty_pages(bill_pages)
             
             return str(soup)
             
         except Exception as e:
-            logger.error(f"Error organizing HTML: {str(e)}")
+            pass
             return html
     
     def _reorganize_content_items_simple(
@@ -529,95 +520,6 @@ class HtmlOrganizer:
         Get the maximum bottom position of all elements in bill-content.
         """
         return self._calculate_page_content_height(bill_content)
-    
-    def _fix_bill_content_positioning(self, bill_pages: List):
-        """
-        Convert all bill-content child elements from absolute to relative positioning.
-        Remove 'top' positioning, keep only 'left' (x-axis).
-        """
-        for page in bill_pages:
-            bill_content = page.find('div', class_='bill-content')
-            if not bill_content:
-                continue
-            
-            # Get all child elements (tables and fields)
-            tables = bill_content.find_all('div', class_='bill-content-table')
-            fields = bill_content.find_all('div', class_='field')
-            
-            for element in tables + fields:
-                style = element.get('style', '')
-                # Extract left value if exists
-                left_match = re.search(r'left:\s*(\d+\.?\d*)px', style)
-                left_value = left_match.group(1) if left_match else None
-                
-                # Remove position: absolute and top
-                new_style = re.sub(r'position:\s*absolute;?\s*', '', style)
-                new_style = re.sub(r'position:\s*absolute\s*', '', new_style)
-                new_style = re.sub(r'top:\s*\d+\.?\d*px;?\s*', '', new_style)
-                new_style = re.sub(r'top:\s*\d+\.?\d*px\s*', '', new_style)
-                
-                # Set position relative and keep left if it exists
-                if left_value:
-                    new_style = f'position: relative; left: {left_value}px; {new_style}'.strip()
-                else:
-                    new_style = f'position: relative; {new_style}'.strip()
-                
-                # Clean up extra semicolons and spaces
-                new_style = re.sub(r';\s*;+', ';', new_style)
-                new_style = re.sub(r'^\s*;\s*', '', new_style)
-                new_style = re.sub(r'\s+', ' ', new_style).strip()
-                
-                element['style'] = new_style
-    
-    def _fix_bill_footer_positioning(self, bill_pages: List):
-        """
-        Fix bill-footer positioning: remove top/absolute positioning.
-        Ensure bill-footer appears before page-footer in DOM order.
-        """
-        for page in bill_pages:
-            bill_footer = page.find('div', class_='bill-footer')
-            page_footer = page.find('div', class_='page-footer')
-            
-            if bill_footer:
-                # Remove top and position absolute from bill-footer style
-                style = bill_footer.get('style', '')
-                new_style = re.sub(r'top:\s*\d+\.?\d*px;?\s*', '', style)
-                new_style = re.sub(r'position:\s*absolute;?\s*', '', new_style)
-                new_style = re.sub(r'position:\s*absolute\s*', '', new_style)
-                new_style = re.sub(r';\s*;+', ';', new_style)
-                new_style = re.sub(r'^\s*;\s*', '', new_style)
-                new_style = re.sub(r'\s+', ' ', new_style).strip()
-                
-                if new_style:
-                    bill_footer['style'] = new_style
-                else:
-                    # Remove style attribute if empty
-                    if 'style' in bill_footer.attrs:
-                        del bill_footer['style']
-                
-                # Ensure bill-footer appears before page-footer
-                if page_footer and bill_footer:
-                    # Check if bill-footer comes after page-footer
-                    footer_parent = bill_footer.parent
-                    page_footer_parent = page_footer.parent
-                    
-                    if footer_parent == page_footer_parent:
-                        # Same parent, check order
-                        footer_idx = list(footer_parent.children).index(bill_footer)
-                        page_footer_idx = list(page_footer_parent.children).index(page_footer)
-                        
-                        if footer_idx > page_footer_idx:
-                            # Move bill-footer before page-footer
-                            bill_footer.extract()
-                            page_footer.insert_before(bill_footer)
-                    else:
-                        # Different parents - move to same parent as page-footer if needed
-                        # Usually both should be direct children of bill-container
-                        bill_container = page.find('div', class_='bill-container')
-                        if bill_container and page_footer.parent == bill_container:
-                            if bill_footer.parent != bill_container:
-                                bill_footer.extract()
-                                page_footer.insert_before(bill_footer)
     
     def _remove_empty_pages(self, bill_pages: List):
         """
