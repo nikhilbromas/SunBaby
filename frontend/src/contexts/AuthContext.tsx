@@ -87,6 +87,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for session expiration events from API client
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setState({
+        token: null,
+        email: null,
+        userId: null,
+        companies: [],
+        companyId: null,
+        companyName: null,
+        permissions: null,
+        isLoading: false,
+      });
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => {
+      window.removeEventListener('auth:session-expired', handleSessionExpired);
+    };
+  }, []);
+
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     const res = await apiClient.login(email, password);
     localStorage.setItem(LS_TOKEN, res.token);

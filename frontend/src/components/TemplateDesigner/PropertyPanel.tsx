@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, TableColumnConfig, FinalRowConfig, ImageFieldConfig } from '../../services/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,32 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   // State for Font Selection modal
   const [showFontModal, setShowFontModal] = useState(false);
   const [fontModalPosition, setFontModalPosition] = useState({ top: 0, left: 0 });
+  const [fontSearchQuery, setFontSearchQuery] = useState('');
+  const [highlightedFontIndex, setHighlightedFontIndex] = useState(0);
   const fontInputRef = React.useRef<HTMLInputElement>(null);
+  const fontListRef = useRef<HTMLDivElement>(null);
+  const fontButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Scroll highlighted font into view
+  useEffect(() => {
+    if (showFontModal && fontButtonRefs.current[highlightedFontIndex]) {
+      fontButtonRefs.current[highlightedFontIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [highlightedFontIndex, showFontModal]);
+
+  // Reset highlighted index when modal opens
+  useEffect(() => {
+    if (showFontModal) {
+      setHighlightedFontIndex(0);
+      fontInputRef.current?.focus();
+    } else {
+      setHighlightedFontIndex(0);
+      setFontSearchQuery('');
+    }
+  }, [showFontModal]);
   
   // State for table column selection (must be at top level - Rules of Hooks)
   const [itemsTableSelectedColumns, setItemsTableSelectedColumns] = useState<Set<number>>(new Set());
@@ -3355,59 +3380,131 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               />
               {/* Modal positioned near input */}
               <div 
-                className="fixed z-50 bg-black border border-white border-opacity-20 rounded-lg shadow-xl w-80 max-h-[60vh] flex flex-col"
+                className="fixed z-50 bg-black border border-white/20 rounded-lg shadow-xl w-80 flex flex-col"
                 style={{
                   top: `${fontModalPosition.top}px`,
                   left: `${fontModalPosition.left}px`,
+                  maxHeight: '400px',
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Modal Header */}
-                <div className="flex items-center justify-between p-4 border-b border-white border-opacity-20">
+                <div className="flex items-center justify-between p-3 border-b border-white/20">
                   <h3 className="text-lg font-semibold text-white">Select Font</h3>
                   <button
                     type="button"
-                    onClick={() => setShowFontModal(false)}
-                    className="text-white text-opacity-60 hover:text-white text-2xl font-bold transition-colors"
+                    onClick={() => {
+                      setShowFontModal(false);
+                      setFontSearchQuery('');
+                    }}
+                    className="text-white/60 hover:text-white text-2xl font-bold transition-colors"
                     aria-label="Close"
                   >
                     ×
                   </button>
                 </div>
                 
-                {/* Modal Content */}
-                <div className="p-4 overflow-y-auto flex-1">
-                  <div className="space-y-1">
-                    {availableFonts.map((font) => (
-                      <button
-                        key={font.name}
-                        type="button"
-                        onClick={() => {
-                          onUpdateField(selectedElement.index, { fontFamily: font.name }, section);
+                {/* Search Input */}
+                <div className="p-3 border-b border-white/20">
+                  <Input
+                    ref={fontInputRef}
+                    type="text"
+                    placeholder="Search font..."
+                    value={fontSearchQuery}
+                    onChange={(e) => {
+                      setFontSearchQuery(e.target.value);
+                      setHighlightedFontIndex(0);
+                    }}
+                    onKeyDown={(e) => {
+                      const filteredFonts = availableFonts.filter((font) => 
+                        font.label.toLowerCase().includes(fontSearchQuery.toLowerCase())
+                      );
+                      
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setHighlightedFontIndex((prev) => 
+                          prev < filteredFonts.length - 1 ? prev + 1 : prev
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setHighlightedFontIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                      } else if (e.key === 'Enter' && filteredFonts.length > 0) {
+                        e.preventDefault();
+                        const selectedFont = filteredFonts[highlightedFontIndex];
+                        if (selectedFont) {
+                          onUpdateField(selectedElement.index, { fontFamily: selectedFont.name }, section);
                           setShowFontModal(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-md transition-colors ${
-                          (field.fontFamily || 'Helvetica') === font.name
-                            ? 'bg-white bg-opacity-20 border border-white border-opacity-30 text-white'
-                            : 'bg-white bg-opacity-10 border border-white border-opacity-20 text-white hover:bg-opacity-20 hover:border-opacity-30'
-                        }`}
-                        style={{ fontFamily: font.name.replace('-Bold', '') }}
-                      >
-                        {font.label}
-                      </button>
-                    ))}
-                  </div>
+                          setFontSearchQuery('');
+                          setHighlightedFontIndex(0);
+                        }
+                      } else if (e.key === 'Escape') {
+                        setShowFontModal(false);
+                        setFontSearchQuery('');
+                        setHighlightedFontIndex(0);
+                      }
+                    }}
+                    className="bg-black border-white/20 text-white placeholder:text-white/40"
+                    autoFocus
+                  />
                 </div>
                 
-                {/* Modal Footer */}
-                <div className="p-4 border-t border-white border-opacity-20 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowFontModal(false)}
-                    className="px-4 py-2 bg-white bg-opacity-10 text-white rounded-md hover:bg-opacity-20 transition-colors border border-white border-opacity-20"
-                  >
-                    Close
-                  </button>
+                {/* Modal Content - Small List (3 items visible) */}
+                <div 
+                  ref={fontListRef}
+                  className="p-2 overflow-y-auto font-list-scroll"
+                  style={{ maxHeight: '120px' }}
+                >
+                  <div className="space-y-1">
+                    {availableFonts
+                      .filter((font) => 
+                        font.label.toLowerCase().includes(fontSearchQuery.toLowerCase())
+                      )
+                      .map((font, index) => {
+                        const isSelected = (field.fontFamily || 'Helvetica') === font.name;
+                        const isHighlighted = index === highlightedFontIndex;
+                        
+                        return (
+                          <button
+                            key={font.name}
+                            ref={(el) => {
+                              fontButtonRefs.current[index] = el;
+                            }}
+                            type="button"
+                            onClick={() => {
+                              onUpdateField(selectedElement.index, { fontFamily: font.name }, section);
+                              setShowFontModal(false);
+                              setFontSearchQuery('');
+                              setHighlightedFontIndex(0);
+                            }}
+                            onMouseEnter={() => setHighlightedFontIndex(index)}
+                            className={cn(
+                              'w-full text-left px-3 py-2 rounded-md transition-all text-sm border',
+                              isSelected
+                                ? 'bg-white/30 border-white/40 text-white font-medium'
+                                : isHighlighted
+                                ? 'bg-white/15 border-white/30 text-white'
+                                : 'bg-black border-white/20 text-white hover:bg-white/10 hover:border-white/30'
+                            )}
+                            style={{ fontFamily: font.name.replace('-Bold', '') }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs opacity-60">Aa</span>
+                              <span>{font.label}</span>
+                              {isSelected && (
+                                <span className="ml-auto text-xs opacity-60">✓</span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    {availableFonts.filter((font) => 
+                      font.label.toLowerCase().includes(fontSearchQuery.toLowerCase())
+                    ).length === 0 && (
+                      <div className="text-center text-white/60 text-sm py-4">
+                        No fonts found
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>
