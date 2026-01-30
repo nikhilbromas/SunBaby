@@ -3,9 +3,6 @@ Service for exporting bills to PDF and other formats.
 """
 from typing import Optional
 from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class ExportService:
@@ -24,7 +21,7 @@ class ExportService:
             from weasyprint import HTML
             return True
         except (ImportError, OSError) as e:
-            logger.warning(f"WeasyPrint not available. PDF export will be disabled. Error: {str(e)}")
+            pass
             return False
     
     def export_to_pdf(self, html_content: str, output_path: Optional[str] = None) -> bytes:
@@ -84,7 +81,7 @@ class ExportService:
             
             return pdf_bytes
         except Exception as e:
-            logger.error(f"Error generating PDF: {str(e)}")
+            raise
             raise RuntimeError(f"Failed to generate PDF: {str(e)}")
     
     def export_to_html_file(self, html_content: str, output_path: str) -> None:
@@ -99,7 +96,7 @@ class ExportService:
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
         except Exception as e:
-            logger.error(f"Error saving HTML file: {str(e)}")
+            raise
             raise RuntimeError(f"Failed to save HTML file: {str(e)}")
 
 

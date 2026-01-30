@@ -2,9 +2,6 @@
 PDF utility functions for page size calculations and helper methods.
 """
 from typing import Dict, Any, Tuple
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 def get_page_size(page_size: str, orientation: str) -> Tuple[float, float]:

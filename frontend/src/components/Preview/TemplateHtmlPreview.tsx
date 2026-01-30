@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import apiClient from '../../services/api';
 import type { Template, TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, PreviewData } from '../../services/types';
+import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import './TemplateHtmlPreview.css';
 
 interface TemplateHtmlPreviewProps {

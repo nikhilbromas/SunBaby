@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import type { TextFieldConfig } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import './FieldEditor.css';
 
 interface FieldEditorProps {
@@ -15,6 +18,7 @@ interface FieldEditorProps {
     contentDetails?: Record<string, { data: Record<string, any>[] | Record<string, any> | null; fields: string[]; sampleCount: number; dataType?: 'array' | 'object' }>;
   } | null;
   section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
+  canvasZoom?: number;
 }
 
 const FieldEditor: React.FC<FieldEditorProps> = ({
@@ -25,6 +29,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
   onDelete,
   sampleData,
   fullSampleData,
+  canvasZoom = 1,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -86,33 +91,58 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
     e.stopPropagation();
   };
 
+  // Helper function to get parent section zone
+  const getParentSectionZone = (): HTMLElement | null => {
+    if (!fieldRef.current) return null;
+    let parent = fieldRef.current.parentElement;
+    while (parent && !parent.classList.contains('section-zone')) {
+      parent = parent.parentElement;
+    }
+    return parent;
+  };
+
+  // Shared drag start logic for both mouse and touch
+  const startDrag = (clientX: number, clientY: number) => {
+    const parent = getParentSectionZone();
+    const zoom = canvasZoom || 1;
+    if (parent) {
+      const parentRect = parent.getBoundingClientRect();
+      setIsDragging(true);
+      // Account for zoom: screen coordinates to canvas coordinates
+      setDragStart({ 
+        x: (clientX - parentRect.left) / zoom - field.x, 
+        y: (clientY - parentRect.top) / zoom - field.y 
+      });
+      onSelect();
+    } else {
+      // Fallback to normal behavior
+      setIsDragging(true);
+      setDragStart({ x: clientX / zoom - field.x, y: clientY / zoom - field.y });
+      onSelect();
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) {
       return;
     }
     if (fieldRef.current) {
-      // Find the section zone container (parent with section-zone class)
-      let parent = fieldRef.current.parentElement;
-      while (parent && !parent.classList.contains('section-zone')) {
-        parent = parent.parentElement;
-      }
-      
-      if (parent) {
-        const parentRect = parent.getBoundingClientRect();
-        setIsDragging(true);
-        setDragStart({ 
-          x: e.clientX - parentRect.left - field.x, 
-          y: e.clientY - parentRect.top - field.y 
-        });
-        onSelect();
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
-        // Fallback to normal behavior
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - field.x, y: e.clientY - field.y });
-        onSelect();
-      }
+      startDrag(e.clientX, e.clientY);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  // Touch event handler for mobile drag
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) {
+      return;
+    }
+    if (e.touches.length === 1 && fieldRef.current) {
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+      e.stopPropagation();
     }
   };
 
@@ -138,37 +168,47 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
     if (isDragging) {
       let animationFrameId: number | null = null;
       
-      const handleGlobalMouseMove = (e: MouseEvent) => {
-        // Use requestAnimationFrame for smooth updates
+      // Shared move logic for both mouse and touch
+      const handleMove = (clientX: number, clientY: number) => {
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId);
         }
         
+        const zoom = canvasZoom || 1;
         animationFrameId = requestAnimationFrame(() => {
-          if (fieldRef.current) {
-            // Find the section zone container
-            let parent = fieldRef.current.parentElement;
-            while (parent && !parent.classList.contains('section-zone')) {
-              parent = parent.parentElement;
-            }
-            
-            if (parent) {
-              const parentRect = parent.getBoundingClientRect();
-              const newX = e.clientX - parentRect.left - dragStart.x;
-              const newY = e.clientY - parentRect.top - dragStart.y;
-              const clampedX = Math.max(0, Math.min(newX, parentRect.width - 50)); // Leave some margin
-              const clampedY = Math.max(0, Math.min(newY, parentRect.height - 20));
-              setPosition({ x: clampedX, y: clampedY });
-              onUpdate({ x: clampedX, y: clampedY });
-            } else {
-              // Fallback
-              const newX = e.clientX - dragStart.x;
-              const newY = e.clientY - dragStart.y;
-              setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
-              onUpdate({ x: Math.max(0, newX), y: Math.max(0, newY) });
-            }
+          const parent = getParentSectionZone();
+          if (parent) {
+            const parentRect = parent.getBoundingClientRect();
+            // Convert screen coordinates to canvas coordinates
+            const newX = (clientX - parentRect.left) / zoom - dragStart.x;
+            const newY = (clientY - parentRect.top) / zoom - dragStart.y;
+            // Clamp using canvas dimensions (not screen dimensions)
+            const parentWidth = parentRect.width / zoom;
+            const parentHeight = parentRect.height / zoom;
+            const clampedX = Math.max(0, Math.min(newX, parentWidth - 50)); // Leave some margin
+            const clampedY = Math.max(0, Math.min(newY, parentHeight - 20));
+            setPosition({ x: clampedX, y: clampedY });
+            onUpdate({ x: clampedX, y: clampedY });
+          } else {
+            // Fallback
+            const newX = clientX / zoom - dragStart.x;
+            const newY = clientY / zoom - dragStart.y;
+            setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
+            onUpdate({ x: Math.max(0, newX), y: Math.max(0, newY) });
           }
         });
+      };
+
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        handleMove(e.clientX, e.clientY);
+      };
+      
+      const handleGlobalTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault(); // Prevent scrolling while dragging
+          const touch = e.touches[0];
+          handleMove(touch.clientX, touch.clientY);
+        }
       };
       
       const handleGlobalMouseUp = () => {
@@ -178,17 +218,32 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
         setIsDragging(false);
       };
       
+      const handleGlobalTouchEnd = () => {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
+        setIsDragging(false);
+      };
+      
+      // Add mouse and touch event listeners
       document.addEventListener('mousemove', handleGlobalMouseMove, { passive: true });
       document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+      document.addEventListener('touchend', handleGlobalTouchEnd);
+      document.addEventListener('touchcancel', handleGlobalTouchEnd);
+      
       return () => {
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId);
         }
         document.removeEventListener('mousemove', handleGlobalMouseMove);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.removeEventListener('touchmove', handleGlobalTouchMove);
+        document.removeEventListener('touchend', handleGlobalTouchEnd);
+        document.removeEventListener('touchcancel', handleGlobalTouchEnd);
       };
     }
-  }, [isDragging, dragStart, onUpdate]);
+  }, [isDragging, dragStart, onUpdate, canvasZoom]);
 
   const getDisplayValue = (): string => {
     // Handle special field types
@@ -199,10 +254,20 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
       return new Date().toLocaleTimeString();
     }
     if (field.fieldType === 'pageNumber') {
-      return '1';
+      return 'Page 1';
     }
     if (field.fieldType === 'totalPages') {
-      return '1';
+      return 'Total: 1';
+    }
+    
+    // Handle static value for non-bound fields
+    if (!field.bind || field.bind.trim() === '') {
+      // If there's a static value, use it; otherwise show label or placeholder
+      if (field.value && field.value.trim() !== '') {
+        return field.value;
+      }
+      // If no value but has label, show label only (no value part)
+      return '';
     }
     
     // Handle bound fields - sampleData is already the header data object (flat)
@@ -248,33 +313,72 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
     return '[Value]';
   };
 
-  if (!field.visible) {
+  // Treat undefined as visible (default). Only hide when explicitly set to false.
+  if (field.visible === false) {
     return null;
   }
 
   const displayValue = getDisplayValue();
 
+  // Parse width value for styling
+  const getWidthStyle = (): string | undefined => {
+    if (!field.width) return undefined;
+    const width = field.width.trim();
+    if (width === 'auto') return 'auto';
+    if (width.endsWith('%')) return width;
+    // If numeric, assume px
+    const numValue = parseFloat(width);
+    if (!isNaN(numValue)) return `${numValue}px`;
+    return width; // Fallback to raw value
+  };
+
+  const widthStyle = getWidthStyle();
+
+  // Handle fontFamily: Extract base font name (remove "-Bold" suffix for CSS)
+  // CSS uses font-weight for bold, not "-Bold" suffix in font-family
+  const getFontFamilyForCSS = (): string => {
+    if (!field.fontFamily) return 'Helvetica';
+    // Remove "-Bold" suffix if present (CSS handles bold via fontWeight)
+    return field.fontFamily.replace(/-Bold$/, '');
+  };
+
+  // Determine fontWeight: Use field.fontWeight, or 'bold' if fontFamily ends with "-Bold"
+  const getFontWeightForCSS = (): string | undefined => {
+    if (field.fontWeight) return field.fontWeight;
+    if (field.fontFamily && field.fontFamily.endsWith('-Bold')) {
+      return 'bold';
+    }
+    return undefined;
+  };
+
   return (
     <div
       ref={fieldRef}
-      className={`field-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isEditingFontSize ? 'editing-font-size' : ''}`}
+      className={`field-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isEditingFontSize ? 'editing-font-size' : ''} ${field.bind && field.bind.trim() ? 'field-bound' : 'field-static'}`}
       style={{
         position: 'absolute',
         left: `${position.x}px`,
         top: `${position.y}px`,
         fontSize: field.fontSize ? `${field.fontSize}px` : undefined,
-        fontWeight: field.fontWeight,
+        fontWeight: getFontWeightForCSS(),
+        fontFamily: getFontFamilyForCSS(),
         color: field.color,
+        width: widthStyle,
         cursor: isDragging ? 'grabbing' : 'grab',
         zIndex: isSelected ? 100 : 1,
         transition: isDragging ? 'none' : undefined,
         willChange: isDragging ? 'transform, left, top' : undefined,
       }}
       onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
       onDoubleClick={handleDoubleClick}
     >
-      <div className="field-label">{field.label}:</div>
-      <div className="field-value">{displayValue}</div>
+      {field.label && field.label.trim() && (
+        <div className="field-label">{field.label}</div>
+      )}
+      {displayValue && displayValue.trim() && (
+        <div className="field-value">{displayValue}</div>
+      )}
       {isSelected && (
         <>
           <button className="field-delete" onClick={onDelete} title="Delete field">

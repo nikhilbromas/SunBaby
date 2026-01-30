@@ -3,33 +3,40 @@ PDF field rendering utilities.
 Handles rendering of text fields in PDF documents.
 """
 from reportlab.pdfgen import canvas
-from typing import Dict, Any
+from reportlab.lib.utils import ImageReader
+from typing import Dict, Any, Optional
 from datetime import datetime
-import logging
+import base64
+import io
 from .pdf_utils import hex_to_rgb
-
-logger = logging.getLogger(__name__)
 
 
 def get_field_value(bind_path: str, data: Dict[str, Any], 
-                    field_type: str = None, page_context: Dict[str, Any] = None) -> str:
+                    field_type: str = None, page_context: Dict[str, Any] = None,
+                    static_value: str = None) -> str:
     """
-    Get field value from data using binding path or special field type.
+    Get field value from data using binding path, special field type, or static value.
     
     Args:
         bind_path: Binding path like 'header.BillNo' or 'ItemName'
         data: Data dictionary or item dictionary
         field_type: Special field type
         page_context: Page context for special fields
+        static_value: Static value for non-bound fields
         
     Returns:
         Field value as string (empty string if not found)
     """
-    # Handle special fields
+    # Handle special fields (highest priority)
     if field_type and field_type in ['pageNumber', 'totalPages', 'currentDate', 'currentTime']:
         return get_special_field_value(field_type, page_context)
     
-    if not bind_path:
+    # Handle static value (if no binding or binding fails)
+    if static_value and static_value.strip():
+        return static_value
+    
+    # Handle data binding
+    if not bind_path or not bind_path.strip():
         return ''
     
     parts = bind_path.split('.')
@@ -39,24 +46,27 @@ def get_field_value(bind_path: str, data: Dict[str, Any],
         for part in parts:
             if isinstance(value, dict):
                 if part not in value:
-                    return ''
+                    # Binding failed - fallback to static value if available
+                    return static_value if static_value and static_value.strip() else ''
                 value = value.get(part)
                 if value is None:
-                    return ''
+                    # Binding returned None - fallback to static value if available
+                    return static_value if static_value and static_value.strip() else ''
             elif isinstance(value, list) and len(value) > 0:
                 if not isinstance(value[0], dict):
-                    return ''
+                    return static_value if static_value and static_value.strip() else ''
                 if part not in value[0]:
-                    return ''
+                    return static_value if static_value and static_value.strip() else ''
                 value = value[0].get(part)
                 if value is None:
-                    return ''
+                    return static_value if static_value and static_value.strip() else ''
             else:
-                return ''
+                return static_value if static_value and static_value.strip() else ''
         
         # Handle None, empty string, or other falsy values
         if value is None:
-            return ''
+            # Value is None - fallback to static value if available
+            return static_value if static_value and static_value.strip() else ''
         
         # Convert to string and clean up - preserve numeric formatting
         if isinstance(value, (int, float)):
@@ -68,13 +78,17 @@ def get_field_value(bind_path: str, data: Dict[str, Any],
         else:
             value_str = str(value).strip()
         
+        # If binding returned empty, fallback to static value
+        if not value_str and static_value and static_value.strip():
+            return static_value
+        
         return value_str
     except (KeyError, AttributeError, IndexError, TypeError) as e:
-        logger.debug(f"Field value not found for {bind_path}: {str(e)}")
-        return ''
+        # Binding failed - fallback to static value if available
+        return static_value if static_value and static_value.strip() else ''
     except Exception as e:
-        logger.warning(f"Error getting field value for {bind_path}: {str(e)}")
-        return ''
+        # Binding failed - fallback to static value if available
+        return static_value if static_value and static_value.strip() else ''
 
 
 def get_special_field_value(field_type: str, page_context: Dict[str, Any] = None) -> str:
@@ -119,10 +133,31 @@ def render_field(c: canvas.Canvas, field: Dict[str, Any], data: Dict[str, Any],
     if not field.get('visible', True):
         return
     
-    # Get field value
+    # Get field value (including static value support)
     field_type = field.get('fieldType')
     bind_path = field.get('bind', '')
-    value = get_field_value(bind_path, data, field_type, page_context)
+    static_value = field.get('value', '')
+    
+    # Priority: Special field types > Static value > Data binding
+    if field_type and field_type in ['pageNumber', 'totalPages', 'currentDate', 'currentTime']:
+        # Special field types - use their computed values
+        value = get_special_field_value(field_type, page_context)
+    elif static_value and static_value.strip():
+        # Static value provided - use it directly (no schema validation needed)
+        value = static_value
+    elif bind_path and bind_path.strip():
+        # Has binding - try to get value from data, fallback to static if binding fails
+        try:
+            value = get_field_value(bind_path, data, field_type, page_context, static_value)
+            # If binding returns empty and we have static value, use static as fallback
+            if not value and static_value and static_value.strip():
+                value = static_value
+        except Exception:
+            # If binding fails, use static value if available
+            value = static_value if static_value and static_value.strip() else ''
+    else:
+        # No binding and no static value - empty
+        value = ''
     
     # Get styling
     font_size = field.get('fontSize', 12)
@@ -130,36 +165,43 @@ def render_field(c: canvas.Canvas, field: Dict[str, Any], data: Dict[str, Any],
     font_weight = field.get('fontWeight', 'normal')
     color = field.get('color', '#000000')
     
-    # Set font
-    if font_weight == 'bold':
-        c.setFont(f'{font_family}-Bold', font_size)
+    # Determine final font name
+    # Handle cases where fontFamily might already include weight (e.g., 'Helvetica-Bold')
+    # or where we need to add weight based on fontWeight property
+    if font_family.endswith('-Bold'):
+        # Font family already includes bold, use as-is
+        final_font_name = font_family
+    elif font_weight == 'bold':
+        # Add bold suffix to font family
+        final_font_name = f'{font_family}-Bold'
     else:
-        c.setFont(font_family, font_size)
+        # Use font family as-is (normal weight)
+        final_font_name = font_family
+    
+    # Set font
+    c.setFont(final_font_name, font_size)
     
     # Set color
     rgb = hex_to_rgb(color)
     c.setFillColorRGB(rgb[0], rgb[1], rgb[2])
     
-    # Render label and value - only show if value exists
+    # Render label and value (no colon separator, matching template_engine)
     label = field.get('label', '')
     value_str = str(value).strip() if value else ''
     
-    # Skip rendering if no value (don't show empty fields with just labels)
-    # Exception: special field types always have values
-    if not value_str and not field_type:
+    # Build text: label and value separately (no colon)
+    text_parts = []
+    if label and label.strip():
+        text_parts.append(label)
+    if value_str:
+        text_parts.append(value_str)
+    
+    # Skip rendering if no content (no label and no value)
+    if not text_parts:
         return
     
-    # Format text based on label presence
-    if label and value_str:
-        text = f"{label}: {value_str}"
-    elif value_str:
-        text = value_str
-    elif label and field_type:
-        # Only show label alone for special fields that might not have values yet
-        text = label
-    else:
-        # Skip empty fields
-        return
+    # Combine label and value with space (no colon)
+    text = ' '.join(text_parts)
     
     # Handle alignment
     align = field.get('align', 'left')
@@ -169,4 +211,136 @@ def render_field(c: canvas.Canvas, field: Dict[str, Any], data: Dict[str, Any],
         c.drawRightString(x, y, text)
     else:
         c.drawString(x, y, text)
+
+
+def render_image(c: canvas.Canvas, image_field: Dict[str, Any], company_id: Optional[int] = None, content_area_height: Optional[float] = None, page_width: Optional[float] = None):
+    """
+    Render an image field.
+    
+    Args:
+        c: Canvas object
+        image_field: Image field configuration with imageId
+        company_id: Optional company ID for database access
+        content_area_height: Optional full content area height for watermark scaling
+        page_width: Optional page width for watermark scaling
+    """
+    if not image_field.get('visible', True):
+        return
+    
+    try:
+        from app.services.image_service import image_service
+        from app.database import db
+        from app.utils.company_schema import ensure_company_schema
+        
+        image_id = image_field.get('imageId')
+        if not image_id:
+            pass
+            return
+        
+        # Switch to company DB if needed
+        if company_id:
+            from app.services.auth_service import auth_service
+            details = auth_service.get_company_details(company_id)
+            if details:
+                db.switch_to_company_db(details)
+                ensure_company_schema()
+        
+        # Get image from database using image_service
+        try:
+            image = image_service.get_image(image_id, company_id)
+        except Exception as e:
+            raise
+            return
+            
+        if not image:
+            pass
+            return
+        
+        # Extract base64 data (remove data URI prefix if present)
+        base64_data = image.Base64Data
+        if not base64_data:
+            logger.error(f"Image {image_id} has no Base64Data")
+            return
+            
+        if base64_data.startswith('data:'):
+            # Remove data URI prefix (e.g., "data:image/png;base64,")
+            base64_data = base64_data.split(',', 1)[1]
+        
+        # Decode base64 to bytes
+        try:
+            image_bytes = base64.b64decode(base64_data)
+            image_stream = io.BytesIO(image_bytes)
+        except Exception as e:
+            logger.error(f"Error decoding base64 data for image {image_id}: {str(e)}")
+            return
+        
+        # Get position and size
+        x = image_field.get('x', 0)
+        y = image_field.get('y', 0)
+        width = image_field.get('width')
+        height = image_field.get('height')
+        
+        # Check if this is a watermark
+        is_watermark = image_field.get('watermark', False)
+        
+        # Use template dimensions if specified, otherwise use original image dimensions
+        # For watermarks, use template dimensions (don't force to fill full area)
+        # For regular images, use specified dimensions or original image dimensions
+        if not width:
+            width = image.Width
+        if not height:
+            height = image.Height
+        
+        # Log dimension source
+        if is_watermark:
+            logger.info(f"Watermark using template dimensions: width={width:.1f}, height={height:.1f}, original image size={image.Width}x{image.Height}")
+        
+        # Log watermark rendering details (after getting dimensions)
+        if is_watermark:
+            logger.info(f"Rendering watermark: imageId={image_id}, width={width:.1f}, height={height:.1f}, x={x:.1f}, y={y:.1f}, image.Width={image.Width}, image.Height={image.Height}, Base64Data length={len(image.Base64Data) if image.Base64Data else 0}")
+            logger.info(f"Watermark dimension analysis: setup_width={width:.1f}, setup_height={height:.1f}, actual_width={width:.1f}, actual_height={height:.1f}, content_area_height={content_area_height if content_area_height else 'N/A'}, page_width={page_width if page_width else 'N/A'}")
+        
+        # ReportLab's drawImage uses bottom-left corner as anchor
+        # The y coordinate passed is already in ReportLab space (from top of image)
+        # We need to adjust for image height since drawImage anchors at bottom
+        # If y represents the top of the image, subtract height to get bottom position
+        # For watermarks, use exact calculation; for regular images, add small offset for alignment
+        if is_watermark:
+            # Watermarks: exact positioning (no offset)
+            # y is the top of the image in ReportLab coordinates, drawImage needs bottom
+            draw_y = y - height
+            logger.info(f"Watermark draw position: y={y:.1f}, height={height:.1f}, draw_y={draw_y:.1f}, x={x:.1f}")
+        else:
+            # Regular images: small offset for alignment with text fields
+            draw_y = y - height + 20
+        
+        # For watermarks, apply opacity (alpha transparency)
+        if is_watermark:
+            # Save current graphics state
+            c.saveState()
+            # Set opacity (0.0 = fully transparent, 1.0 = fully opaque)
+            # Watermarks typically use 0.3-0.4 opacity for better visibility
+            # ReportLab uses setFillAlpha and setStrokeAlpha for transparency
+            c.setFillAlpha(0.35)
+            c.setStrokeAlpha(0.35)
+        
+        # Create ImageReader and draw image
+        img_reader = ImageReader(image_stream)
+        # For watermarks, preserve aspect ratio to match preview (use template dimensions)
+        # For regular images, also preserve aspect ratio
+        c.drawImage(img_reader, x, draw_y, width=width, height=height, preserveAspectRatio=True)
+        
+        # Restore graphics state if watermark
+        if is_watermark:
+            c.restoreState()
+        
+    except Exception as e:
+        logger.error(f"Error rendering image {image_field.get('imageId')}: {str(e)}", exc_info=True)
+    finally:
+        # Switch back to auth DB if we switched
+        if company_id:
+            try:
+                db.switch_to_auth_db()
+            except Exception:
+                pass
 

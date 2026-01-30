@@ -1,24 +1,72 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Company } from '../../services/types';
-import './Auth.css';
 
-function permSummary(c: Company): string {
-  const p = c.Permissions;
-  const parts: string[] = [];
-  if (p.AllowPreset) parts.push('Presets');
-  if (p.AllowTemplate) parts.push('Templates');
-  if (p.AllowPreview) parts.push('Preview');
-  return parts.length ? parts.join(', ') : 'No permissions';
+// ======================= UI COMPONENTS =======================
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { ClipboardList, FileText, Eye, Settings } from 'lucide-react';
+
+// ======================= PERMISSION BADGE =======================
+interface PermissionBadgeProps {
+  icon: ReactNode;
+  label: string;
+  enabled: boolean;
 }
 
+function PermissionBadge({ icon, label, enabled }: PermissionBadgeProps) {
+  return (
+    <Badge
+      variant={enabled ? 'default' : 'secondary'}
+      className={cn(
+        'flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium',
+        !enabled && 'opacity-50'
+      )}
+      aria-label={`${label} permission`}
+    >
+      {icon}
+      <span>{label}</span>
+    </Badge>
+  );
+}
+
+// ======================= PERMISSION GROUP =======================
+function PermissionBadges({ permissions }: { permissions: Company['Permissions'] }) {
+  const badges = [
+    { icon: <ClipboardList className="h-3 w-3" />, label: 'Presets', enabled: permissions.AllowPreset },
+    { icon: <FileText className="h-3 w-3" />, label: 'Templates', enabled: permissions.AllowTemplate },
+    { icon: <Eye className="h-3 w-3" />, label: 'Preview', enabled: permissions.AllowPreview },
+    { icon: <Settings className="h-3 w-3" />, label: 'Config', enabled: permissions.AllowTemplateConfig },
+  ].filter(b => b.enabled);
+
+  if (badges.length === 0) {
+    return (
+      <Badge variant="secondary" className="text-[11px]">
+        No permissions
+      </Badge>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {badges.map(badge => (
+        <PermissionBadge key={badge.label} {...badge} />
+      ))}
+    </div>
+  );
+}
+
+// ======================= UTIL =======================
 function formatPhone(c: Company): string | null {
   const raw = (c.PhoneNo ?? '').toString().trim();
-  return raw ? raw : null;
+  return raw || null;
 }
 
+// ======================= MAIN COMPONENT =======================
 export default function CompanySelector() {
   const { companies, selectCompany } = useAuth();
+
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,37 +83,87 @@ export default function CompanySelector() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card auth-card-wide">
-        <h2 className="auth-title">Select Company</h2>
-        <p className="auth-subtitle">Choose which company you want to work with.</p>
-        {error && <div className="auth-error">{error}</div>}
+    <div className="min-h-screen bg-black flex items-center justify-center px-6 py-8">
+    <Card className="w-full max-w-6xl  border border-neutral-800 shadow-xl">
+      
+      <CardHeader className="border-b border-neutral-800 bg-neutral-950 text-white">
+        <CardTitle className="text-2xl font-semibold text-white">
+          Select Company
+        </CardTitle>
+        <p className="text-sm text-neutral-400">
+          Choose the company you want to work with
+        </p>
+      </CardHeader>
+  
+      <CardContent className="pt-6">
+  
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-md border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+  
+        {/* Empty state */}
         {companies.length === 0 ? (
-          <div className="auth-empty">No companies assigned.</div>
+          <div className="py-12 text-center text-sm text-neutral-500">
+            No companies assigned to your account
+          </div>
         ) : (
-          <div className="auth-company-grid">
-            {companies.map((c) => (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {companies.map(company => (
               <button
-                key={c.CompanyId}
-                onClick={() => onSelect(c.CompanyId)}
+                key={company.CompanyId}
+                onClick={() => onSelect(company.CompanyId)}
                 disabled={loadingId !== null}
-                className="auth-company-btn"
+                className={cn(
+                  'group relative rounded-xl border border-neutral-800 bg-black p-5 text-left transition-all',
+                  'hover:border-white hover:bg-neutral-900 hover:shadow-lg',
+                  'focus:outline-none focus:ring-2 focus:ring-white',
+                  loadingId === company.CompanyId &&
+                    'opacity-60 pointer-events-none'
+                )}
               >
-                <div className="auth-company-name">
-                  {c.CompanyName || `Company`}
+                {/* Top accent */}
+                <div className="absolute inset-x-0 top-0 h-[2px] rounded-t-xl bg-white" />
+  
+                {/* Company info */}
+                <div className="space-y-2">
+                  <div className="text-lg font-semibold leading-tight text-white">
+                    {company.CompanyName || 'Company'}
+                  </div>
+  
+                  <div className="space-y-1 text-xs text-neutral-400">
+                    {company.PermanentAddress && (
+                      <div>{company.PermanentAddress}</div>
+                    )}
+                    {company.CompanyDescription && (
+                      <div>{company.CompanyDescription}</div>
+                    )}
+                    {formatPhone(company) && (
+                      <div>{formatPhone(company)}</div>
+                    )}
+                  </div>
                 </div>
-                {c.PermanentAddress && <div className="auth-company-meta">{c.PermanentAddress}</div>}
-                {c.CompanyDescription && <div className="auth-company-meta">{c.CompanyDescription}</div>}
-                {formatPhone(c) && <div className="auth-company-meta">{formatPhone(c)}</div>}
-                <div className="auth-company-meta">{permSummary(c)}</div>
-                {loadingId === c.CompanyId && <div className="auth-company-status">Connecting…</div>}
+  
+                {/* Permissions */}
+                <div className="mt-4">
+                  <PermissionBadges permissions={company.Permissions} />
+                </div>
+  
+                {/* Loading */}
+                {loadingId === company.CompanyId && (
+                  <div className="mt-3 text-xs font-medium text-white">
+                    Connecting…
+                  </div>
+                )}
               </button>
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
+  </div>
+  
   );
 }
-
-

@@ -1,5 +1,20 @@
+/* Properties Panel Container - Override Canvas.css */
+.properties-panel-container {
+  background: #000000 !important;
+  color: #ffffff !important;
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
 .property-panel {
-  background: rgba(255, 255, 255, 0.85);
+  background: #000000 !important;
+  color: #ffffff !important;
   padding: 10px 12px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -8,27 +23,32 @@
   gap: 10px;
   white-space: nowrap;
   min-height: 120px;
+  max-height: 100%;
+  height: 100%;
+  flex: 1;
+  box-sizing: border-box;
 }
 
 .property-panel h3 {
   font-size: 1.25rem;
   margin-bottom: 1.25rem;
-  color: #2c3e50;
+  color: #ffffff !important;
   font-weight: 600;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
   padding-bottom: 0.75rem;
+  background: transparent;
 }
 
 .property-panel h4 {
   font-size: 0.7rem;
   margin: 0 0 0.35rem 0;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8) !important;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 0.25rem 0.45rem;
-  background: rgba(11, 99, 255, 0.08);
-  border: 1px solid rgba(11, 99, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   width: 100%;
   text-align: left;
   border-radius: 10px;
@@ -37,19 +57,27 @@
 .property-group {
   margin: 0;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
   min-width: fit-content;
   vertical-align: top;
-  background: var(--surface);
+  background: #000000 !important;
+  color: #ffffff !important;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+  height: auto;
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  align-self: stretch;
 }
 
 .property-group:first-child {
-  border-left: 1px solid var(--border);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .property-group:last-child {
@@ -61,11 +89,17 @@
   align-items: center;
   margin-bottom: 0.3rem;
   font-size: 0.85rem;
-  color: var(--text);
+  color: #ffffff;
   font-weight: 400;
   white-space: nowrap;
   gap: 0.35rem;
   width: 100%;
+  background: transparent;
+}
+
+.property-group label span {
+  color: #ffffff;
+  background: transparent;
 }
 
 .property-group label:last-child {
@@ -80,27 +114,94 @@
   min-width: 110px;
   max-width: 160px;
   padding: 9px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   font-size: 0.9rem;
   transition: box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
-  background: rgba(255, 255, 255, 0.9);
+  background: #000000 !important;
+  color: #ffffff !important;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+.property-group input[type="text"]::placeholder,
+.property-group input[type="number"]::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .property-group input[type="text"]:focus,
 .property-group input[type="number"]:focus,
 .property-group select:focus {
   outline: none;
-  border-color: rgba(11, 99, 255, 0.5);
-  box-shadow: var(--focus);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
 .property-group input[type="text"]:hover,
 .property-group input[type="number"]:hover,
 .property-group select:hover {
-  border-color: rgba(100, 116, 139, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.property-group select option {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure all text elements are white */
+.property-group * {
+  color: inherit;
+}
+
+.property-group strong {
+  color: #ffffff !important;
+  background: transparent;
+}
+
+.property-group p {
+  color: rgba(255, 255, 255, 0.6) !important;
+  background: transparent;
+}
+
+.property-group small {
+  color: rgba(255, 255, 255, 0.6) !important;
+  background: transparent;
+}
+
+/* Details/Summary elements for Available Fields */
+.property-group details {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.property-group details summary {
+  color: rgba(255, 255, 255, 0.8) !important;
+  background: transparent;
+  cursor: pointer;
+}
+
+.property-group details summary:hover {
+  color: #ffffff !important;
+}
+
+.property-group details div {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+}
+
+.property-group details strong {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.property-group details button {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.property-group details button:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
 }
 
 .property-group input[type="checkbox"] {
@@ -108,14 +209,14 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--brand-600);
+  accent-color: #ffffff;
   flex-shrink: 0;
 }
 
 .property-group input[type="color"] {
   width: 35px;
   height: 24px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -125,8 +226,8 @@
 }
 
 .property-group input[type="color"]:hover {
-  border-color: rgba(11, 99, 255, 0.5);
-  box-shadow: var(--focus);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
 .no-selection-container {
@@ -137,7 +238,7 @@
 }
 
 .no-selection {
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.6);
   font-style: italic;
   text-align: center;
   margin: 0;
@@ -150,7 +251,7 @@
   align-items: center;
   margin: 0 0 0.35rem 0;
   padding: 0 0 0.3rem 0;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   width: 100%;
   min-height: auto;
   height: auto;
@@ -165,7 +266,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #495057;
+  color: #ffffff;
   line-height: 1.2;
 }
 
@@ -176,10 +277,10 @@
 
 .action-button {
   padding: 0.25rem 0.5rem;
-  border: 1px solid #ced4da;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 3px;
-  background: #ffffff;
-  color: #495057;
+  background: #000000;
+  color: #ffffff;
   font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
@@ -188,27 +289,27 @@
 }
 
 .action-button:hover {
-  background: #f8f9fa;
-  border-color: #007bff;
-  color: #007bff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
 }
 
 .action-button.delete-button {
-  background: #fee;
+  background: rgba(220, 53, 69, 0.2);
   border-color: #dc3545;
-  color: #dc3545;
+  color: #ff6b7a;
 }
 
 .action-button.delete-button:hover {
-  background: #fdd;
-  border-color: #c82333;
-  color: #c82333;
+  background: rgba(220, 53, 69, 0.3);
+  border-color: #ff6b7a;
+  color: #ff6b7a;
 }
 
 .column-item {
   padding: 0.3rem 0.4rem;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 3px;
   margin-bottom: 0.25rem;
   transition: all 0.15s ease;
@@ -226,14 +327,14 @@
 }
 
 .column-item:hover {
-  border-color: #007bff;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
 }
 
 .column-item.selected {
-  border-color: #007bff;
-  background: #e7f3ff;
-  box-shadow: 0 1px 3px rgba(0, 123, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.15);
 }
 
 .column-group {
@@ -241,12 +342,15 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-top: 0;
+  background: #000000;
+  color: #ffffff;
+  box-sizing: border-box;
 }
 
 .column-group .column-header {
   position: sticky;
   top: 0;
-  background: #ffffff;
+  background: #000000;
   z-index: 1;
   padding-top: 0.4rem;
   padding-bottom: 0.3rem;
@@ -259,12 +363,43 @@
 }
 
 .column-group::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .column-group::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 3px;
+}
+
+.property-group::-webkit-scrollbar {
+  width: 6px;
+}
+
+.property-group::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.property-group::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.properties-panel-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.properties-panel-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.properties-panel-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.properties-panel-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .column-select {
@@ -281,12 +416,12 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #007bff;
+  accent-color: #ffffff;
 }
 
 .column-number {
   font-weight: 600;
-  color: #007bff;
+  color: #ffffff;
   font-size: 0.75rem;
 }
 
@@ -323,60 +458,227 @@
 }
 
 .property-panel::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .property-panel::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
 }
 
 .property-panel::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: rgba(255, 255, 255, 0.5);
 }
 
+/* Properties Panel Container - Tablet */
 @media (max-width: 1024px) {
+  .properties-panel-container {
+    max-height: 400px;
+    overflow: hidden;
+  }
+  
   .property-panel {
     width: 100%;
     border-left: none;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
     max-height: 400px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  
+  .property-group {
+    max-height: 380px;
+    overflow-y: auto;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .properties-panel-container {
+    max-height: 180px;
+    overflow: hidden;
+  }
+  
+  .property-panel {
+    padding: 8px 10px;
+    min-height: 100px;
+    max-height: 180px;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .property-group {
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  
+  .property-panel h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .property-panel h4 {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 8px;
+  }
+  
+  .property-group {
+    padding: 8px 10px;
+    min-width: 140px;
+    border-radius: 10px;
+  }
+  
+  .property-group label {
+    font-size: 0.8rem;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .property-group input[type="text"],
+  .property-group input[type="number"],
+  .property-group select {
+    min-width: 80px;
+    max-width: 120px;
+    padding: 8px;
+    font-size: 14px; /* Prevents iOS zoom */
+    border-radius: 10px;
+    min-height: 36px;
+  }
+  
+  .property-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .property-group input[type="color"] {
+    width: 40px;
+    height: 28px;
+  }
+  
+  .no-selection-container {
+    padding: 0 0.75rem;
+  }
+  
+  .no-selection {
+    font-size: 0.85rem;
+  }
+  
+  /* Column items */
+  .column-group {
+    max-height: 160px;
+  }
+  
+  .column-item {
+    padding: 0.25rem 0.35rem;
+    gap: 0.3rem;
+  }
+  
+  .column-select input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .column-number {
+    font-size: 0.7rem;
+  }
+  
+  .column-item .column-fields label {
+    font-size: 0.7rem;
+  }
+  
+  .column-item .column-fields input[type="text"],
+  .column-item .column-fields select {
+    min-width: 60px;
+    max-width: 80px;
+    padding: 0.15rem 0.25rem;
+    font-size: 0.7rem;
+  }
+  
+  /* Action buttons */
+  .action-button {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.65rem;
+    min-height: 28px;
+  }
+  
+  /* Property panel actions */
+  .property-panel-actions {
+    padding: 8px 10px;
+    gap: 0.5rem;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    flex-direction: column;
+    width: 100%;
+    position: sticky;
+    right: 0;
+    background: #000000;
+  }
+  
+  .property-panel-actions button {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 375px) {
+  .property-group {
+    min-width: 120px;
+    padding: 6px 8px;
+  }
+  
+  .property-group input[type="text"],
+  .property-group input[type="number"],
+  .property-group select {
+    min-width: 70px;
+    max-width: 100px;
   }
 }
 
 .property-panel-actions {
   display: flex;
   gap: 0.75rem;
-  padding: 10px 12px;
+  padding: 14px 16px;
   margin-left: auto;
-  border-left: 1px solid rgba(226, 232, 240, 0.9);
+  /* border-left: 2px solid rgba(255, 255, 255, 0.2); */
   align-items: center;
   flex-shrink: 0;
+  background: black;
+  position: sticky;
+  right: 0;
+  z-index: 10;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.4);
 }
 
 .property-panel-actions button {
-  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
   color: white;
-  padding: 10px 14px;
-  border: 1px solid rgba(11, 99, 255, 0.35);
+  padding: 12px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-pill);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
   white-space: nowrap;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+  min-height: 44px;
 }
 
 .property-panel-actions button:hover:not(:disabled) {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-  border-color: rgba(11, 99, 255, 0.55);
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .property-panel-actions button:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
 }
 
 .property-panel-actions button:disabled {
@@ -385,15 +687,209 @@
 }
 
 .property-panel-actions .setup-button {
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  color: var(--text);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .property-panel-actions .setup-button:hover:not(:disabled) {
-  background: rgba(15, 23, 42, 0.06);
-  box-shadow: none;
-  border-color: rgba(11, 99, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   MOBILE FULLSCREEN PROPERTY PANEL
+   ============================================ */
+
+/* When displayed in mobile fullscreen tab mode */
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-panel {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: normal;
+  min-height: 100%;
+  max-height: 100%;
+  height: 100%;
+  padding: 1rem;
+  gap: 1rem;
+  background: #000000;
+  color: #ffffff;
+  flex: 1;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  margin: 0;
+  background: #000000;
+  color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group h4 {
+  font-size: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  width: fit-content;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group label {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 0;
+  gap: 1rem;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group label:last-child {
+  border-bottom: none;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group input[type="text"],
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group input[type="number"],
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group select {
+  width: auto;
+  min-width: 120px;
+  max-width: 180px;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  font-size: 16px;
+  border-radius: 12px;
+  margin-left: auto;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group input[type="checkbox"] {
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-group input[type="color"] {
+  width: 50px;
+  height: 40px;
+  border-radius: 12px;
+  margin-left: auto;
+}
+
+/* No selection state - mobile fullscreen */
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .no-selection-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 2rem;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .no-selection {
+  font-size: 1.1rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Property panel actions - mobile fullscreen */
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-panel-actions {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin: 1rem -1rem -1rem;
+  background: #000000;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: none;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .property-panel-actions button {
+  width: 100%;
+  min-height: 52px;
+  font-size: 1rem;
+  border-radius: 14px;
+}
+
+/* Column group in mobile fullscreen */
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .column-group {
+  max-height: none;
+  overflow: visible;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .column-item {
+  padding: 0.75rem;
+  border-radius: 12px;
+  margin-bottom: 0.5rem;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .column-item .column-fields {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .column-item .column-fields label {
+  border-bottom: none;
+  padding: 0.25rem 0;
+}
+
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .column-item .column-fields input[type="text"],
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .column-item .column-fields select {
+  min-width: 100px;
+  max-width: 140px;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+}
+
+/* Action buttons in mobile */
+.template-designer-mobile .properties-panel-container:not(.mobile-hidden) .action-button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+/* Font List Scrollbar Styling */
+.font-list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) black;
+}
+
+.font-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.font-list-scroll::-webkit-scrollbar-track {
+  background: black;
+}
+
+.font-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.font-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 

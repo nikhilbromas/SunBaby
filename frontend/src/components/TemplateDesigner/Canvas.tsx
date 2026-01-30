@@ -1,13 +1,35 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useDrop } from 'react-dnd';
-import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig } from '../../services/types';
+import type { TemplateJson, TextFieldConfig, ItemsTableConfig, ContentDetailsTableConfig, ImageFieldConfig } from '../../services/types';
 import FieldEditor from './FieldEditor';
+import ImageEditor from './ImageEditor';
 import TableEditor from './TableEditor';
 import SidePanel from './SidePanel';
 import PropertyPanel from './PropertyPanel';
 import SetupPanel from './SetupPanel';
+import TableEditorModal from './TableEditorModal';
+import ZoneConfigModal from './ZoneConfigModal';
+import DataPreview from './DataPreview';
 import apiClient from '../../services/api';
+import { useMobile } from '../../contexts/MobileContext';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Palette, Puzzle, BarChart, Settings, Save, Loader2 } from 'lucide-react';
 import './Canvas.css';
+
+// Page dimensions in pixels (at 96 DPI)
+const PAGE_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  'A4': { width: 794, height: 1123 },      // 210mm x 297mm
+  'Letter': { width: 816, height: 1056 },  // 8.5" x 11"
+  'Legal': { width: 816, height: 1344 },   // 8.5" x 14"
+};
+
+const getPageDimensions = (size: string, orientation: 'portrait' | 'landscape') => {
+  const dims = PAGE_DIMENSIONS[size] || PAGE_DIMENSIONS['A4'];
+  return orientation === 'landscape' 
+    ? { width: dims.height, height: dims.width }
+    : dims;
+};
 
 interface ResizableSectionZoneProps {
   className: string;
@@ -35,6 +57,7 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
   const [startHeight, setStartHeight] = useState(height);
   const zoneRef = useRef<HTMLDivElement>(null);
 
+  // Mouse event handler
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -43,8 +66,21 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
     setStartHeight(height);
   };
 
+  // Touch event handler for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      const touch = e.touches[0];
+      setIsResizing(true);
+      setStartY(touch.clientY);
+      setStartHeight(height);
+    }
+  };
+
   React.useEffect(() => {
     if (isResizing) {
+      // Mouse handlers
       const handleMouseMove = (e: MouseEvent) => {
         const deltaY = isBottom ? startY - e.clientY : e.clientY - startY;
         const newHeight = Math.max(40, startHeight + deltaY);
@@ -53,11 +89,34 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
       const handleMouseUp = () => {
         setIsResizing(false);
       };
+      
+      // Touch handlers
+      const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          const deltaY = isBottom ? startY - touch.clientY : touch.clientY - startY;
+          const newHeight = Math.max(40, startHeight + deltaY);
+          onHeightChange(newHeight);
+        }
+      };
+      const handleTouchEnd = () => {
+        setIsResizing(false);
+      };
+      
+      // Add all event listeners
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+      document.addEventListener('touchcancel', handleTouchEnd);
+      
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+        document.removeEventListener('touchcancel', handleTouchEnd);
       };
     }
   }, [isResizing, startY, startHeight, isBottom, onHeightChange]);
@@ -72,29 +131,63 @@ const ResizableSectionZone: React.FC<ResizableSectionZoneProps> = ({
 
   return (
     <div
-      ref={zoneRef}
-      className={`section-zone ${className}`}
-      style={style}
+    ref={zoneRef}
+    className={`section-zone ${className}`}
+    style={{
+      ...style,
+      backgroundColor: '#f5f5f5',
+      border: '1px solid #d4d4d4',
+    }}
+  >
+    {/* Label */}
+    <div
+      className="section-label"
+      style={{
+        color: '#404040',
+        backgroundColor: '#e5e5e5',
+        borderBottom: '1px solid #d4d4d4',
+      }}
     >
-      <div className="section-label">{label}</div>
-      <div
-        className={`section-resize-handle ${isBottom ? 'resize-handle-top' : 'resize-handle-bottom'}`}
-        onMouseDown={handleMouseDown}
-        style={{
-          cursor: 'row-resize',
-          position: 'absolute',
-          [isBottom ? 'top' : 'bottom']: 0,
-          left: 0,
-          right: 0,
-          height: '8px',
-          backgroundColor: isResizing ? '#007bff' : 'transparent',
-          zIndex: 100,
-        }}
-      />
-      <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto' }}>
-        {children}
-      </div>
+      {label}
     </div>
+  
+    {/* Resize handle */}
+    <div
+      className={`section-resize-handle ${
+        isBottom ? 'resize-handle-top' : 'resize-handle-bottom'
+      }`}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      style={{
+        cursor: 'row-resize',
+        position: 'absolute',
+        [isBottom ? 'top' : 'bottom']: 0,
+        left: 0,
+        right: 0,
+        height: '16px',
+        minHeight: '16px',
+        backgroundColor: isResizing
+          ? 'rgba(115, 115, 115, 0.35)' // active gray
+          : 'transparent',
+        zIndex: 100,
+        touchAction: 'none',
+      }}
+    />
+  
+    {/* Content */}
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'auto',
+        top: '-40px',
+      }}
+    >
+      {children}
+    </div>
+  </div>
+  
   );
 };
 
@@ -104,6 +197,30 @@ interface CanvasProps {
 }
 
 const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId: initialPresetId }) => {
+  // Mobile context for responsive behavior
+  const { 
+    isMobile, 
+    isTouchDevice,
+    activeDesignerTab, 
+    setActiveDesignerTab, 
+    isPlacementMode, 
+    placementItem, 
+    exitPlacementMode, 
+    canvasZoom,
+    setCanvasZoom,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+  } = useMobile();
+  
+  // Refs for pinch-to-zoom
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const pinchStateRef = useRef<{
+    initialDistance: number;
+    initialZoom: number;
+    isPinching: boolean;
+  }>({ initialDistance: 0, initialZoom: 1, isPinching: false });
+  
   const [selectedPresetId, setSelectedPresetId] = useState<number | undefined>(initialPresetId);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(initialTemplateId);
   const [template, setTemplate] = useState<TemplateJson>({
@@ -113,12 +230,24 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     billContent: undefined,
   });
   const [selectedElement, setSelectedElement] = useState<{
-    type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable';
+    type: 'field' | 'table' | 'contentDetailTable' | 'billContentTable' | 'image';
     index: number;
     section?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter';
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Calculate page dimensions based on size and orientation
+  const pageDimensions = useMemo(() => 
+    getPageDimensions(template.page.size, template.page.orientation),
+    [template.page.size, template.page.orientation]
+  );
   const [isSetupPanelOpen, setIsSetupPanelOpen] = useState(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [editingTable, setEditingTable] = useState<{
+    type: 'itemsTable' | 'billContentTable' | 'contentDetailTable';
+    index?: number;
+  } | null>(null);
+  const [isZoneConfigModalOpen, setIsZoneConfigModalOpen] = useState(false);
   const [sampleData, setSampleData] = useState<{
     header: { data: Record<string, any> | null; fields: string[] };
     items: { data: Record<string, any>[]; fields: string[]; sampleCount: number };
@@ -416,8 +545,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const absoluteX = clientOffset.x - canvasRect.left;
-          const absoluteY = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const absoluteX = (clientOffset.x - canvasRect.left) / zoom;
+          const absoluteY = (clientOffset.y - canvasRect.top) / zoom;
           
           baseX = absoluteX - 20;
           
@@ -433,10 +564,12 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             baseY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
           } else if (targetSection === 'billFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            baseY = absoluteY - (canvasRect.height - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+            const canvasHeight = canvasRect.height / zoom;
+            baseY = absoluteY - (canvasHeight - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
           } else if (targetSection === 'pageFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            baseY = absoluteY - (canvasRect.height - pageFooterHeight);
+            const canvasHeight = canvasRect.height / zoom;
+            baseY = absoluteY - (canvasHeight - pageFooterHeight);
           }
           baseY = Math.max(0, baseY);
         }
@@ -497,16 +630,46 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
               });
             }
           } else if (zoneField.fieldType === 'contentDetail' && zoneField.contentName) {
-            // For content detail fields, add to content detail table
-            const contentName = zoneField.contentName;
-            if (!contentDetailTables.has(contentName)) {
-              contentDetailTables.set(contentName, []);
+            // Detect object-type contentDetails: bind path starts with "contentDetails."
+            const isObjectType = bind.startsWith('contentDetails.');
+            
+            if (isObjectType) {
+              // Object-type: Add to newFields array as a field in target section
+              // Check if field already exists in target section
+              const sectionFields = 
+                targetSection === 'pageHeader' ? template.pageHeader || [] :
+                targetSection === 'pageFooter' ? template.pageFooter || [] :
+                targetSection === 'billFooter' ? template.billFooter || [] :
+                targetSection === 'billContent' ? template.billContent || [] :
+                template.header || [];
+              
+              const fieldExists = sectionFields.some(f => f.bind === bind);
+              if (!fieldExists) {
+                newFields.push({
+                  field: {
+                    type: 'text',
+                    label: label,
+                    bind: bind,
+                    x: baseX,
+                    y: baseY + yOffset,
+                    visible: true,
+                  },
+                  section: targetSection, // Use targetSection from zone
+                });
+                yOffset += fieldSpacing;
+              }
+            } else {
+              // Array-type: For content detail fields, add to content detail table (existing behavior)
+              const contentName = zoneField.contentName;
+              if (!contentDetailTables.has(contentName)) {
+                contentDetailTables.set(contentName, []);
+              }
+              contentDetailTables.get(contentName)!.push({
+                bind: bind,
+                label: label,
+                visible: true,
+              });
             }
-            contentDetailTables.get(contentName)!.push({
-              bind: bind,
-              label: label,
-              visible: true,
-            });
           }
         });
         
@@ -620,7 +783,9 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const y = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const y = (clientOffset.y - canvasRect.top) / zoom;
           const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
           
           // Calculate section boundaries
@@ -661,7 +826,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         let relativeY = 20;
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const absoluteY = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const absoluteY = (clientOffset.y - canvasRect.top) / zoom;
+          const scaledCanvasHeight = canvasRect.height / zoom;
           
           if (section === 'pageHeader') {
             relativeY = absoluteY - 40 - 10;
@@ -674,10 +842,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             relativeY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
           } else if (section === 'billFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            relativeY = absoluteY - (canvasRect.height - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+            relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
           } else if (section === 'pageFooter') {
             const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
-            relativeY = absoluteY - (canvasRect.height - pageFooterHeight);
+            relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight);
           }
           relativeY = Math.max(0, relativeY);
         }
@@ -748,7 +916,9 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         
         if (clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
-          const y = clientOffset.y - canvasRect.top;
+          const zoom = canvasZoom || 1;
+          // Convert screen coordinates to canvas coordinates by dividing by zoom
+          const y = (clientOffset.y - canvasRect.top) / zoom;
           
           // Calculate section boundaries
           const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
@@ -781,8 +951,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             if (billContentTables.length === 0) {
               // Create new table in bill-content
               const canvasElement = document.querySelector('.canvas');
-              const relativeY = clientOffset && canvasElement ? 
-                clientOffset.y - canvasElement.getBoundingClientRect().top - 
+              const canvasRect = canvasElement?.getBoundingClientRect();
+              const zoom = canvasZoom || 1;
+              const relativeY = clientOffset && canvasRect ? 
+                ((clientOffset.y - canvasRect.top) / zoom) - 
                 (40 + (template.sectionHeights?.pageHeader || 60) + 10 + 
                  (template.sectionHeights?.billHeader || 200) + 10) - 10 : 20;
               
@@ -792,7 +964,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   columns: [
                     { bind: bindValue, label: labelValue, visible: true },
                   ],
-                  x: clientOffset && canvasElement ? clientOffset.x - canvasElement.getBoundingClientRect().left - 20 : 20,
+                  x: clientOffset && canvasRect ? ((clientOffset.x - canvasRect.left) / zoom) - 20 : 20,
                   y: Math.max(0, relativeY),
                 }],
               };
@@ -873,84 +1045,290 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         const labelValue = item.label;
         const contentName = item.contentName;
         
-        // Add content detail field to content detail table
-        setTemplate((prev) => {
-          const contentDetailsTables = prev.contentDetailsTables || [];
-          const existingTableIndex = contentDetailsTables.findIndex(
-            (t) => t.contentName === contentName
-          );
+        // Detect object-type contentDetails: bind path starts with "contentDetails."
+        // Object types use: contentDetails.${contentName}.${field}
+        // Array types use: just the field name
+        const isObjectType = bindValue.startsWith('contentDetails.');
+        
+        if (isObjectType) {
+          // Object-type: Create field in billContent section (or target section)
+          const canvasElement = document.querySelector('.canvas');
+          let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'billContent';
           
-          if (existingTableIndex >= 0) {
-            // Add column to existing content detail table
-            const existingTable = contentDetailsTables[existingTableIndex];
-            const columnExists = existingTable.columns?.some(
-              (col) => col.bind === bindValue
-            );
-            if (!columnExists) {
-              const updatedTables = [...contentDetailsTables];
-              updatedTables[existingTableIndex] = {
-                ...existingTable,
-                columns: [
-                  ...(existingTable.columns || []),
-                  { bind: bindValue, label: labelValue, visible: true },
-                ],
-              };
-              return {
-                ...prev,
-                contentDetailsTables: updatedTables,
-              };
-            }
-            return prev;
-          } else {
-            // Create new content detail table in bill-content zone
-            const canvasElement = document.querySelector('.canvas');
-            let x = 20;
-            let y = 20;
+          // Determine target section based on drop position or explicit target
+          if (clientOffset && canvasElement) {
+            const canvasRect = canvasElement.getBoundingClientRect();
+            const zoom = canvasZoom || 1;
+            // Convert screen coordinates to canvas coordinates by dividing by zoom
+            const y = (clientOffset.y - canvasRect.top) / zoom;
+            const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
             
-            if (clientOffset && canvasElement) {
-              const canvasRect = canvasElement.getBoundingClientRect();
-              // Calculate position relative to bill-content section
+            // Calculate section boundaries
+            const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+            const billHeaderHeight = template.sectionHeights?.billHeader || 200;
+            const billContentHeight = template.sectionHeights?.billContent || 100;
+            const billFooterHeight = template.sectionHeights?.billFooter || 100;
+            const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+            
+            const pageHeaderTop = 40;
+            const billHeaderTop = pageHeaderTop + pageHeaderHeight + 10;
+            const billContentTop = billHeaderTop + billHeaderHeight + 10;
+            const billContentBottom = billContentTop + billContentHeight;
+            const billFooterBottom = canvasHeight - pageFooterHeight - 10;
+            
+            // Determine section based on targetSection from item (priority) or Y position
+            if (item.targetSection) {
+              section = item.targetSection;
+            } else if (y < pageHeaderTop + pageHeaderHeight) {
+              section = 'pageHeader';
+            } else if (y >= billHeaderTop && y < billContentTop) {
+              section = 'header';
+            } else if (y >= billContentTop && y < billContentBottom) {
+              section = 'billContent';
+            } else if (y >= billFooterBottom - billFooterHeight && y < billFooterBottom) {
+              section = 'billFooter';
+            } else if (y > canvasHeight - pageFooterHeight) {
+              section = 'pageFooter';
+            } else {
+              section = 'billContent'; // Default to billContent for object-type
+            }
+          }
+          
+          // Calculate Y position relative to section
+          let relativeY = 20;
+          let relativeX = 20;
+          if (clientOffset && canvasElement) {
+            const canvasRect = canvasElement.getBoundingClientRect();
+            const zoom = canvasZoom || 1;
+            // Convert screen coordinates to canvas coordinates by dividing by zoom
+            const absoluteY = (clientOffset.y - canvasRect.top) / zoom;
+            const scaledCanvasHeight = canvasRect.height / zoom;
+            relativeX = ((clientOffset.x - canvasRect.left) / zoom) - 20;
+            
+            if (section === 'pageHeader') {
+              relativeY = absoluteY - 40 - 10;
+            } else if (section === 'header') {
+              const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+              relativeY = absoluteY - 40 - pageHeaderHeight - 10 - 10;
+            } else if (section === 'billContent') {
               const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
               const billHeaderHeight = template.sectionHeights?.billHeader || 200;
-              const absoluteY = clientOffset.y - canvasRect.top;
-              const billContentTop = 40 + pageHeaderHeight + 10 + billHeaderHeight + 10;
-              
-              x = clientOffset.x - canvasRect.left - 20;
-              y = absoluteY - billContentTop - 10; // Position relative to bill-content zone
-              y = Math.max(0, y); // Ensure non-negative
+              relativeY = absoluteY - 40 - pageHeaderHeight - 10 - billHeaderHeight - 10 - 10;
+            } else if (section === 'billFooter') {
+              const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+              relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight - 10 - (template.sectionHeights?.billFooter || 100));
+            } else if (section === 'pageFooter') {
+              const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+              relativeY = absoluteY - (scaledCanvasHeight - pageFooterHeight);
             }
+            relativeY = Math.max(0, relativeY);
+          }
+          
+          // Check if field with same bind already exists in target section
+          const fieldExists = (() => {
+            const sectionFields = 
+              section === 'pageHeader' ? template.pageHeader || [] :
+              section === 'pageFooter' ? template.pageFooter || [] :
+              section === 'billFooter' ? template.billFooter || [] :
+              section === 'billContent' ? template.billContent || [] :
+              template.header || [];
             
-            return {
-              ...prev,
-              contentDetailsTables: [
-                ...contentDetailsTables,
-                {
-                  contentName,
+            return sectionFields.some(f => f.bind === bindValue);
+          })();
+          
+          // Don't add duplicate fields in the same section
+          if (fieldExists) {
+            return;
+          }
+          
+          const newField: TextFieldConfig = {
+            type: 'text',
+            label: labelValue,
+            bind: bindValue,
+            x: relativeX,
+            y: relativeY,
+            visible: true,
+          };
+          
+          setTemplate((prev) => {
+            if (section === 'pageHeader') {
+              return {
+                ...prev,
+                pageHeader: [...(prev.pageHeader || []), newField],
+              };
+            } else if (section === 'pageFooter') {
+              return {
+                ...prev,
+                pageFooter: [...(prev.pageFooter || []), newField],
+              };
+            } else if (section === 'billFooter') {
+              return {
+                ...prev,
+                billFooter: [...(prev.billFooter || []), newField],
+              };
+            } else if (section === 'billContent') {
+              return {
+                ...prev,
+                billContent: [...(prev.billContent || []), newField],
+              };
+            } else {
+              return {
+                ...prev,
+                header: [...prev.header, newField],
+              };
+            }
+          });
+        } else {
+          // Array-type: Add content detail field to content detail table (existing behavior)
+          setTemplate((prev) => {
+            const contentDetailsTables = prev.contentDetailsTables || [];
+            const existingTableIndex = contentDetailsTables.findIndex(
+              (t) => t.contentName === contentName
+            );
+            
+            if (existingTableIndex >= 0) {
+              // Add column to existing content detail table
+              const existingTable = contentDetailsTables[existingTableIndex];
+              const columnExists = existingTable.columns?.some(
+                (col) => col.bind === bindValue
+              );
+              if (!columnExists) {
+                const updatedTables = [...contentDetailsTables];
+                updatedTables[existingTableIndex] = {
+                  ...existingTable,
                   columns: [
+                    ...(existingTable.columns || []),
                     { bind: bindValue, label: labelValue, visible: true },
                   ],
-                  x,
-                  y,
-                },
-              ],
-            };
-          }
-        });
+                };
+                return {
+                  ...prev,
+                  contentDetailsTables: updatedTables,
+                };
+              }
+              return prev;
+            } else {
+              // Create new content detail table in bill-content zone
+              const canvasElement = document.querySelector('.canvas');
+              let x = 20;
+              let y = 20;
+              
+              if (clientOffset && canvasElement) {
+                const canvasRect = canvasElement.getBoundingClientRect();
+                // Calculate position relative to bill-content section
+                const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+                const billHeaderHeight = template.sectionHeights?.billHeader || 200;
+                const absoluteY = clientOffset.y - canvasRect.top;
+                const billContentTop = 40 + pageHeaderHeight + 10 + billHeaderHeight + 10;
+                
+                x = clientOffset.x - canvasRect.left - 20;
+                y = absoluteY - billContentTop - 10; // Position relative to bill-content zone
+                y = Math.max(0, y); // Ensure non-negative
+              }
+              
+              return {
+                ...prev,
+                contentDetailsTables: [
+                  ...contentDetailsTables,
+                  {
+                    contentName,
+                    columns: [
+                      { bind: bindValue, label: labelValue, visible: true },
+                    ],
+                    x,
+                    y,
+                  },
+                ],
+              };
+            }
+          });
+        }
       }
     },
-    [template.header.length, template.itemsTable]
+    [template.header.length, template.itemsTable, template.sectionHeights, template.page.orientation, template.pageHeader, template.pageFooter, template.billFooter, template.billContent, canvasZoom]
   );
 
   const handleDrop = useCallback(
-    (item: { type: 'text' | 'table' }, monitor: any) => {
+    (
+      item: {
+        type: 'text' | 'table' | 'pageNumber' | 'totalPages';
+        targetSection?: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' | 'itemsTable';
+      },
+      monitor: any
+    ) => {
       const clientOffset = monitor?.getClientOffset();
       const canvasElement = document.querySelector('.canvas');
       
-      if (item.type === 'text') {
-        // Determine target section based on drop position
-        let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header';
+      if (item.type === 'pageNumber' || item.type === 'totalPages') {
+        // Page number fields can only be dropped in pageHeader or pageFooter
+        let section: 'pageHeader' | 'pageFooter' =
+          item.targetSection === 'pageFooter' ? 'pageFooter' : 'pageHeader';
         
         if (clientOffset && canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const y = clientOffset.y - canvasRect.top;
+          const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
+          
+          const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+          const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+          const pageHeaderTop = 40;
+          const pageHeaderBottom = pageHeaderTop + pageHeaderHeight;
+          const pageFooterTop = canvasHeight - pageFooterHeight - 10;
+          
+          // Determine if dropped in pageHeader or pageFooter (unless explicitly targeted)
+          if (!item.targetSection) {
+            if (y < pageHeaderBottom) {
+              section = 'pageHeader';
+            } else if (y > pageFooterTop) {
+              section = 'pageFooter';
+            } else {
+              section = 'pageHeader';
+            }
+          }
+        }
+        
+        // Calculate position relative to section
+        let relativeY = 20;
+        let x = 20;
+        if (clientOffset && canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const absoluteY = clientOffset.y - canvasRect.top;
+          x = clientOffset.x - canvasRect.left - 20;
+          
+          if (section === 'pageHeader') {
+            relativeY = absoluteY - 40 - 10;
+          } else {
+            const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+            relativeY = absoluteY - (canvasRect.height - pageFooterHeight);
+          }
+          relativeY = Math.max(0, relativeY);
+        }
+        
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: item.type === 'pageNumber' ? 'Page' : 'Total Pages',
+          bind: '',
+          x,
+          y: relativeY,
+          visible: true,
+          fieldType: item.type,
+        };
+        
+        setTemplate((prev) => {
+          if (section === 'pageHeader') {
+            return { ...prev, pageHeader: [...(prev.pageHeader || []), newField] };
+          } else {
+            return { ...prev, pageFooter: [...(prev.pageFooter || []), newField] };
+          }
+        });
+      } else if (item.type === 'text') {
+        // Determine target section based on drop position
+        let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' =
+          (item.targetSection && item.targetSection !== 'itemsTable'
+            ? item.targetSection
+            : 'header') as any;
+        
+        if (!item.targetSection && clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
           const y = clientOffset.y - canvasRect.top;
           const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
@@ -1005,9 +1383,10 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         });
       } else if (item.type === 'table') {
         // Determine if dropping into bill-content or creating items table
-        let section: 'billContent' | 'itemsTable' = 'itemsTable';
+        let section: 'billContent' | 'itemsTable' =
+          item.targetSection === 'billContent' ? 'billContent' : 'itemsTable';
         
-        if (clientOffset && canvasElement) {
+        if (!item.targetSection && clientOffset && canvasElement) {
           const canvasRect = canvasElement.getBoundingClientRect();
           const y = clientOffset.y - canvasRect.top;
           
@@ -1055,12 +1434,79 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     [template.header.length, template.sectionHeights]
   );
 
+  const handleImageDrop = useCallback(
+    (item: { type: 'image'; imageId: number; base64Data: string; width: number; height: number }, monitor: any) => {
+      const clientOffset = monitor?.getClientOffset();
+      const canvasElement = document.querySelector('.canvas');
+      
+      // Determine target section based on drop position
+      let section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header';
+      
+      if (clientOffset && canvasElement) {
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const y = clientOffset.y - canvasRect.top;
+        const canvasHeight = template.page.orientation === 'landscape' ? 794 : 1123;
+        
+        const pageHeaderHeight = template.sectionHeights?.pageHeader || 60;
+        const billHeaderHeight = template.sectionHeights?.billHeader || 200;
+        const billContentHeight = template.sectionHeights?.billContent || 100;
+        const billFooterHeight = template.sectionHeights?.billFooter || 100;
+        const pageFooterHeight = template.sectionHeights?.pageFooter || 60;
+        
+        const pageHeaderTop = 40;
+        const billHeaderTop = pageHeaderTop + pageHeaderHeight + 10;
+        const billContentTop = billHeaderTop + billHeaderHeight + 10;
+        const billContentBottom = billContentTop + billContentHeight;
+        const billFooterBottom = canvasHeight - pageFooterHeight - 10;
+        const billFooterTop = billFooterBottom - billFooterHeight;
+        
+        if (y < pageHeaderTop + pageHeaderHeight) {
+          section = 'pageHeader';
+        } else if (y >= billHeaderTop && y < billContentTop) {
+          section = 'header';
+        } else if (y >= billContentTop && y < billContentBottom) {
+          section = 'billContent';
+        } else if (y >= billFooterTop && y < billFooterBottom) {
+          section = 'billFooter';
+        } else if (y > canvasHeight - pageFooterHeight) {
+          section = 'pageFooter';
+        }
+      }
+      
+      const newImage: ImageFieldConfig = {
+        type: 'image',
+        imageId: item.imageId,
+        x: clientOffset && canvasElement ? clientOffset.x - canvasElement.getBoundingClientRect().left - 20 : 20,
+        y: clientOffset && canvasElement ? clientOffset.y - canvasElement.getBoundingClientRect().top - 20 : 20,
+        width: Math.min(item.width, 200), // Default max width
+        height: undefined, // Let it maintain aspect ratio
+        visible: true,
+      };
+      
+      setTemplate((prev) => {
+        const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                          section === 'pageFooter' ? 'pageFooterImages' :
+                          section === 'header' ? 'headerImages' :
+                          section === 'billContent' ? 'billContentImages' :
+                          'billFooterImages';
+        return {
+          ...prev,
+          [sectionKey]: [...(prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[] || []), newImage],
+        };
+      });
+    },
+    [template.page.orientation, template.sectionHeights]
+  );
+
   const [{ isOver }, drop] = useDrop({
-    accept: ['text', 'table', 'data-field'],
+    accept: ['text', 'table', 'pageNumber', 'totalPages', 'data-field', 'image'],
     drop: (item: any, monitor) => {
       if (item.type === 'data-field' || item.fieldType) {
         // Handle data field drop - targetSection is already in item
         handleDataFieldDrop(item, monitor.getClientOffset());
+      } else if (item.type === 'image') {
+        // Handle image drop
+        handleImageDrop(item, monitor);
       } else {
         // Handle regular toolbar drop
         handleDrop(item, monitor);
@@ -1117,6 +1563,39 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
       }
     });
     if (selectedElement?.type === 'field' && selectedElement.index === index && selectedElement.section === section) {
+      setSelectedElement(null);
+    }
+  };
+
+  const updateImage = (index: number, image: Partial<ImageFieldConfig>, section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header') => {
+    setTemplate((prev) => {
+      const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                        section === 'pageFooter' ? 'pageFooterImages' :
+                        section === 'header' ? 'headerImages' :
+                        section === 'billContent' ? 'billContentImages' :
+                        'billFooterImages';
+      const images = (prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+      return {
+        ...prev,
+        [sectionKey]: images.map((img, i) => (i === index ? { ...img, ...image } : img)),
+      };
+    });
+  };
+
+  const deleteImage = (index: number, section: 'pageHeader' | 'pageFooter' | 'header' | 'billContent' | 'billFooter' = 'header') => {
+    setTemplate((prev) => {
+      const sectionKey = section === 'pageHeader' ? 'pageHeaderImages' :
+                        section === 'pageFooter' ? 'pageFooterImages' :
+                        section === 'header' ? 'headerImages' :
+                        section === 'billContent' ? 'billContentImages' :
+                        'billFooterImages';
+      const images = (prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+      return {
+        ...prev,
+        [sectionKey]: images.filter((_, i) => i !== index),
+      };
+    });
+    if (selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === section) {
       setSelectedElement(null);
     }
   };
@@ -1245,14 +1724,217 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
     }
   };
 
+  // Calculate distance between two touch points
+  const getTouchDistance = (touch1: Touch, touch2: Touch): number => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Pinch-to-zoom handlers
+  const handlePinchStart = useCallback((e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      pinchStateRef.current = {
+        initialDistance: distance,
+        initialZoom: canvasZoom,
+        isPinching: true,
+      };
+    }
+  }, [canvasZoom]);
+
+  const handlePinchMove = useCallback((e: TouchEvent) => {
+    if (e.touches.length === 2 && pinchStateRef.current.isPinching) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      const scale = distance / pinchStateRef.current.initialDistance;
+      const newZoom = Math.max(0.2, Math.min(2, pinchStateRef.current.initialZoom * scale));
+      setCanvasZoom(newZoom);
+    }
+  }, [setCanvasZoom]);
+
+  const handlePinchEnd = useCallback(() => {
+    pinchStateRef.current.isPinching = false;
+  }, []);
+
+  // Set up pinch-to-zoom event listeners on canvas container
+  React.useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container || !isTouchDevice) return;
+
+    // Use passive: false to allow preventDefault for pinch gestures
+    container.addEventListener('touchstart', handlePinchStart, { passive: false });
+    container.addEventListener('touchmove', handlePinchMove, { passive: false });
+    container.addEventListener('touchend', handlePinchEnd);
+    container.addEventListener('touchcancel', handlePinchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handlePinchStart);
+      container.removeEventListener('touchmove', handlePinchMove);
+      container.removeEventListener('touchend', handlePinchEnd);
+      container.removeEventListener('touchcancel', handlePinchEnd);
+    };
+  }, [isTouchDevice, handlePinchStart, handlePinchMove, handlePinchEnd]);
+
+  // Handle canvas click/tap for placement mode and element deselection
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    // If in placement mode on mobile, handle element placement
+    if (isMobile && isPlacementMode && placementItem) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Get click position relative to canvas
+      const canvas = e.currentTarget as HTMLElement;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / canvasZoom;
+      const y = (e.clientY - rect.top) / canvasZoom;
+      
+      // Create element at click position based on type
+      if (placementItem.type === 'text') {
+        // Add a text field at position
+        const targetSection = placementItem.targetSection || 'header';
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: 'New Text Field',
+          bind: '',
+          x: x,
+          y: y,
+          visible: true,
+          fontSize: 12,
+          fontWeight: 'normal',
+          color: '#000000',
+        };
+        setTemplate(prev => {
+          const sectionKey = targetSection === 'header' ? 'header' : targetSection;
+          const currentFields = (prev[sectionKey as keyof TemplateJson] as TextFieldConfig[]) || [];
+          return {
+            ...prev,
+            [sectionKey]: [...currentFields, newField],
+          };
+        });
+      } else if (placementItem.type === 'data-field' && placementItem.field) {
+        const targetSection = placementItem.targetSection || 'header';
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: placementItem.field,
+          bind: placementItem.field,
+          x: x,
+          y: y,
+          visible: true,
+          fontSize: 12,
+          fontWeight: 'normal',
+          color: '#000000',
+        };
+        setTemplate(prev => {
+          const sectionKey = targetSection === 'header' ? 'header' : targetSection;
+          const currentFields = (prev[sectionKey as keyof TemplateJson] as TextFieldConfig[]) || [];
+          return {
+            ...prev,
+            [sectionKey]: [...currentFields, newField],
+          };
+        });
+      } else if (placementItem.type === 'image' && placementItem.imageId) {
+        const targetSection = placementItem.targetSection || 'header';
+        const newImage: ImageFieldConfig = {
+          type: 'image',
+          imageId: placementItem.imageId,
+          x: x,
+          y: y,
+          width: 100,
+          height: 100,
+          visible: true,
+        };
+        setTemplate(prev => {
+          const sectionKey = targetSection === 'pageHeader' ? 'pageHeaderImages' :
+                           targetSection === 'pageFooter' ? 'pageFooterImages' :
+                           targetSection === 'header' ? 'headerImages' :
+                           targetSection === 'billContent' ? 'billContentImages' :
+                           'billFooterImages';
+          const currentImages = (prev[sectionKey as keyof TemplateJson] as ImageFieldConfig[]) || [];
+          return {
+            ...prev,
+            [sectionKey]: [...currentImages, newImage],
+          };
+        });
+      } else if (placementItem.type === 'table') {
+        // Add items table
+        if (!template.itemsTable) {
+          setTemplate(prev => ({
+            ...prev,
+            itemsTable: {
+              x: x,
+              y: y,
+              columns: [{ bind: '', label: 'Column 1', visible: true, width: 100 }],
+              style: {
+                headerBackground: '#f0f0f0',
+                headerTextColor: '#000000',
+                rowBackground: '#ffffff',
+                alternateRowBackground: '#f9f9f9',
+                borderColor: '#cccccc',
+                fontSize: 10,
+              },
+            },
+          }));
+        }
+      } else if (placementItem.type === 'pageNumber' || placementItem.type === 'totalPages') {
+        const targetSection = placementItem.targetSection || 'pageFooter';
+        const newField: TextFieldConfig = {
+          type: 'text',
+          label: placementItem.type === 'pageNumber' ? 'Page Number' : 'Total Pages',
+          bind: '',
+          x: x,
+          y: y,
+          visible: true,
+          fontSize: 10,
+          fontWeight: 'normal',
+          color: '#000000',
+          fieldType: placementItem.type,
+        };
+        setTemplate(prev => {
+          const currentFields = (prev[targetSection as keyof TemplateJson] as TextFieldConfig[]) || [];
+          return {
+            ...prev,
+            [targetSection]: [...currentFields, newField],
+          };
+        });
+      }
+      
+      exitPlacementMode();
+      return;
+    }
+    
+    // Clear selection when clicking on canvas, section zones, or canvas header
+    const target = e.target as HTMLElement;
+    if (
+      e.target === e.currentTarget ||
+      target.classList.contains('canvas-header') ||
+      target.classList.contains('section-zone') ||
+      target.classList.contains('section-label')
+    ) {
+      setSelectedElement(null);
+    }
+  }, [isMobile, isPlacementMode, placementItem, canvasZoom, exitPlacementMode, template.itemsTable]);
+
   return (
-    <div className="template-designer">
+    <div className={`template-designer ${isMobile ? 'template-designer-mobile' : ''}`}>
+      {/* Mobile Placement Mode Banner */}
+      {isMobile && isPlacementMode && (
+        <div className="placement-mode-banner">
+          <span className="placement-icon">📍</span>
+          <span>Tap on canvas to place {placementItem?.type === 'data-field' ? placementItem.field : placementItem?.type}</span>
+          <Button onClick={exitPlacementMode} variant="ghost" size="icon" className="cancel-placement-btn">✕</Button>
+        </div>
+      )}
+      
       <div className="designer-content">
-        <div className="properties-panel-container">
+        {/* Properties Panel - hidden on mobile when not on properties tab */}
+        <div className={`properties-panel-container ${isMobile && activeDesignerTab !== 'properties' ? 'mobile-hidden' : ''}`}>
           <PropertyPanel
             selectedElement={selectedElement}
             template={template}
             onUpdateField={(index, updates, section) => updateField(index, updates, section || 'header')}
+            onUpdateImage={(index, updates, section) => updateImage(index, updates, section || 'header')}
             onUpdateTable={updateTable}
             onUpdateContentDetailTable={updateContentDetailTable}
             onUpdateBillContentTable={updateBillContentTable}
@@ -1269,30 +1951,39 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
             onSave={saveTemplate}
             isSaving={isSaving}
             onSetup={() => setIsSetupPanelOpen(true)}
+            onOpenTableModal={(type, index) => {
+              setEditingTable({ type, index });
+              setIsTableModalOpen(true);
+            }}
+            onOpenZoneConfig={() => setIsZoneConfigModalOpen(true)}
+            fullSampleData={sampleData}
           />
         </div>
         <div className="designer-content-wrapper">
-          <div className="canvas-container">
+          {/* Canvas Container - hidden on mobile when not on canvas tab */}
+          <div 
+            ref={canvasContainerRef}
+            className={`canvas-container ${isMobile && activeDesignerTab !== 'canvas' ? 'mobile-hidden' : ''}`}
+          >
+          {/* Canvas Scroll Wrapper - provides correct scroll dimensions for scaled canvas */}
+          {/* Canvas has 40px padding on each side = 80px total, must be included before scaling */}
+          <div 
+            className="canvas-scroll-wrapper"
+            style={{
+              width: `${(pageDimensions.width + 80) * canvasZoom}px`,
+              height: `${(pageDimensions.height + 80) * canvasZoom}px`,
+            }}
+          >
           <div
             ref={drop}
-            className={`canvas ${isOver ? 'drag-over' : ''}`}
+            className={`canvas ${isOver ? 'drag-over' : ''} ${isPlacementMode ? 'placement-mode' : ''}`}
             style={{
-              width: template.page.orientation === 'landscape' ? '1123px' : '794px',
-              minHeight: template.page.orientation === 'landscape' ? '794px' : '1123px',
+              width: `${pageDimensions.width}px`,
+              minHeight: `${pageDimensions.height}px`,
+              transform: `scale(${canvasZoom})`,
+              transformOrigin: 'top left',
             }}
-            onClick={(e) => {
-              // Clear selection when clicking on canvas, section zones, or canvas header
-              // But not when clicking on fields/tables (they stop propagation)
-              const target = e.target as HTMLElement;
-              if (
-                e.target === e.currentTarget ||
-                target.classList.contains('canvas-header') ||
-                target.classList.contains('section-zone') ||
-                target.classList.contains('section-label')
-              ) {
-                setSelectedElement(null);
-              }
-            }}
+            onClick={handleCanvasClick}
           >
             <div className="canvas-header">
               <h3>Template Canvas ({template.page.size} - {template.page.orientation})</h3>
@@ -1323,6 +2014,20 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="pageHeader"
+                  canvasZoom={canvasZoom}
+                />
+              ))}
+              {(template.pageHeaderImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`pageHeaderImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'pageHeader'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'pageHeader' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'pageHeader')}
+                  onDelete={() => deleteImage(index, 'pageHeader')}
+                  section="pageHeader"
+                  canvasZoom={canvasZoom}
                 />
               ))}
             </ResizableSectionZone>
@@ -1352,6 +2057,20 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="header"
+                  canvasZoom={canvasZoom}
+                />
+              ))}
+              {(template.headerImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`headerImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'header'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'header' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'header')}
+                  onDelete={() => deleteImage(index, 'header')}
+                  section="header"
+                  canvasZoom={canvasZoom}
                 />
               ))}
             </ResizableSectionZone>
@@ -1381,6 +2100,20 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="billContent"
+                  canvasZoom={canvasZoom}
+                />
+              ))}
+              {(template.billContentImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`billContentImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'billContent'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'billContent' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'billContent')}
+                  onDelete={() => deleteImage(index, 'billContent')}
+                  section="billContent"
+                  canvasZoom={canvasZoom}
                 />
               ))}
               {(template.billContentTables || []).map((table, index) => {
@@ -1404,6 +2137,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     onDelete={() => deleteBillContentTable(index)}
                     relativeToSection={true}
                     sampleData={sampleData?.items?.data || null}
+                    canvasZoom={canvasZoom}
                   />
                 );
               })}
@@ -1432,6 +2166,7 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     label={`Content: ${cdTable.contentName}`}
                     relativeToSection={true}
                     sampleData={contentDetailData}
+                    canvasZoom={canvasZoom}
                   />
                 );
               })}
@@ -1464,6 +2199,20 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                     sampleData={sampleData?.header?.data || null}
                     fullSampleData={sampleData}
                     section="billFooter"
+                    canvasZoom={canvasZoom}
+                  />
+                ))}
+                {(template.billFooterImages || []).map((imageField, index) => (
+                  <ImageEditor
+                    key={`billFooterImage-${index}`}
+                    imageField={imageField}
+                    index={index}
+                    isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'billFooter'}
+                    onSelect={() => setSelectedElement({ type: 'image', index, section: 'billFooter' })}
+                    onUpdate={(updates) => updateImage(index, updates, 'billFooter')}
+                    onDelete={() => deleteImage(index, 'billFooter')}
+                    section="billFooter"
+                    canvasZoom={canvasZoom}
                   />
                 ))}
               </ResizableSectionZone>
@@ -1495,6 +2244,20 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   sampleData={sampleData?.header?.data || null}
                   fullSampleData={sampleData}
                   section="pageFooter"
+                  canvasZoom={canvasZoom}
+                />
+              ))}
+              {(template.pageFooterImages || []).map((imageField, index) => (
+                <ImageEditor
+                  key={`pageFooterImage-${index}`}
+                  imageField={imageField}
+                  index={index}
+                  isSelected={selectedElement?.type === 'image' && selectedElement.index === index && selectedElement.section === 'pageFooter'}
+                  onSelect={() => setSelectedElement({ type: 'image', index, section: 'pageFooter' })}
+                  onUpdate={(updates) => updateImage(index, updates, 'pageFooter')}
+                  onDelete={() => deleteImage(index, 'pageFooter')}
+                  section="pageFooter"
+                  canvasZoom={canvasZoom}
                 />
               ))}
             </ResizableSectionZone>
@@ -1510,15 +2273,184 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
                   updateTable({ ...template.itemsTable!, x, y });
                 }}
                 sampleData={sampleData?.items?.data || null}
+                canvasZoom={canvasZoom}
               />
             )}
           </div>
+          </div>
+         {/* Zoom Controls - positioned at bottom-left of canvas container */}
+{(!isMobile || activeDesignerTab === 'canvas') &&
+  !isTableModalOpen &&
+  !isZoneConfigModalOpen &&
+  !isSetupPanelOpen && (
+    <div
+  className={cn(
+    'fixed bottom-0 left-0 z-50 gap-1',
+    'rounded-lg border border-neutral-800 bg-black p-2 shadow-lg'
+  )}
+>
+  {/* Zoom Out */}
+  <Button
+    onClick={zoomOut}
+    variant="outline"
+    size="icon"
+    className="
+      h-8 w-8
+      bg-black text-white border-white
+      transition-colors duration-200
+      hover:bg-white hover:text-black
+    "
+    aria-label="Zoom out"
+  >
+    −
+  </Button>
+
+  <div>
+    {/* Reset */}
+    <Button
+      onClick={resetZoom}
+      variant="outline"
+      className="
+        h-8 px-3
+        bg-black text-white border-white
+        transition-colors duration-200
+        hover:bg-white hover:text-black
+      "
+      aria-label="Reset zoom"
+      title="Click to reset to 100%"
+    >
+      {Math.round(canvasZoom * 100)}%
+    </Button>
+
+    {/* Presets */}
+    <div className="flex flex-col items-center gap-1 mt-1">
+      {[0.5, 0.75, 1, 1.5].map((z) => {
+        const active = Math.abs(canvasZoom - z) < 0.05;
+
+        return (
+          <Button
+            key={z}
+            onClick={() => setCanvasZoom(z)}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              'h-6 px-2 text-xs transition-colors duration-200',
+              active
+                ? 'bg-white text-black border border-white'
+                : 'bg-black text-white border border-transparent hover:bg-white hover:text-black'
+            )}
+            title={`${z * 100}%`}
+          >
+            {z * 100}%
+          </Button>
+        );
+      })}
+    </div>
+  </div>
+
+  {/* Zoom In */}
+  <Button
+    onClick={zoomIn}
+    variant="outline"
+    size="icon"
+    className="
+      h-8 w-8
+      bg-black text-white border-white
+      transition-colors duration-200
+      hover:bg-white hover:text-black
+    "
+    aria-label="Zoom in"
+  >
+    +
+  </Button>
+</div>
+
+  )}
+
         </div>
-          <SidePanel
-            sampleData={sampleData}
-          />
+          {/* Side Panel - hidden on mobile when not on elements tab */}
+          <div className={`side-panel-wrapper ${isMobile && activeDesignerTab !== 'elements' ? 'mobile-hidden' : ''}`}>
+            <SidePanel
+              sampleData={sampleData}
+            />
+          </div>
+          
+          {/* Data Preview Panel - only on mobile when data tab is active */}
+          {isMobile && activeDesignerTab === 'data' && (
+            <div className="data-panel-wrapper">
+              {sampleData ? (
+                <DataPreview
+                  headerData={sampleData.header.data}
+                  headerFields={sampleData.header.fields}
+                  itemsData={sampleData.items.data}
+                  itemsFields={sampleData.items.fields}
+                  contentDetails={sampleData.contentDetails}
+                />
+              ) : (
+                <div className="no-data-message">
+                  <p>Execute query to see available data fields</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Mobile Tab Bar */}
+      {isMobile && (
+        <div className="mobile-tab-bar">
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'canvas' && 'active')}
+            onClick={() => setActiveDesignerTab('canvas')}
+          >
+            <span className="mobile-tab-icon"><Palette size={20} /></span>
+            <span className="mobile-tab-label">Canvas</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'elements' && 'active')}
+            onClick={() => setActiveDesignerTab('elements')}
+          >
+            <span className="mobile-tab-icon"><Puzzle size={20} /></span>
+            <span className="mobile-tab-label">Elements</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'data' && 'active')}
+            onClick={() => setActiveDesignerTab('data')}
+            disabled={!sampleData}
+          >
+            <span className="mobile-tab-icon"><BarChart size={20} /></span>
+            <span className="mobile-tab-label">Data</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("mobile-tab-btn", activeDesignerTab === 'properties' && 'active')}
+            onClick={() => setActiveDesignerTab('properties')}
+          >
+            <span className="mobile-tab-icon"><Settings size={20} /></span>
+            <span className="mobile-tab-label">Properties</span>
+          </Button>
+          <Button
+            variant="secondary"
+            className="mobile-tab-btn start-btn"
+            onClick={() => setIsSetupPanelOpen(true)}
+          >
+            <span className="mobile-tab-icon"><Settings size={20} /></span>
+            <span className="mobile-tab-label">Start</span>
+          </Button>
+          <Button
+            className="mobile-tab-btn save-btn"
+            onClick={saveTemplate}
+            disabled={isSaving}
+          >
+            <span className="mobile-tab-icon">{isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}</span>
+            <span className="mobile-tab-label">{isSaving ? 'Saving' : 'Save'}</span>
+          </Button>
+        </div>
+      )}
+      
       <SetupPanel
         isOpen={isSetupPanelOpen}
         onClose={() => setIsSetupPanelOpen(false)}
@@ -1528,6 +2460,71 @@ const Canvas: React.FC<CanvasProps> = ({ templateId: initialTemplateId, presetId
         onTemplateSelect={handleTemplateSelect}
         onDataReceived={handleDataReceived}
       />
+      {isTableModalOpen && editingTable && (() => {
+        let table: ItemsTableConfig | ContentDetailsTableConfig | undefined;
+        let tableLabel: string | undefined;
+        
+        if (editingTable.type === 'itemsTable' && template.itemsTable) {
+          table = template.itemsTable;
+          tableLabel = 'Items Table';
+        } else if (editingTable.type === 'billContentTable' && template.billContentTables && editingTable.index !== undefined) {
+          table = template.billContentTables[editingTable.index];
+          tableLabel = 'Bill Content Table';
+        } else if (editingTable.type === 'contentDetailTable' && template.contentDetailsTables && editingTable.index !== undefined) {
+          const contentTable = template.contentDetailsTables[editingTable.index];
+          table = contentTable;
+          tableLabel = `Content Detail Table: ${contentTable.contentName || 'Unknown'}`;
+        }
+        
+        if (!table) return null;
+        
+        return (
+          <TableEditorModal
+            isOpen={isTableModalOpen}
+            onClose={() => {
+              setIsTableModalOpen(false);
+              setEditingTable(null);
+            }}
+            table={table}
+            onSave={(updatedTable) => {
+              if (editingTable.type === 'itemsTable') {
+                updateTable(updatedTable as ItemsTableConfig);
+              } else if (editingTable.type === 'billContentTable' && editingTable.index !== undefined) {
+                updateBillContentTable(editingTable.index, updatedTable as ItemsTableConfig);
+              } else if (editingTable.type === 'contentDetailTable' && editingTable.index !== undefined) {
+                updateContentDetailTable(editingTable.index, updatedTable as ContentDetailsTableConfig);
+              }
+              setIsTableModalOpen(false);
+              setEditingTable(null);
+            }}
+            tableType={editingTable.type}
+            tableLabel={tableLabel}
+            sampleData={sampleData}
+          />
+        );
+      })()}
+      {isZoneConfigModalOpen && (
+        <ZoneConfigModal
+          isOpen={isZoneConfigModalOpen}
+          onClose={() => setIsZoneConfigModalOpen(false)}
+          template={template}
+          onSave={(zoneConfigs) => {
+            setTemplate((prev) => ({
+              ...prev,
+              zoneConfigs,
+              // Also update sectionHeights for backward compatibility
+              sectionHeights: {
+                pageHeader: zoneConfigs.pageHeader?.height,
+                billHeader: zoneConfigs.billHeader?.height,
+                billContent: zoneConfigs.billContent?.height,
+                billFooter: zoneConfigs.billFooter?.height,
+                pageFooter: zoneConfigs.pageFooter?.height,
+              },
+            }));
+            setIsZoneConfigModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

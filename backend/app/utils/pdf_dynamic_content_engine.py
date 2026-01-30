@@ -13,7 +13,7 @@ from reportlab.pdfgen import canvas
 from typing import Dict, Any, List
 import logging
 
-from .pdf_field_renderer import render_field, get_field_value
+from .pdf_field_renderer import render_field, get_field_value, render_image
 from .pdf_table_renderer import (
     render_table,
     create_cell_paragraph,
@@ -187,18 +187,27 @@ def _calculate_final_row_value(
                 try:
                     # Replace field references with actual values
                     expr_eval = expr
-                    # Handle items.fieldName pattern
+                    # Handle items.fieldName pattern (case-insensitive)
                     field_pattern = r'items\.(\w+)'
-                    for match in re.finditer(field_pattern, expr_eval, re.IGNORECASE):
+                    # Find all matches and replace in reverse order to preserve positions
+                    matches = list(re.finditer(field_pattern, expr_eval, re.IGNORECASE))
+                    matches.reverse()  # Process from end to start
+                    
+                    for match in matches:
                         field_name = match.group(1)
                         field_value = extract_field_value(item, field_name)
-                        expr_eval = expr_eval.replace(match.group(0), str(field_value))
+                        # Replace using string slicing to preserve exact match
+                        expr_eval = expr_eval[:match.start()] + str(field_value) + expr_eval[match.end():]
+                    
                     # Evaluate the expression
-                    return float(eval(expr_eval))
-                except:
+                    result = eval(expr_eval)
+                    return float(result)
+                except Exception as e:
+                    logger.warning(f"Error evaluating field expression '{expr}': {str(e)}")
                     return 0.0
             
             # Process aggregate functions: sum(), avg(), count(), min(), max()
+            # Process all functions and replace them in order
             aggregate_patterns = [
                 (r'sum\(([^)]+)\)', 'sum'),
                 (r'avg\(([^)]+)\)', 'avg'),
@@ -207,117 +216,137 @@ def _calculate_final_row_value(
                 (r'max\(([^)]+)\)', 'max'),
             ]
             
+            # Collect all matches first, then process them in reverse order (to preserve positions)
+            all_matches = []
             for pattern, func_name in aggregate_patterns:
-                for match in re.finditer(pattern, formula_lower, re.IGNORECASE):
-                    expr = match.group(1).strip()
-                    original_match = match.group(0)
+                for match in re.finditer(pattern, formula, re.IGNORECASE):
+                    all_matches.append({
+                        'match': match,
+                        'pattern': pattern,
+                        'func_name': func_name,
+                        'start': match.start(),
+                        'end': match.end(),
+                        'full_match': match.group(0),
+                        'expr': match.group(1).strip()
+                    })
+            
+            # Sort matches by position (reverse order so we can replace from end to start)
+            all_matches.sort(key=lambda x: x['start'], reverse=True)
+            
+            # Process each match and replace in formula
+            for match_info in all_matches:
+                func_name = match_info['func_name']
+                expr = match_info['expr']
+                original_match = match_info['full_match']
+                
+                logger.debug(f"Evaluating {func_name.upper()} function: {original_match} (expression: {expr})")
+                
+                # Determine source data
+                source_data = []
+                field_expr = expr
+                source_type = 'unknown'
+                
+                if expr.lower().startswith('items.'):
+                    source_data = all_items
+                    field_expr = expr[6:]  # Remove 'items.' prefix (case-insensitive)
+                    source_type = 'items'
+                    logger.debug(f"  Source: items, field: {field_expr}, items count: {len(source_data)}")
+                elif expr.lower().startswith('contentdetails.'):
+                    # Extract content name and field
+                    parts = expr[15:].split('.', 1)  # Remove 'contentDetails.' prefix
+                    content_name = parts[0]
+                    field_expr = parts[1] if len(parts) > 1 else ''
+                    source_type = f'contentDetails.{content_name}'
+                    content_details = data.get('contentDetails', {})
+                    if content_name in content_details:
+                        cd_data = content_details[content_name]
+                        if isinstance(cd_data, list):
+                            source_data = cd_data
+                            logger.debug(f"  Source: contentDetails.{content_name}, field: {field_expr}, items count: {len(source_data)}")
+                        else:
+                            logger.warning(f"  contentDetails.{content_name} is not a list, got {type(cd_data)}")
+                    else:
+                        logger.warning(f"  contentDetails.{content_name} not found in data")
+                elif expr.lower() == 'items':
+                    # count(items) - just count the items
+                    source_data = all_items
+                    field_expr = None
+                    source_type = 'items'
+                    logger.debug(f"  Source: items (count only), items count: {len(source_data)}")
+                else:
+                    # Default to items
+                    source_data = all_items
+                    # Remove 'items.' prefix if present (case-insensitive)
+                    if 'items.' in expr.lower():
+                        field_expr = expr[expr.lower().index('items.') + 6:]
+                    else:
+                        field_expr = expr
+                    source_type = 'items'
+                    logger.debug(f"  Source: items (default), field: {field_expr}, items count: {len(source_data)}")
+                
+                if not source_data:
+                    logger.warning(f"  No source data found for {func_name}({expr}), replacing with 0")
+                    formula = formula[:match_info['start']] + '0' + formula[match_info['end']:]
+                    continue
+                
+                # Calculate aggregate value
+                if func_name == 'count' and field_expr is None:
+                    # count(items) - just return count
+                    agg_value = len(source_data)
+                    logger.info(f"  {func_name.upper()}({expr}) = {agg_value} (count of {len(source_data)} items)")
+                else:
+                    # Extract values
+                    values = []
+                    has_expression = '*' in field_expr or '+' in field_expr or '-' in field_expr or '/' in field_expr
                     
-                    logger.debug(f"Evaluating {func_name.upper()} function: {original_match} (expression: {expr})")
+                    if has_expression:
+                        logger.debug(f"  Evaluating expression for each item: {expr}")
                     
-                    # Determine source data
-                    source_data = []
-                    field_expr = expr
-                    source_type = 'unknown'
-                    
-                    if expr.startswith('items.'):
-                        source_data = all_items
-                        field_expr = expr.replace('items.', '')
-                        source_type = 'items'
-                        logger.debug(f"  Source: items, field: {field_expr}, items count: {len(source_data)}")
-                    elif expr.startswith('contentDetails.'):
-                        # Extract content name and field
-                        parts = expr.replace('contentDetails.', '').split('.', 1)
-                        content_name = parts[0]
-                        field_expr = parts[1] if len(parts) > 1 else ''
-                        source_type = f'contentDetails.{content_name}'
-                        content_details = data.get('contentDetails', {})
-                        if content_name in content_details:
-                            cd_data = content_details[content_name]
-                            if isinstance(cd_data, list):
-                                source_data = cd_data
-                                logger.debug(f"  Source: contentDetails.{content_name}, field: {field_expr}, items count: {len(source_data)}")
+                    for idx, item in enumerate(source_data):
+                        try:
+                            if has_expression:
+                                # Expression like "items.quantity * items.price"
+                                value = evaluate_field_expression(item, expr)
+                                if idx < 3:  # Log first 3 items for debugging
+                                    logger.debug(f"    Item[{idx}]: {expr} = {value}")
                             else:
-                                logger.warning(f"  contentDetails.{content_name} is not a list, got {type(cd_data)}")
-                        else:
-                            logger.warning(f"  contentDetails.{content_name} not found in data")
-                    elif expr == 'items':
-                        # count(items) - just count the items
-                        source_data = all_items
-                        field_expr = None
-                        source_type = 'items'
-                        logger.debug(f"  Source: items (count only), items count: {len(source_data)}")
+                                # Simple field reference
+                                value = extract_field_value(item, field_expr)
+                                if idx < 3:  # Log first 3 items for debugging
+                                    logger.debug(f"    Item[{idx}]: {field_expr} = {value}")
+                            
+                            if value is not None:
+                                values.append(value)
+                        except Exception as e:
+                            logger.warning(f"    Error extracting value from item[{idx}]: {str(e)}")
+                            continue
+                    
+                    if not values:
+                        agg_value = 0
+                        logger.warning(f"  No valid values extracted for {func_name}({expr}), result: 0")
+                    elif func_name == 'sum':
+                        agg_value = sum(values)
+                        logger.info(f"  SUM({expr}) = {agg_value} (sum of {len(values)} values: {values[:5]}{'...' if len(values) > 5 else ''})")
+                    elif func_name == 'avg':
+                        agg_value = sum(values) / len(values) if values else 0
+                        logger.info(f"  AVG({expr}) = {agg_value:.2f} (average of {len(values)} values)")
+                    elif func_name == 'count':
+                        agg_value = len(values)
+                        logger.info(f"  COUNT({expr}) = {agg_value} (count of {len(values)} non-null values)")
+                    elif func_name == 'min':
+                        agg_value = min(values)
+                        logger.info(f"  MIN({expr}) = {agg_value} (minimum of {len(values)} values)")
+                    elif func_name == 'max':
+                        agg_value = max(values)
+                        logger.info(f"  MAX({expr}) = {agg_value} (maximum of {len(values)} values)")
                     else:
-                        # Default to items
-                        source_data = all_items
-                        field_expr = expr.replace('items.', '') if 'items.' in expr else expr
-                        source_type = 'items'
-                        logger.debug(f"  Source: items (default), field: {field_expr}, items count: {len(source_data)}")
-                    
-                    if not source_data:
-                        logger.warning(f"  No source data found for {func_name}({expr}), replacing with 0")
-                        formula = formula.replace(original_match, '0', 1)
-                        continue
-                    
-                    # Calculate aggregate value
-                    if func_name == 'count' and field_expr is None:
-                        # count(items) - just return count
-                        agg_value = len(source_data)
-                        logger.info(f"  {func_name.upper()}({expr}) = {agg_value} (count of {len(source_data)} items)")
-                    else:
-                        # Extract values
-                        values = []
-                        has_expression = '*' in field_expr or '+' in field_expr or '-' in field_expr or '/' in field_expr
-                        
-                        if has_expression:
-                            logger.debug(f"  Evaluating expression for each item: {expr}")
-                        
-                        for idx, item in enumerate(source_data):
-                            try:
-                                if has_expression:
-                                    # Expression like "items.quantity * items.price"
-                                    value = evaluate_field_expression(item, expr)
-                                    if idx < 3:  # Log first 3 items for debugging
-                                        logger.debug(f"    Item[{idx}]: {expr} = {value}")
-                                else:
-                                    # Simple field reference
-                                    value = extract_field_value(item, field_expr)
-                                    if idx < 3:  # Log first 3 items for debugging
-                                        logger.debug(f"    Item[{idx}]: {field_expr} = {value}")
-                                
-                                if value is not None:
-                                    values.append(value)
-                            except Exception as e:
-                                logger.warning(f"    Error extracting value from item[{idx}]: {str(e)}")
-                                continue
-                        
-                        if not values:
-                            agg_value = 0
-                            logger.warning(f"  No valid values extracted for {func_name}({expr}), result: 0")
-                        elif func_name == 'sum':
-                            agg_value = sum(values)
-                            logger.info(f"  SUM({expr}) = {agg_value} (sum of {len(values)} values: {values[:5]}{'...' if len(values) > 5 else ''})")
-                        elif func_name == 'avg':
-                            agg_value = sum(values) / len(values) if values else 0
-                            logger.info(f"  AVG({expr}) = {agg_value:.2f} (average of {len(values)} values)")
-                        elif func_name == 'count':
-                            agg_value = len(values)
-                            logger.info(f"  COUNT({expr}) = {agg_value} (count of {len(values)} non-null values)")
-                        elif func_name == 'min':
-                            agg_value = min(values)
-                            logger.info(f"  MIN({expr}) = {agg_value} (minimum of {len(values)} values)")
-                        elif func_name == 'max':
-                            agg_value = max(values)
-                            logger.info(f"  MAX({expr}) = {agg_value} (maximum of {len(values)} values)")
-                        else:
-                            agg_value = 0
-                            logger.warning(f"  Unknown aggregate function: {func_name}")
-                    
-                    # Replace in formula (use original case)
-                    original_formula_match = re.search(pattern, formula, re.IGNORECASE)
-                    if original_formula_match:
-                        formula_before = formula
-                        formula = formula.replace(original_formula_match.group(0), str(agg_value), 1)
-                        logger.debug(f"  Formula updated: {formula_before} -> {formula}")
+                        agg_value = 0
+                        logger.warning(f"  Unknown aggregate function: {func_name}")
+                
+                # Replace in formula (preserve original case by using exact match)
+                formula_before = formula
+                formula = formula[:match_info['start']] + str(agg_value) + formula[match_info['end']:]
+                logger.debug(f"  Formula updated: {formula_before} -> {formula}")
             
             # Replace header references
             header = data.get('header', {})
@@ -341,19 +370,33 @@ def _calculate_final_row_value(
             
             # Evaluate the final numeric expression
             logger.debug(f"  Final formula to evaluate: {formula}")
-            result = eval(formula)
+            
+            # Validate that formula only contains safe characters (numbers, operators, parentheses, spaces)
+            # This is a basic safety check - eval() is still used but we validate the structure
+            safe_pattern = r'^[0-9+\-*/().\s]+$'
+            if not re.match(safe_pattern, formula.replace(' ', '')):
+                logger.warning(f"  Formula contains unsafe characters after processing: {formula}")
+                # Still try to evaluate, but log the warning
+            
+            try:
+                result = eval(formula)
+            except Exception as eval_error:
+                logger.error(f"  Error evaluating final formula '{formula}': {str(eval_error)}")
+                return ''
             
             if isinstance(result, float) and result.is_integer():
                 final_result = str(int(result))
             elif isinstance(result, float):
                 final_result = f"{result:.2f}"
+            elif isinstance(result, int):
+                final_result = str(result)
             else:
                 final_result = str(result)
             
             logger.info(f"Formula evaluation complete: '{formula_original}' = {final_result}")
             return final_result
         except Exception as e:
-            logger.warning(f"Error evaluating formula '{formula}': {str(e)}")
+            logger.error(f"Error evaluating formula '{formula_original}': {str(e)}", exc_info=True)
             return ''
     
     return ''
@@ -412,6 +455,16 @@ class DynamicContentRenderEngine:
                     'type': 'field',
                     'config': field,
                     'y': field.get('y', 0)
+                })
+        
+        # Bill content images (non-watermark images flow with content)
+        bill_content_images = template_config.get('billContentImages', [])
+        for image_field in bill_content_images:
+            if image_field.get('visible', True) and not image_field.get('watermark', False):
+                elements.append({
+                    'type': 'image',
+                    'config': image_field,
+                    'y': image_field.get('y', 0)
                 })
         
         # Bill content tables
@@ -478,6 +531,22 @@ class DynamicContentRenderEngine:
             element_height = font_size * 1.5
             return {
                 'bottom_y': element_y ,
+                'rows_rendered': 0,
+                'cursor_updated': False,
+                'all_rows_rendered': True
+            }
+        
+        elif element_type == 'image':
+            # Render billContent image
+            image_field = element['config']
+            x = image_field.get('x', 0)
+            image_field_copy = {**image_field, 'y': element_y}
+            company_id = template_config.get('_company_id')  # Passed from pdf_engine
+            render_image(c, image_field_copy, company_id)
+            # Estimate height based on image dimensions
+            height = image_field.get('height') or 100
+            return {
+                'bottom_y': element_y - height,
                 'rows_rendered': 0,
                 'cursor_updated': False,
                 'all_rows_rendered': True

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { ItemsTableConfig, ContentDetailsTableConfig } from '../../services/types';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import './TableEditor.css';
 
 interface TableEditorProps {
@@ -14,6 +16,7 @@ interface TableEditorProps {
   label?: string;
   relativeToSection?: boolean; // If true, position is relative to parent section, not absolute to canvas
   sampleData?: Record<string, any>[] | null; // Sample data for items or content details
+  canvasZoom?: number;
 }
 
 const TableEditor: React.FC<TableEditorProps> = ({
@@ -28,6 +31,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
   label,
   relativeToSection = false,
   sampleData,
+  canvasZoom = 1,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -75,6 +79,40 @@ const TableEditor: React.FC<TableEditorProps> = ({
     e.stopPropagation();
   };
 
+  // Helper function to get parent section zone
+  const getParentSectionZone = (): HTMLElement | null => {
+    if (!tableRef.current) return null;
+    let parent = tableRef.current.parentElement;
+    while (parent && !parent.classList.contains('section-zone')) {
+      parent = parent.parentElement;
+    }
+    return parent;
+  };
+
+  // Shared drag start logic for both mouse and touch
+  const startDrag = (clientX: number, clientY: number) => {
+    const zoom = canvasZoom || 1;
+    if (relativeToSection) {
+      const parent = getParentSectionZone();
+      if (parent) {
+        const parentRect = parent.getBoundingClientRect();
+        setIsDragging(true);
+        // Account for zoom: screen coordinates to canvas coordinates
+        setDragStart({ 
+          x: (clientX - parentRect.left) / zoom - position.x, 
+          y: (clientY - parentRect.top) / zoom - position.y 
+        });
+      } else {
+        setIsDragging(true);
+        setDragStart({ x: clientX / zoom - position.x, y: clientY / zoom - position.y });
+      }
+    } else {
+      setIsDragging(true);
+      setDragStart({ x: clientX / zoom - position.x, y: clientY / zoom - position.y });
+    }
+    onSelect();
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     // Only prevent dragging if clicking on the delete button or resize handle
@@ -82,33 +120,24 @@ const TableEditor: React.FC<TableEditorProps> = ({
       return;
     }
     
-    // Allow dragging when clicking on table cells (TD/TH) or anywhere on the table
-    // This makes the entire table draggable when selected
-    if (relativeToSection && tableRef.current) {
-      // Find the section zone container (parent with section-zone class)
-      let parent = tableRef.current.parentElement;
-      while (parent && !parent.classList.contains('section-zone')) {
-        parent = parent.parentElement;
-      }
-      
-      if (parent) {
-        const parentRect = parent.getBoundingClientRect();
-        setIsDragging(true);
-        setDragStart({ 
-          x: e.clientX - parentRect.left - position.x, 
-          y: e.clientY - parentRect.top - position.y 
-        });
-      } else {
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-      }
-    } else {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    startDrag(e.clientX, e.clientY);
+    e.preventDefault();
+  };
+
+  // Touch event handler for mobile drag
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    // Only prevent dragging if clicking on the delete button or resize handle
+    if (target.tagName === 'BUTTON' || target.closest('.table-delete') || target.closest('.table-width-resize-handle')) {
+      return;
     }
     
-    onSelect();
-    e.preventDefault();
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -213,49 +242,91 @@ const TableEditor: React.FC<TableEditorProps> = ({
 
   React.useEffect(() => {
     if (isDragging) {
-      const handleGlobalMouseMove = (e: MouseEvent) => {
-        if (relativeToSection && tableRef.current) {
-          // Find the section zone container
-          let parent = tableRef.current.parentElement;
-          while (parent && !parent.classList.contains('section-zone')) {
-            parent = parent.parentElement;
-          }
-          
-          if (parent) {
-            const parentRect = parent.getBoundingClientRect();
-            const newX = e.clientX - parentRect.left - dragStart.x;
-            const newY = e.clientY - parentRect.top - dragStart.y;
-            const clampedX = Math.max(0, Math.min(newX, parentRect.width - 100));
-            const clampedY = Math.max(0, Math.min(newY, parentRect.height - 50));
-            setPosition({ x: clampedX, y: clampedY });
-            if (onPositionChange) {
-              onPositionChange(clampedX, clampedY);
-            }
-            return;
-          }
+      let animationFrameId: number | null = null;
+      
+      // Shared move logic for both mouse and touch
+      const handleMove = (clientX: number, clientY: number) => {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
         }
         
-        // Absolute positioning
-        const newX = e.clientX - dragStart.x;
-        const newY = e.clientY - dragStart.y;
-        setPosition({ x: newX, y: newY });
-        if (onPositionChange) {
-          onPositionChange(newX, newY);
+        const zoom = canvasZoom || 1;
+        animationFrameId = requestAnimationFrame(() => {
+          if (relativeToSection) {
+            const parent = getParentSectionZone();
+            if (parent) {
+              const parentRect = parent.getBoundingClientRect();
+              // Convert screen coordinates to canvas coordinates
+              const newX = (clientX - parentRect.left) / zoom - dragStart.x;
+              const newY = (clientY - parentRect.top) / zoom - dragStart.y;
+              // Clamp using canvas dimensions (not screen dimensions)
+              const parentWidth = parentRect.width / zoom;
+              const parentHeight = parentRect.height / zoom;
+              const clampedX = Math.max(0, Math.min(newX, parentWidth - 100));
+              const clampedY = Math.max(0, Math.min(newY, parentHeight - 50));
+              setPosition({ x: clampedX, y: clampedY });
+              if (onPositionChange) {
+                onPositionChange(clampedX, clampedY);
+              }
+              return;
+            }
+          }
+          
+          // Absolute positioning
+          const newX = clientX / zoom - dragStart.x;
+          const newY = clientY / zoom - dragStart.y;
+          setPosition({ x: newX, y: newY });
+          if (onPositionChange) {
+            onPositionChange(newX, newY);
+          }
+        });
+      };
+
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        handleMove(e.clientX, e.clientY);
+      };
+      
+      const handleGlobalTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault(); // Prevent scrolling while dragging
+          const touch = e.touches[0];
+          handleMove(touch.clientX, touch.clientY);
         }
       };
       
       const handleGlobalMouseUp = () => {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
         setIsDragging(false);
       };
       
-      document.addEventListener('mousemove', handleGlobalMouseMove);
+      const handleGlobalTouchEnd = () => {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
+        setIsDragging(false);
+      };
+      
+      // Add mouse and touch event listeners
+      document.addEventListener('mousemove', handleGlobalMouseMove, { passive: true });
       document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+      document.addEventListener('touchend', handleGlobalTouchEnd);
+      document.addEventListener('touchcancel', handleGlobalTouchEnd);
+      
       return () => {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
         document.removeEventListener('mousemove', handleGlobalMouseMove);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.removeEventListener('touchmove', handleGlobalTouchMove);
+        document.removeEventListener('touchend', handleGlobalTouchEnd);
+        document.removeEventListener('touchcancel', handleGlobalTouchEnd);
       };
     }
-  }, [isDragging, dragStart, relativeToSection, onPositionChange]);
+  }, [isDragging, dragStart, relativeToSection, onPositionChange, canvasZoom]);
 
   React.useEffect(() => {
     if (isDraggingResize) {
@@ -284,13 +355,14 @@ const TableEditor: React.FC<TableEditorProps> = ({
       className={`table-editor ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isResizingWidth ? 'resizing-width' : ''}`}
       style={getTableStyles()}
       onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onDoubleClick={handleDoubleClick}
     >
       {label && (
-        <div className="table-label" style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>
+        <div className={cn("mb-1.5 font-bold text-xs text-foreground")}>
           {label}
         </div>
       )}
@@ -442,16 +514,25 @@ const TableEditor: React.FC<TableEditorProps> = ({
       </table>
       {isSelected && (
         <>
-          <button className="table-delete" onClick={(e) => {
-            e.stopPropagation();
-            if (onDelete) {
-              onDelete();
-            } else {
-              onUpdate({ ...table, columns: [] });
-            }
-          }} title="Delete table">
+          <Button 
+            variant="destructive" 
+            size="icon" 
+            className={cn(
+              "absolute -top-2.5 -right-2.5 h-7 w-7 rounded-full shadow-lg border-2 border-white",
+              "hover:scale-110 transition-transform"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onDelete) {
+                onDelete();
+              } else {
+                onUpdate({ ...table, columns: [] });
+              }
+            }} 
+            title="Delete table"
+          >
             ×
-          </button>
+          </Button>
           {isResizingWidth && (
             <div 
               className="table-width-resize-handle"

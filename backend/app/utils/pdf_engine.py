@@ -180,18 +180,22 @@ class PDFEngine:
         self.dynamic_engine = DynamicContentRenderEngine(default_gap)
         self.balance_engine = PageBalanceFitEngine()
     
-    def generate_pdf(self, template_json: str, data: Dict[str, Any]) -> bytes:
+    def generate_pdf(self, template_json: str, data: Dict[str, Any], company_id: int = None) -> bytes:
         """
         Generate PDF from template JSON and data following PDF_ENGINE_RULES.md
         
         Args:
             template_json: Template JSON string
             data: Data dictionary with 'header', 'items', and 'contentDetails'
+            company_id: Optional company ID for image access
             
         Returns:
             PDF bytes
         """
         template_config = json.loads(template_json)
+        # Store company_id in template_config for image rendering
+        if company_id:
+            template_config['_company_id'] = company_id
         
         # Create PDF buffer
         buffer = BytesIO()
@@ -231,6 +235,53 @@ class PDFEngine:
         max_pages = total_pages
         page_num = 1
         max_iterations = 100  # Safety limit to prevent infinite loops
+        
+        # Track which pages are actually rendered (not skipped)
+        rendered_pages = []
+        
+        # Pre-pass: Determine which pages will actually be rendered (to calculate correct totalPages)
+        # This allows us to pass the correct totalPages to each page's page_context
+        # CRITICAL FIX: Account for fixed sections (page header, bill header, page footer) that always render
+        pages_that_will_render = []
+        pre_check_page_num = 1
+        pre_check_max_pages = max_pages
+        pre_check_iteration = 0
+        
+        # Check if there are fixed sections (including images)
+        has_page_header = bool(template_config.get('pageHeader') or template_config.get('pageHeaderImages'))
+        has_bill_header = bool(template_config.get('header') or template_config.get('headerImages'))
+        has_page_footer = bool(template_config.get('pageFooter') or template_config.get('pageFooterImages'))
+        has_bill_footer = bool(template_config.get('billFooter') or template_config.get('billFooterImages'))
+        has_any_fixed_sections = has_page_header or has_bill_header or has_page_footer or has_bill_footer
+        
+        while pre_check_page_num <= pre_check_max_pages and pre_check_iteration < max_iterations:
+            pre_check_iteration += 1
+            page_elements = pagination_info['pages'].get(pre_check_page_num, [])
+            will_render_content = False
+            
+            if page_elements:
+                for element_info in page_elements:
+                    element = element_info.get('element')
+                    if element is None:
+                        continue
+                    if element.get('type') == 'field':
+                        if not self._field_already_rendered_on_previous_page(element, pre_check_page_num, pagination_info):
+                            will_render_content = True
+                            break
+                    else:
+                        will_render_content = True
+                        break
+            
+            # CRITICAL FIX: Always include page 1 if there are fixed sections, even with no dynamic content
+            if will_render_content or (pre_check_page_num == 1 and has_any_fixed_sections):
+                pages_that_will_render.append(pre_check_page_num)
+            
+            pre_check_page_num += 1
+        
+        # Calculate actual total pages from pre-pass
+        # CRITICAL FIX: Ensure at least 1 page if there are fixed sections
+        actual_total_pages = len(pages_that_will_render) if pages_that_will_render else (1 if has_any_fixed_sections else 1)
+        logger.debug(f"Pre-pass: pages_that_will_render={pages_that_will_render}, actual_total_pages={actual_total_pages}")
         
         # PHASE 1: Rendering Phase - Render all pages, track last_index monotonically
         # RULE 2: last_index Must Be Monotonic Per Table - starts at -1, only increases, never resets
@@ -274,8 +325,68 @@ class PDFEngine:
                             logger.debug(f"Added table to page {page_num} for continuation (at beginning): "
                                        f"{table_element.get('type')}, content_name={table_element.get('content_name')}")
             
+            # Check if any content will be rendered on this page (not all duplicates)
+            # CRITICAL FIX: Always render at least page 1 to show fixed sections (page header, bill header, page footer)
+            # even if there's no dynamic content
+            page_elements = pagination_info['pages'].get(page_num, [])
+            will_render_content = False
+            has_fixed_sections = False
+            
+            # Check if there are fixed sections that need rendering (page header, bill header, page footer)
+            # Also check for images in these sections
+            if page_num == 1:
+                # First page: check for bill header, page header, page footer (including images)
+                has_page_header = bool(template_config.get('pageHeader') or template_config.get('pageHeaderImages'))
+                has_bill_header = bool(template_config.get('header') or template_config.get('headerImages'))
+                has_page_footer = bool(template_config.get('pageFooter') or template_config.get('pageFooterImages'))
+                has_bill_footer = bool(template_config.get('billFooter') or template_config.get('billFooterImages'))
+                has_fixed_sections = has_page_header or has_bill_header or has_page_footer or has_bill_footer
+            else:
+                # Subsequent pages: check for page header and page footer (including images)
+                has_page_header = bool(template_config.get('pageHeader') or template_config.get('pageHeaderImages'))
+                has_page_footer = bool(template_config.get('pageFooter') or template_config.get('pageFooterImages'))
+                has_fixed_sections = has_page_header or has_page_footer
+            
+            if page_elements:
+                # Check if any element is not a duplicate field
+                for element_info in page_elements:
+                    element = element_info.get('element')
+                    if element is None:
+                        continue
+                    # For fields, check if already rendered on previous pages
+                    if element.get('type') == 'field':
+                        if not self._field_already_rendered_on_previous_page(element, page_num, pagination_info):
+                            will_render_content = True
+                            break
+                    else:
+                        # Tables and other elements will render
+                        will_render_content = True
+                        break
+            
+            # CRITICAL FIX: Always render page 1 if there are fixed sections, even with no dynamic content
+            # For subsequent pages, only skip if no dynamic content AND no fixed sections
+            if not will_render_content:
+                if page_num == 1 and has_fixed_sections:
+                    # Page 1 with fixed sections: always render (even if no dynamic content)
+                    will_render_content = True
+                    logger.debug(f"Page {page_num}: Rendering page for fixed sections (page header, bill header, or page footer)")
+                elif not has_fixed_sections:
+                    # No dynamic content and no fixed sections: skip page
+                    logger.debug(f"Page {page_num}: Skipping page creation - no content will be rendered (all elements are duplicates and no fixed sections)")
+                    page_num += 1
+                    continue
+            
+            # Track that this page is being rendered
+            rendered_pages.append(page_num)
+            
+            # Use the actual total pages from pre-pass for page_context
+            # This ensures all pages show the correct totalPages value
+            # Note: If we extend pages due to continuation, we'll need to update this
+            # For now, use the pre-pass total, which will be updated if we extend
+            actual_total_for_context = actual_total_pages
+            
             self._render_page(
-                c, page_num, max_pages, template_config, data,
+                c, page_num, actual_total_for_context, template_config, data,
                 section_heights, page_width, page_height,
                 bill_content_elements, pagination_info, table_rendering_state
             )
@@ -293,8 +404,10 @@ class PDFEngine:
                 if tables_still_needing_continuation:
                     # Need more pages - extend pagination
                     max_pages += 1
+                    actual_total_pages += 1  # Update actual total since we're adding a page
                     logger.debug(f"Extended pagination to {max_pages} pages for table continuation. "
-                               f"Tables needing continuation: {len(tables_still_needing_continuation)}")
+                               f"Tables needing continuation: {len(tables_still_needing_continuation)}, "
+                               f"updated actual_total_pages={actual_total_pages}")
             
             # Don't call showPage() on the last page - canvas.save() handles it
             if page_num < max_pages:
@@ -306,6 +419,26 @@ class PDFEngine:
             logger.error(f"CRITICAL: Rendering loop reached max_iterations ({max_iterations}). "
                         f"This may indicate an infinite continuation loop. "
                         f"Tables needing continuation: {self._get_tables_needing_continuation_with_order(bill_content_elements, table_rendering_state, page_num)}")
+        
+        # Calculate actual total pages based on rendered pages (not skipped pages)
+        # CRITICAL FIX: Ensure at least one page is always created, even if no content was rendered
+        # This prevents corrupted PDFs when templates have only static/fixed content
+        actual_total_pages = len(rendered_pages) if rendered_pages else 1
+        
+        # CRITICAL FIX: If no pages were rendered at all, create at least one empty page
+        # This ensures PDF is valid even for templates with only fixed sections that were skipped
+        if not rendered_pages:
+            logger.warning("No pages were rendered! Creating at least one page to prevent corrupted PDF.")
+            # Render at least page 1 with fixed sections only
+            page_context = {'currentPage': 1, 'totalPages': 1}
+            self._render_page(
+                c, 1, 1, template_config, data,
+                section_heights, page_width, page_height,
+                bill_content_elements, pagination_info, table_rendering_state
+            )
+            c.showPage()
+        
+        logger.debug(f"Total pages calculation: rendered_pages={rendered_pages}, actual_total_pages={actual_total_pages}, estimated_total_pages={total_pages}")
         
         c.save()
         buffer.seek(0)
@@ -457,6 +590,52 @@ class PDFEngine:
         
         # All tables are complete
         return True
+    
+    def _field_already_rendered_on_previous_page(
+        self, element: Dict[str, Any], current_page_num: int, pagination_info: Dict[str, Any]
+    ) -> bool:
+        """
+        Check if a field was already rendered on a previous page.
+        
+        Args:
+            element: The field element to check
+            current_page_num: Current page number
+            pagination_info: Pagination information with pages dict
+            
+        Returns:
+            True if field was already rendered on a previous page
+        """
+        if element.get('type') != 'field':
+            return False
+        
+        element_config = element.get('config', {})
+        element_x = element_config.get('x')
+        element_y = element.get('y', 0)
+        element_bind = element_config.get('bind')
+        element_label = element_config.get('label')
+        
+        # Check all previous pages
+        for page_num in range(1, current_page_num):
+            if page_num not in pagination_info.get('pages', {}):
+                continue
+            
+            for page_element_info in pagination_info['pages'][page_num]:
+                existing_element = page_element_info.get('element')
+                if existing_element is None:
+                    continue
+                
+                if existing_element.get('type') != 'field':
+                    continue
+                
+                existing_config = existing_element.get('config', {})
+                # Compare key fields that uniquely identify a field
+                if (existing_config.get('x') == element_x and
+                    existing_element.get('y', 0) == element_y and
+                    existing_config.get('bind') == element_bind and
+                    existing_config.get('label') == element_label):
+                    return True
+        
+        return False
     
     def _filter_elements_by_sequential_order(
         self, page_elements: List[Dict[str, Any]], table_rendering_state: Dict[str, Any],
@@ -1035,23 +1214,30 @@ class PDFEngine:
         # Render Page Header using Fixed Engine
         page_header_height = section_heights['pageHeader']
         header_top_y = page_height - self.balance_engine.container_padding_top
-        self.fixed_engine.render_page_header(c, template_config, data, page_context, header_top_y, page_header_height)
+        company_id = template_config.get('_company_id')
+        self.fixed_engine.render_page_header(c, template_config, data, page_context, header_top_y, page_header_height, company_id)
         
         # Render Bill Header (first page only) using Fixed Engine
         bill_header_top_y = header_top_y - page_header_height
         if page_num == 1:
             bill_header_height = section_heights['billHeader']
-            self.fixed_engine.render_bill_header(c, template_config, data, page_context, bill_header_top_y, bill_header_height)
+            self.fixed_engine.render_bill_header(c, template_config, data, page_context, bill_header_top_y, bill_header_height, company_id)
             # Content starts after bill header on first page
             content_start_y = bill_header_top_y - bill_header_height
         else:
             # Content starts after page header on subsequent pages
             content_start_y = bill_header_top_y
         
+        # Render Watermarks (billContentImages with watermark=true) - render behind all content
+        # Watermarks are rendered at fixed position on each page, before bill content
+        # Note: Content check is done before calling _render_page, so we know content will render here
+        self._render_watermarks(
+            c, template_config, company_id, content_start_y, min_content_y_from_top, page_height
+        )
+        
         # Render Bill Content (dynamic, flow-based)
         # Content area starts at content_start_y and ends at min_content_y_from_top (calculated by Balance Engine above)
-        
-        bill_content_bottom = self._render_bill_content(
+        bill_content_bottom, content_rendered = self._render_bill_content(
             c, page_num, template_config, data, page_context,
             content_start_y, min_content_y_from_top, pagination_info,
             table_rendering_state, bill_content_elements,
@@ -1067,12 +1253,12 @@ class PDFEngine:
                 bill_content_bottom, bill_footer_height, page_height,
                 section_heights['pageFooter'], self.balance_engine.container_padding_bottom
             )
-            self.fixed_engine.render_bill_footer(c, template_config, data, page_context, bill_footer_top_y, bill_footer_height)
+            self.fixed_engine.render_bill_footer(c, template_config, data, page_context, bill_footer_top_y, bill_footer_height, company_id)
         
         # Render Page Footer using Fixed Engine
         page_footer_height = section_heights['pageFooter']
         footer_top_y = self.balance_engine.container_padding_bottom + page_footer_height
-        self.fixed_engine.render_page_footer(c, template_config, data, page_context, footer_top_y, page_footer_height)
+        self.fixed_engine.render_page_footer(c, template_config, data, page_context, footer_top_y, page_footer_height, company_id)
     
     def _render_page_header(
         self, c: canvas.Canvas, template_config: Dict[str, Any], data: Dict[str, Any],
@@ -1106,6 +1292,81 @@ class PDFEngine:
                 y = header_top_y - field.get('y', 0)
                 render_field(c, field, data, x, y, page_context)
     
+    def _render_watermarks(
+        self, c: canvas.Canvas, template_config: Dict[str, Any], company_id: int,
+        content_start_y: float, content_bottom_y: float, page_height: float
+    ) -> None:
+        """
+        Render watermarks (billContentImages with watermark=true) at fixed positions.
+        Watermarks are rendered behind all content on each page.
+        Uses full dynamic content area height (from content_start_y to content_bottom_y).
+        """
+        from .pdf_field_renderer import render_image
+        
+        if not company_id:
+            logger.warning("Cannot render watermarks: company_id is None")
+            return
+        
+        bill_content_images = template_config.get('billContentImages', [])
+        if not bill_content_images:
+            logger.debug("No billContentImages found in template")
+            return
+        
+        watermark_images = [img for img in bill_content_images 
+                           if img.get('visible', True) and img.get('watermark', False)]
+        
+        if not watermark_images:
+            logger.debug(f"No watermark images found (total billContentImages: {len(bill_content_images)}, checked watermark flag)")
+            # Log all images for debugging
+            for img in bill_content_images:
+                logger.debug(f"  Image imageId={img.get('imageId')}, visible={img.get('visible', True)}, watermark={img.get('watermark', False)}")
+            return
+        
+        # Calculate full content area height (full dynamic content area, not just billContent section)
+        # content_start_y is top of content area, content_bottom_y is bottom of content area
+        # Both are in ReportLab coordinates (from bottom of page)
+        content_area_height = content_start_y - content_bottom_y
+        
+        logger.info(f"Rendering {len(watermark_images)} watermark(s) - content_start_y={content_start_y:.1f}, content_bottom_y={content_bottom_y:.1f}, content_area_height={content_area_height:.1f}, page_height={page_height:.1f}")
+        
+        # Get page width for watermark scaling
+        page_width = c._pagesize[0]
+        
+        # Render each watermark at its fixed position
+        # Position is relative to content area (content_start_y is top of content area in ReportLab coords)
+        
+        for image_field in watermark_images:
+            image_id = image_field.get('imageId')
+            if not image_id:
+                logger.warning("Watermark image missing imageId, skipping")
+                continue
+                
+            # For watermarks, use the exact position and size from template (like preview)
+            # Get position and size from template (relative to content area)
+            x = image_field.get('x', 0)
+            y_from_content_top = image_field.get('y', 0)
+            width = image_field.get('width')
+            height = image_field.get('height')
+            
+            # Convert template Y (from top) to ReportLab Y (from bottom)
+            # content_start_y is already in ReportLab coordinates (top of content area)
+            y = content_start_y - y_from_content_top
+            
+            logger.debug(f"Watermark position calculation: x={x}, y_from_content_top={y_from_content_top}, content_start_y={content_start_y:.1f}, calculated y={y:.1f}, width={width}, height={height}")
+            
+            # Create a copy with updated Y position, but keep width/height from template
+            image_field_copy = {**image_field, 'x': x, 'y': y}
+            # Keep width and height from template (don't remove them)
+            
+            logger.info(f"Watermark imageId={image_id}, x={x}, y_from_content_top={y_from_content_top}, y={y:.1f}, width={width}, height={height}, content_start_y={content_start_y:.1f}")
+            
+            try:
+                # Pass None for content_area_height and page_width so template dimensions are used
+                render_image(c, image_field_copy, company_id, None, None)
+                logger.info(f"Successfully rendered watermark imageId={image_id} with template dimensions")
+            except Exception as e:
+                logger.error(f"Error rendering watermark image {image_id}: {str(e)}", exc_info=True)
+    
     def _render_bill_content(
         self, c: canvas.Canvas, page_num: int, template_config: Dict[str, Any],
         data: Dict[str, Any], page_context: Dict[str, Any],
@@ -1113,16 +1374,20 @@ class PDFEngine:
         pagination_info: Dict[str, Any], table_rendering_state: Dict[str, Any],
         bill_content_elements: List[Dict[str, Any]],
         page_height: float = None, section_heights: Dict[str, float] = None
-    ) -> float:
+    ) -> tuple[float, bool]:
         """
         Render bill content using flow-based positioning.
         
-        Returns the bottom Y position of rendered content.
+        Returns:
+            tuple: (bottom Y position of rendered content, whether any content was rendered)
         """
         page_elements = pagination_info['pages'].get(page_num, [])
         
         if not page_elements:
-            return content_start_y
+            return content_start_y, False
+        
+        # Track if any content was actually rendered (not just skipped)
+        content_rendered = False
         
         # Calculate reference position from page header (not content_start_y which includes bill header)
         # CRITICAL: Position reference taken from page header as requested
@@ -1165,6 +1430,19 @@ class PDFEngine:
             
             element_info = current_elements_to_render[rendered_count]
             element = element_info['element']
+            
+            # CRITICAL: For fields, check if already rendered on previous pages
+            if element.get('type') == 'field':
+                if self._field_already_rendered_on_previous_page(element, page_num, pagination_info):
+                    logger.debug(f"[DUPLICATE] Page {page_num}: Skipping field already rendered on previous page: "
+                               f"bind={element.get('config', {}).get('bind')}, "
+                               f"y={element.get('y', 0)}")
+                    rendered_count += 1
+                    continue  # Skip this element, don't mark as rendered
+            
+            # Mark that we're about to render content
+            content_rendered = True
+            
             # CRITICAL: Get configured Y from the element itself (template config), not from element_info
             # element_info['y'] is the flow-based Y from pagination, not the configured Y from template
             configured_y = element.get('y', 0)
@@ -1513,7 +1791,7 @@ class PDFEngine:
             # Increment rendered count
             rendered_count += 1
         
-        return content_bottom
+        return content_bottom, content_rendered
     
     def _render_content_element(
         self, c: canvas.Canvas, element: Dict[str, Any], element_info: Dict[str, Any],
